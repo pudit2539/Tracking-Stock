@@ -1,9 +1,9 @@
 node_modules/
-data/*.db
-data/*.db-wal
-data/*.db-shm
+data/
+*.db
+*.db-wal
+*.db-shm
 .env
 .DS_Store
 .vercel
 npm-debug.log*
-
