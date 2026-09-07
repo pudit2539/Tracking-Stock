@@ -275,4 +275,28 @@ router.post('/line/report', async (req, res) => {
   }
 });
 
+router.post('/line/order-report', async (req, res) => {
+  try {
+    const { items, target_id, token, app_url } = req.body;
+    const host = req.get('host');
+    const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const detectedUrl = app_url || (host ? `${protocol}://${host}` : null);
+
+    let orderItems = items;
+    if (!orderItems || orderItems.length === 0) {
+      const alertsData = await stockService.getAlertsData();
+      orderItems = alertsData.low_stock_items;
+    }
+
+    if (!orderItems || orderItems.length === 0) {
+      return res.status(400).json({ success: false, error: 'ไม่มีรายการสินค้าที่ต่ำกว่าเกณฑ์ที่ต้องสั่งซื้อในขณะนี้' });
+    }
+
+    const result = await lineService.sendOrderReport(orderItems, target_id, token, detectedUrl);
+    res.json({ success: true, message: `ส่งรายการสั่งซื้อ ${orderItems.length} รายการเข้า LINE เรียบร้อยแล้ว!`, count: orderItems.length, result });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

@@ -157,12 +157,22 @@
           
           <!-- Low Stock Box -->
           <div class="bg-white rounded-2xl border border-rose-200 shadow-sm overflow-hidden">
-            <div class="p-4 bg-rose-50/70 border-b border-rose-200 flex justify-between items-center">
+            <div class="p-4 bg-rose-50/70 border-b border-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               <div class="flex items-center space-x-2">
                 <span class="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping"></span>
                 <h3 class="font-bold text-rose-900 text-sm sm:text-base">⚠️ สินค้าที่ต่ำกว่าเกณฑ์ Safety Stock</h3>
+                <span id="low-stock-badge-count" class="text-xs px-2.5 py-0.5 rounded-full bg-rose-200 text-rose-800 font-semibold">0 รายการ</span>
               </div>
-              <span id="low-stock-badge-count" class="text-xs px-2.5 py-0.5 rounded-full bg-rose-200 text-rose-800 font-semibold">0 รายการ</span>
+              <div class="flex items-center space-x-2">
+                <button type="button" onclick="copyOrderListToClipboard()" title="คัดลอกรายการสั่งของนำไปวางใน LINE หรือแชต" class="inline-flex items-center space-x-1 px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 shadow-2xs transition active:scale-95">
+                  <i data-lucide="copy" class="w-3.5 h-3.5 text-slate-600"></i>
+                  <span>📋 คัดลอกรายการ</span>
+                </button>
+                <button type="button" onclick="triggerSendOrderReport()" title="ส่งใบสรุปสั่งของเข้า LINE กลุ่มทันที" class="inline-flex items-center space-x-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-semibold rounded-lg shadow-xs transition">
+                  <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                  <span>📲 ส่งเข้า LINE</span>
+                </button>
+              </div>
             </div>
             <div id="low-stock-list" class="divide-y divide-slate-100 p-2">
               <!-- Rendered via JS -->
@@ -256,9 +266,13 @@
           </div>
 
           <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+            <button onclick="openOrderModal()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition shadow-xs">
+              <i data-lucide="shopping-cart" class="w-4 h-4"></i>
+              <span>🛒 สรุปสั่งของ (<span id="btn-inventory-order-count">0</span>)</span>
+            </button>
             <button onclick="openAddProductModal()" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition">
               <i data-lucide="plus" class="w-4 h-4"></i>
-              <span>เพิ่มสินค้าใหม่</span>
+              <span>เพิ่มสินค้า</span>
             </button>
             <button onclick="openAddBatchModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition">
               <i data-lucide="archive-restore" class="w-4 h-4"></i>
@@ -267,7 +281,7 @@
           </div>
         </div>
 
-        <!-- Filter Quick Chips -->
+        <!-- Filter Quick Chips: Views -->
         <div class="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100 text-xs">
           <span class="text-[11px] text-slate-400 mr-1">มุมมอง:</span>
           <button type="button" onclick="setInventoryFilter('ALL')" id="chip-filter-all" class="chip-filter px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-900 text-white transition">
@@ -281,6 +295,32 @@
           </button>
           <button type="button" onclick="setInventoryFilter('EXPIRING')" id="chip-filter-expiring" class="chip-filter px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition">
             ⏳ ใกล้หมดอายุ (<span id="count-expiring">0</span>)
+          </button>
+        </div>
+
+        <!-- Shelf Quick Filter Chips (Feature 2: เชลฟ์หน้าร้าน 5 หมวด) -->
+        <div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 text-xs">
+          <span class="text-[11px] text-slate-400 mr-1 flex items-center space-x-1">
+            <i data-lucide="layers" class="w-3.5 h-3.5 text-slate-400"></i>
+            <span>เชลฟ์หน้าร้าน:</span>
+          </span>
+          <button type="button" onclick="setCategoryFilter('ALL')" id="shelf-chip-all" class="shelf-chip px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-900 text-white transition active:scale-95">
+            ทั้งหมด
+          </button>
+          <button type="button" onclick="setCategoryFilter('แก้ว & ฝา')" id="shelf-chip-cups" class="shelf-chip px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition active:scale-95">
+            🥤 แก้ว & ฝา
+          </button>
+          <button type="button" onclick="setCategoryFilter('ช้อน & หลอด & หีบห่อ')" id="shelf-chip-pack" class="shelf-chip px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition active:scale-95">
+            🥄 ช้อน & หีบห่อ
+          </button>
+          <button type="button" onclick="setCategoryFilter('ท็อปปิ้ง & วัตถุดิบ')" id="shelf-chip-topping" class="shelf-chip px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition active:scale-95">
+            🍫 ท็อปปิ้ง & วัตถุดิบ
+          </button>
+          <button type="button" onclick="setCategoryFilter('ซอส & เครื่องดื่ม')" id="shelf-chip-sauce" class="shelf-chip px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition active:scale-95">
+            🌭 ซอส & เครื่องดื่ม
+          </button>
+          <button type="button" onclick="setCategoryFilter('อุปกรณ์ & ของใช้')" id="shelf-chip-tools" class="shelf-chip px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition active:scale-95">
+            🧤 อุปกรณ์ & ของใช้
           </button>
         </div>
       </div>
@@ -589,8 +629,14 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block font-semibold text-slate-700 mb-1">หมวดหมู่</label>
-            <input type="text" id="prod-category" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-rose-500 focus:outline-none" placeholder="เบเกอรี่, เนื้อสัตว์, เครื่องดื่ม">
+            <label class="block font-semibold text-slate-700 mb-1">หมวดหมู่ / เชลฟ์</label>
+            <select id="prod-category" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-rose-500 focus:outline-none bg-white">
+              <option value="แก้ว & ฝา">🥤 แก้ว & ฝา</option>
+              <option value="ช้อน & หลอด & หีบห่อ">🥄 ช้อน & หลอด & หีบห่อ</option>
+              <option value="ท็อปปิ้ง & วัตถุดิบ">🍫 ท็อปปิ้ง & วัตถุดิบ</option>
+              <option value="ซอส & เครื่องดื่ม">🌭 ซอส & เครื่องดื่ม</option>
+              <option value="อุปกรณ์ & ของใช้">🧤 อุปกรณ์ & ของใช้</option>
+            </select>
           </div>
           <div>
             <label class="block font-semibold text-slate-700 mb-1">หน่วยนับ <span class="text-rose-500">*</span></label>
@@ -776,6 +822,57 @@
         </div>
       </form>
     </div>
+  </dialog>
+
+  <!-- Modal 6: One-Click Order Summary & Share (🛒 สรุปรายการสั่งของคลิกเดียว) -->
+  <dialog id="modal-order-summary" class="rounded-3xl p-0 w-full max-w-lg shadow-2xl border border-slate-200 backdrop:bg-slate-900/50 m-auto max-h-[94vh] overflow-y-auto">
+    <div class="p-5 sm:p-6 bg-white space-y-4 text-xs">
+      <div class="flex justify-between items-start border-b border-slate-100 pb-3">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-800 text-[10px] font-extrabold uppercase tracking-wider">One-Click Order</span>
+            <span id="order-modal-date" class="text-[10px] text-slate-400">Dairy Queen SAT</span>
+          </div>
+          <h3 class="text-base font-bold text-slate-900 mt-1 flex items-center space-x-1.5">
+            <span>🛒 สรุปรายการสั่งของที่ต้องเติม</span>
+          </h3>
+          <p class="text-slate-500 text-[11px] mt-0.5">สินค้าที่คงเหลือ &le; Safety Stock (แนะนำสั่งเพิ่มให้ถึง 2 เท่าของ Safety)</p>
+        </div>
+        <button onclick="closeDialog('modal-order-summary')" class="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Order List Container -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between text-xs font-semibold text-slate-500 px-1">
+          <span>รายการสินค้า (<span id="order-list-count">0</span> รายการ)</span>
+          <span>จำนวนที่สั่ง</span>
+        </div>
+        <div id="order-modal-items" class="divide-y divide-slate-100 max-h-72 overflow-y-auto border border-slate-200 rounded-2xl p-2 bg-slate-50/50 space-y-1">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="pt-3 border-t border-slate-100 space-y-2">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button type="button" onclick="copyOrderListToClipboard()" class="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center space-x-2 transition">
+            <i data-lucide="copy" class="w-4 h-4 text-slate-300"></i>
+            <span>📋 คัดลอกรายการ (Copy แชต)</span>
+          </button>
+          <button type="button" onclick="triggerSendOrderReport()" class="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center space-x-2 transition">
+            <i data-lucide="send" class="w-4 h-4 text-blue-200"></i>
+            <span>📲 ส่งเข้า LINE กลุ่มทันที</span>
+          </button>
+        </div>
+        <button type="button" onclick="closeDialog('modal-order-summary')" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold rounded-xl text-xs transition">
+          ปิดหน้าต่าง
+        </button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- Modal 5: Quick Stock & Expiry Update (⚡ อัปเดตด่วน สต็อกและวันหมดอายุ - Mobile First) -->
   <dialog id="modal-quick-update" class="rounded-3xl p-0 w-full max-w-lg shadow-2xl border border-slate-200 backdrop:bg-slate-900/50 m-auto max-h-[94vh] overflow-y-auto">
     <div class="p-5 sm:p-6 bg-white space-y-4 text-xs">

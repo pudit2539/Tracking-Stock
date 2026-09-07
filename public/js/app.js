@@ -10,6 +10,83 @@ let state = {
   activeTab: 'dashboard'
 };
 
+// =======================================================
+// HAPTIC & SYNTHETIC AUDIO FEEDBACK ENGINE (Feature 4)
+// =======================================================
+let audioCtx = null;
+function playTapFeedback(type = 'click') {
+  // 1. Web Vibration API (Mobile Tactile Feedback)
+  try {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      if (type === 'save') {
+        navigator.vibrate([35, 45, 35]); // Double confirmation pulse
+      } else if (type === 'zero') {
+        navigator.vibrate([45, 30, 45]);
+      } else if (type === 'alert') {
+        navigator.vibrate([60, 50, 60]);
+      } else {
+        navigator.vibrate(22); // Subtle tactile tap
+      }
+    }
+  } catch (e) {}
+
+  // 2. Web Audio API (Subtle Soft Click Audio, 0ms Latency)
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    if (!audioCtx) {
+      audioCtx = new AudioContext();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    if (type === 'save') {
+      // Pleasant double bell (success chime)
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, now); // D5
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.08); // A5
+      gain.gain.setValueAtTime(0.14, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } else if (type === 'zero') {
+      // Deeper thud for empty / 0
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(260, now);
+      osc.frequency.exponentialRampToValueAtTime(120, now + 0.05);
+      gain.gain.setValueAtTime(0.14, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    } else if (type === 'alert') {
+      // Low warning tone
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.1);
+      gain.gain.setValueAtTime(0.10, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+      osc.start(now);
+      osc.stop(now + 0.1);
+    } else {
+      // Soft high-end tactile click
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(750, now);
+      osc.frequency.exponentialRampToValueAtTime(380, now + 0.035);
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.035);
+      osc.start(now);
+      osc.stop(now + 0.035);
+    }
+  } catch (e) {}
+}
+
 // Cache configuration for instant 0ms rendering
 const CACHE_KEY = 'dq_stock_cache_v2';
 
@@ -339,6 +416,195 @@ function renderLineFlexPreview() {
   `).join('');
 }
 
+// =======================================================
+// ONE-CLICK ORDER LIST ENGINE (Feature 1)
+// =======================================================
+function getOrderItems() {
+  const lowItems = (state.alerts && state.alerts.low_stock_items && state.alerts.low_stock_items.length > 0)
+    ? state.alerts.low_stock_items 
+    : state.products.filter(p => p.is_low_stock);
+
+  return lowItems.map(item => {
+    const safety = Number(item.safety_stock || 1);
+    const cur = Number(item.current_stock || 0);
+    // Suggest ordering to bring stock up to double safety stock (at least 1 unit)
+    const suggested = Math.max(1, (safety * 2) - cur);
+    return {
+      ...item,
+      order_qty: suggested
+    };
+  });
+}
+
+function formatOrderListText(items) {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  const webUrl = window.location.origin;
+
+  let text = `🛒 ใบสั่งของ / สรุปรายการสั่งซื้อวัตถุดิบ DQ SAT\n`;
+  text += `📅 ประจำวันที่: ${dateStr} เวลา ${timeStr} น.\n`;
+  text += `----------------------------------------\n`;
+
+  if (!items || items.length === 0) {
+    text += `🎉 สต็อกสินค้าทุกรายการเพียงพอ ไม่มีของที่ต้องสั่งเพิ่ม\n`;
+  } else {
+    items.forEach((it, idx) => {
+      text += `${idx + 1}. ${it.name} (${it.category || 'วัตถุดิบ'})\n`;
+      text += `   👉 สั่งเพิ่ม: ${it.order_qty} ${it.unit} (คงเหลือ: ${it.current_stock} | จุดเตือน: ${it.safety_stock})\n`;
+    });
+    text += `----------------------------------------\n`;
+    text += `รวมรายการสั่งซื้อทั้งหมด: ${items.length} รายการ\n`;
+  }
+
+  text += `🌐 ตรวจเช็คสต็อกหน้าร้าน: ${webUrl}`;
+  return text;
+}
+
+async function copyOrderListToClipboard() {
+  playTapFeedback('click');
+  const items = getOrderItems();
+  if (items.length === 0) {
+    showToast('ไม่มีรายการสินค้าที่ต่ำกว่า Safety Stock ในขณะนี้');
+    return;
+  }
+  const text = formatOrderListText(items);
+  try {
+    await navigator.clipboard.writeText(text);
+    playTapFeedback('save');
+    showToast(`📋 คัดลอกรายการสั่งของ ${items.length} รายการสำเร็จ! วางใน LINE ได้ทันที`);
+  } catch (err) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    playTapFeedback('save');
+    showToast(`📋 คัดลอกรายการสั่งของ ${items.length} รายการสำเร็จ!`);
+  }
+}
+
+async function triggerSendOrderReport() {
+  playTapFeedback('click');
+  const items = getOrderItems();
+  if (items.length === 0) {
+    showToast('ไม่มีรายการสินค้าที่ต่ำกว่า Safety Stock ในขณะนี้');
+    return;
+  }
+
+  showToast('⏳ กำลังส่งสรุปรายการสั่งของเข้า LINE กลุ่ม...');
+  try {
+    const res = await fetch('/api/line/order-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: items,
+        app_url: window.location.origin
+      })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    playTapFeedback('save');
+    showToast(`📲 ส่งรายการสั่งของ ${items.length} รายการเข้า LINE สำเร็จ!`);
+  } catch (err) {
+    playTapFeedback('alert');
+    showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+  }
+}
+
+function openOrderModal() {
+  playTapFeedback('click');
+  renderOrderModal();
+  openDialog('modal-order-summary');
+}
+
+function renderOrderModal() {
+  const items = getOrderItems();
+  const container = document.getElementById('order-modal-items');
+  const countEl = document.getElementById('order-list-count');
+  if (countEl) countEl.textContent = items.length;
+
+  if (!container) return;
+
+  if (items.length === 0) {
+    container.innerHTML = `
+      <div class="p-6 text-center text-slate-400 text-xs">
+        <i data-lucide="check-circle" class="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80"></i>
+        <p>ไม่มีสินค้าที่ต่ำกว่า Safety Stock สต็อกเพียงพอทุกรายการ</p>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  container.innerHTML = items.map((it, idx) => `
+    <div class="p-2.5 bg-white rounded-xl flex items-center justify-between border border-slate-100 shadow-2xs">
+      <div class="flex items-center space-x-2.5">
+        <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-600 font-bold text-[11px] flex items-center justify-center shrink-0">${idx + 1}</span>
+        <div>
+          <div class="font-bold text-slate-900 text-xs">${it.name}</div>
+          <div class="text-[10px] text-slate-500">${it.category || 'ทั่วไป'} · เหลือ <span class="font-semibold text-rose-600">${it.current_stock}</span> / เกณฑ์ ${it.safety_stock} ${it.unit}</div>
+        </div>
+      </div>
+      <div class="flex items-center space-x-1.5">
+        <span class="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+          +${it.order_qty} ${it.unit}
+        </span>
+      </div>
+    </div>
+  `).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+// =======================================================
+// SHELF & CATEGORY FILTERING (Feature 2)
+// =======================================================
+function setCategoryFilter(category) {
+  playTapFeedback('click');
+  const catSelect = document.getElementById('filter-category');
+  if (catSelect) catSelect.value = category;
+  updateShelfChipsActive(category);
+  filterInventory();
+}
+
+function updateShelfChipsActive(activeCat) {
+  const shelfChipMap = {
+    'ALL': 'shelf-chip-all',
+    'แก้ว & ฝา': 'shelf-chip-cups',
+    'ช้อน & หลอด & หีบห่อ': 'shelf-chip-pack',
+    'ท็อปปิ้ง & วัตถุดิบ': 'shelf-chip-topping',
+    'ซอส & เครื่องดื่ม': 'shelf-chip-sauce',
+    'อุปกรณ์ & ของใช้': 'shelf-chip-tools'
+  };
+
+  document.querySelectorAll('.shelf-chip').forEach(btn => {
+    btn.className = 'shelf-chip px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition active:scale-95';
+  });
+
+  const targetId = shelfChipMap[activeCat];
+  const targetEl = document.getElementById(targetId);
+  if (targetEl) {
+    targetEl.className = 'shelf-chip px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-600 text-white shadow-xs transition active:scale-95';
+  } else {
+    const allEl = document.getElementById('shelf-chip-all');
+    if (allEl && activeCat === 'ALL') {
+      allEl.className = 'shelf-chip px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-900 text-white shadow-xs transition active:scale-95';
+    }
+  }
+}
+
+function filterInventory() {
+  renderInventoryTable();
+}
+
+function setInventoryFilter(filter) {
+  playTapFeedback('click');
+  state.inventoryFilter = filter;
+  renderInventoryTable();
+}
+
 // 4. Render Inventory Table with Filters & Quick Update
 function renderInventoryTable() {
   const tbody = document.getElementById('inventory-table-body');
@@ -360,6 +626,9 @@ function renderInventoryTable() {
   if (countNoExpEl) countNoExpEl.textContent = noExpiryCount;
   const countExpEl = document.getElementById('count-expiring');
   if (countExpEl) countExpEl.textContent = expiringCount;
+
+  const btnInvOrder = document.getElementById('btn-inventory-order-count');
+  if (btnInvOrder) btnInvOrder.textContent = lowCount;
 
   // Update active chip styles
   document.querySelectorAll('.chip-filter').forEach(btn => {
@@ -384,16 +653,22 @@ function renderInventoryTable() {
     }
   }
 
-  // Extract unique categories
+  // Extract unique categories & update dropdown
   const categories = [...new Set(state.products.map(p => p.category).filter(Boolean))];
   const catSelect = document.getElementById('filter-category');
-  if (catSelect && catSelect.options.length <= 1) {
+  if (catSelect) {
+    const prevVal = catSelect.value || selectedCat;
+    catSelect.innerHTML = '<option value="ALL">ทุกหมวดหมู่ (54)</option>';
     categories.forEach(cat => {
       const opt = document.createElement('option');
       opt.value = cat;
       opt.textContent = cat;
       catSelect.appendChild(opt);
     });
+    if (categories.includes(prevVal) || prevVal === 'ALL') {
+      catSelect.value = prevVal;
+    }
+    updateShelfChipsActive(catSelect.value);
   }
 
   const filtered = state.products.filter(p => {
@@ -1242,20 +1517,25 @@ function populateQuickModal() {
 }
 
 function setQuickSafety(val) {
+  playTapFeedback('click');
   document.getElementById('quick-safety-stock').value = val;
 }
 
 function setQuickQty(val) {
+  if (val === 0) playTapFeedback('zero');
+  else playTapFeedback('click');
   document.getElementById('quick-quantity').value = val;
 }
 
 function adjustQuickQty(delta) {
+  playTapFeedback('click');
   const el = document.getElementById('quick-quantity');
   const cur = parseFloat(el.value) || 0;
   el.value = Math.max(0, cur + delta);
 }
 
 function applyDatePreset(amount, unit) {
+  playTapFeedback('click');
   const d = new Date();
   if (unit === 'days') {
     d.setDate(d.getDate() + amount);
@@ -1289,10 +1569,12 @@ async function handleSaveQuickUpdate(event) {
     const json = await res.json();
     if (!json.success) throw new Error(json.error);
 
+    playTapFeedback('save');
     showToast('✅ อัปเดตข้อมูลสินค้าสำเร็จ');
     await loadAllData();
     closeDialog('modal-quick-update');
   } catch (err) {
+    playTapFeedback('alert');
     showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
   }
 }
@@ -1318,6 +1600,7 @@ async function handleSaveAndNextQuickUpdate(event) {
     const json = await res.json();
     if (!json.success) throw new Error(json.error);
 
+    playTapFeedback('save');
     showToast('✅ บันทึกแล้ว กำลังไปรายการถัดไป...');
     await loadAllData();
 
@@ -1329,11 +1612,13 @@ async function handleSaveAndNextQuickUpdate(event) {
       showToast('🎉 บันทึกครบทุกรายการแล้ว!');
     }
   } catch (err) {
+    playTapFeedback('alert');
     showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
   }
 }
 
 function navigateQuickProduct(direction) {
+  playTapFeedback('click');
   const newIdx = currentQuickIndex + direction;
   if (newIdx >= 0 && newIdx < quickProductList.length) {
     currentQuickIndex = newIdx;

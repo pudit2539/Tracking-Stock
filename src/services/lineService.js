@@ -553,6 +553,212 @@ class LineService {
 
     return this.sendPushMessage(messages, targetId, token);
   }
+
+  // 5. Build Flex Message for Order List (One-Click Order Sharing)
+  buildOrderListFlex(items, webUrl = null) {
+    if (!items || items.length === 0) return null;
+
+    const bodyContents = [];
+    const maxDisplay = 20;
+    const displayItems = items.slice(0, maxDisplay);
+
+    displayItems.forEach((item, index) => {
+      const orderQty = item.order_qty !== undefined ? item.order_qty : Math.max(1, (Number(item.safety_stock || 1) * 2) - Number(item.current_stock || 0));
+      const itemRow = {
+        type: 'box',
+        layout: 'horizontal',
+        alignItems: 'center',
+        contents: [
+          {
+            type: 'box',
+            layout: 'vertical',
+            width: '4px',
+            backgroundColor: '#2563EB',
+            cornerRadius: '2px',
+            contents: [{ type: 'filler' }]
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            flex: 6,
+            margin: 'md',
+            contents: [
+              {
+                type: 'text',
+                text: item.name,
+                weight: 'bold',
+                size: 'sm',
+                color: '#1E293B'
+              },
+              {
+                type: 'text',
+                text: `${item.category || 'วัตถุดิบ'} · มีอยู่ ${item.current_stock} ${item.unit}`,
+                size: 'xs',
+                color: '#64748B',
+                margin: 'xs'
+              }
+            ]
+          },
+          {
+            type: 'box',
+            layout: 'vertical',
+            flex: 4,
+            alignItems: 'flex-end',
+            contents: [
+              {
+                type: 'text',
+                text: `สั่ง ${orderQty} ${item.unit}`,
+                weight: 'bold',
+                size: 'sm',
+                color: '#059669'
+              },
+              {
+                type: 'text',
+                text: `Safety: ${item.safety_stock}`,
+                size: 'xxs',
+                color: '#94A3B8'
+              }
+            ]
+          }
+        ]
+      };
+
+      bodyContents.push(itemRow);
+
+      if (index < displayItems.length - 1) {
+        bodyContents.push({
+          type: 'separator',
+          margin: 'md',
+          color: '#F1F5F9'
+        });
+      }
+    });
+
+    if (items.length > maxDisplay) {
+      bodyContents.push({
+        type: 'separator',
+        margin: 'md',
+        color: '#CBD5E1'
+      });
+      bodyContents.push({
+        type: 'box',
+        layout: 'vertical',
+        margin: 'md',
+        paddingTop: '4px',
+        contents: [
+          {
+            type: 'text',
+            text: `... และอีก ${items.length - maxDisplay} รายการ (เปิดดูทั้งหมดบนเว็บ)`,
+            size: 'xs',
+            color: '#64748B',
+            align: 'center',
+            weight: 'bold'
+          }
+        ]
+      });
+    }
+
+    const bubble = {
+      type: 'bubble',
+      size: 'mega',
+      ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: webUrl } } : {}),
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#1E3A8A',
+        paddingTop: '18px',
+        paddingBottom: '16px',
+        paddingStart: '20px',
+        paddingEnd: '20px',
+        ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: webUrl } } : {}),
+        contents: [
+          {
+            type: 'text',
+            text: '🛒 ใบสั่งของ / สรุปรายการสั่งซื้อ',
+            weight: 'bold',
+            size: 'lg',
+            color: '#FFFFFF'
+          },
+          {
+            type: 'text',
+            text: `พบ ${items.length} รายการที่ต้องสั่งซื้อเพิ่ม (Dairy Queen SAT)`,
+            size: 'xs',
+            color: '#93C5FD',
+            margin: 'xs'
+          }
+        ]
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingTop: '16px',
+        paddingBottom: '16px',
+        paddingStart: '20px',
+        paddingEnd: '20px',
+        spacing: 'md',
+        contents: bodyContents
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#F8FAFC',
+        paddingTop: '12px',
+        paddingBottom: '12px',
+        paddingStart: '16px',
+        paddingEnd: '16px',
+        spacing: 'sm',
+        contents: webUrl ? [
+          {
+            type: 'button',
+            style: 'primary',
+            color: '#2563EB',
+            height: 'sm',
+            action: {
+              type: 'uri',
+              label: '📱 เปิดตรวจเช็คและรับของเข้าสต็อก',
+              uri: webUrl
+            }
+          },
+          {
+            type: 'text',
+            text: '📦 ตรวจรับสินค้าแล้วแตะเพื่ออัปเดตสต็อกทันที',
+            color: '#64748B',
+            size: 'xxs',
+            align: 'center'
+          }
+        ] : [
+          {
+            type: 'text',
+            text: '📦 รายการสั่งซื้อวัตถุดิบ Dairy Queen',
+            color: '#2563EB',
+            size: 'xs',
+            align: 'center',
+            weight: 'bold'
+          }
+        ]
+      },
+      styles: {
+        header: { backgroundColor: '#1E3A8A' },
+        footer: { separator: true }
+      }
+    };
+
+    return {
+      type: 'flex',
+      altText: `🛒 รายการสั่งซื้อวัตถุดิบ ${items.length} รายการ (DQ SAT)`,
+      contents: bubble
+    };
+  }
+
+  // 6. Send Order Report to LINE
+  async sendOrderReport(orderItems, targetId = null, token = null, currentUrl = null) {
+    const webUrl = await this.getAppUrl(currentUrl);
+    if (!orderItems || orderItems.length === 0) {
+      return { success: false, error: 'ไม่มีรายการสินค้าที่ต้องสั่งซื้อ' };
+    }
+    const orderFlex = this.buildOrderListFlex(orderItems, webUrl);
+    return this.sendPushMessage(orderFlex, targetId, token);
+  }
 }
 
 module.exports = new LineService();
