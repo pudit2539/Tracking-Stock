@@ -1,18 +1,17 @@
 {
   "git.autorefresh": false,
   "git.autofetch": false,
-  "git.autoStash": false,
-  "git.status.submodules": false,
-  "git.detectSubmodules": false,
+  "git.autoRepositoryDetection": false,
   "git.decorations.enabled": false,
+  "git.openRepositoryInParentFolders": "never",
+  "git.statusLimit": 0,
   "files.watcherExclude": {
     "**/.git/**": true,
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
     "**/node_modules/**": true,
     "**/data/**": true,
-    "**/*.db*": true
-  },
-  "search.exclude": {
-    "**/node_modules": true,
-    "**/data": true
+    "**/*.db*": true,
+    "**/.next/**": true
   }
 }
