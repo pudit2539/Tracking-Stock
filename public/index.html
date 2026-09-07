@@ -364,78 +364,123 @@
       
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
-        <!-- Form: Settings -->
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
-          <div class="border-b border-slate-100 pb-3">
-            <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
-              <i data-lucide="message-square" class="w-5 h-5 text-emerald-600"></i>
-              <span>ตั้งค่าการเชื่อมต่อ LINE Messaging API</span>
-            </h3>
-            <p class="text-xs text-slate-500 mt-1">กรอกข้อมูล Channel Access Token และ Target ID เพื่อให้ระบบส่งแจ้งเตือนได้</p>
+        <!-- Left Col: Token & Recipients Management -->
+        <div class="space-y-6">
+
+          <!-- Card 1: Channel Token & Schedule -->
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+            <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+              <div>
+                <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
+                  <i data-lucide="key" class="w-5 h-5 text-emerald-600"></i>
+                  <span>LINE Channel Access Token & เวลาแจ้งเตือน</span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">กุญแจหลักสำหรับส่งข้อความ และกำหนดเวลาแจ้งเตือนอัตโนมัติ</p>
+              </div>
+            </div>
+
+            <form id="settings-form" onsubmit="saveSettings(event)" class="space-y-4 text-xs">
+              <!-- Token -->
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">
+                  LINE Channel Access Token (Long-lived) <span class="text-rose-500">*</span>
+                </label>
+                <input type="password" id="setting-token" class="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="ได้จาก LINE Developers Console > Messaging API">
+                <p class="text-[11px] text-slate-400 mt-1">คัดลอกได้จากแท็บ Messaging API ของบอทในเว็บ LINE Developers</p>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <!-- Daily Alert Time -->
+                <div>
+                  <label class="block font-semibold text-slate-700 mb-1">เวลาแจ้งเตือนประจำวัน</label>
+                  <input type="time" id="setting-alert-time" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none" value="08:00">
+                  <p class="text-[11px] text-slate-400 mt-1">ส่งสรุปอัตโนมัติทุกเช้าในเวลานี้</p>
+                </div>
+
+                <!-- Expiry Alert Days -->
+                <div>
+                  <label class="block font-semibold text-slate-700 mb-1">เตือนวันหมดอายุล่วงหน้า (วัน)</label>
+                  <input type="number" id="setting-expiry-days" min="1" max="90" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none" value="7">
+                  <p class="text-[11px] text-slate-400 mt-1">เช่น 7 วันก่อนถึงวันหมดอายุ</p>
+                </div>
+              </div>
+
+              <!-- Toggles -->
+              <div class="space-y-2 pt-1">
+                <label class="flex items-center space-x-2 cursor-pointer">
+                  <input type="checkbox" id="setting-enable-low-stock" class="rounded text-emerald-600 focus:ring-emerald-500" checked>
+                  <span class="text-slate-700 font-medium">เปิดการแจ้งเตือนสต็อกใกล้หมด (ต่ำกว่า Safety Stock)</span>
+                </label>
+                <label class="flex items-center space-x-2 cursor-pointer">
+                  <input type="checkbox" id="setting-enable-expiry" class="rounded text-emerald-600 focus:ring-emerald-500" checked>
+                  <span class="text-slate-700 font-medium">เปิดการแจ้งเตือนวันหมดอายุ (ใกล้หมด & หมดอายุแล้ว)</span>
+                </label>
+              </div>
+
+              <div class="pt-3 border-t border-slate-100 flex flex-wrap gap-2">
+                <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-sm transition flex items-center space-x-1.5">
+                  <i data-lucide="save" class="w-4 h-4"></i>
+                  <span>บันทึกการตั้งค่า Token</span>
+                </button>
+              </div>
+            </form>
           </div>
 
-          <form id="settings-form" onsubmit="saveSettings(event)" class="space-y-4 text-xs">
-            <!-- Token -->
-            <div>
-              <label class="block font-semibold text-slate-700 mb-1">
-                LINE Channel Access Token (Long-lived) <span class="text-rose-500">*</span>
-              </label>
-              <input type="password" id="setting-token" class="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="ได้จาก LINE Developers Console > Messaging API">
-              <p class="text-[11px] text-slate-400 mt-1">คัดลอกได้จากแท็บ Messaging API ของบอทในเว็บ LINE Developers</p>
-            </div>
-
-            <!-- Target ID -->
-            <div>
-              <label class="block font-semibold text-slate-700 mb-1">
-                LINE Target ID (User ID หรือ Group ID) <span class="text-rose-500">*</span>
-              </label>
-              <input type="text" id="setting-target-id" class="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="ขึ้นต้นด้วย U... (ส่วนตัว) หรือ C... / R... (กลุ่ม)">
-              <p class="text-[11px] text-slate-400 mt-1">หากต้องการส่งเข้ากลุ่ม ให้ใส่ Group ID (ดูวิธีหาได้จากคู่มือด้านขวา)</p>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-              <!-- Daily Alert Time -->
+          <!-- Card 2: Multiple Recipients (Personal & Groups) -->
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+            <div class="border-b border-slate-100 pb-3 flex flex-col sm:flex-row justify-between sm:items-center gap-2">
               <div>
-                <label class="block font-semibold text-slate-700 mb-1">เวลาแจ้งเตือนประจำวัน</label>
-                <input type="time" id="setting-alert-time" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none" value="08:00">
-                <p class="text-[11px] text-slate-400 mt-1">ระบบจะส่งสรุปอัตโนมัติทุกวันในเวลานี้</p>
+                <div class="flex items-center space-x-2">
+                  <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
+                    <i data-lucide="users" class="w-5 h-5 text-blue-600"></i>
+                    <span>ปลายทางรับการแจ้งเตือน (ผู้ใช้ & ไลน์กลุ่ม)</span>
+                  </h3>
+                  <span id="recipient-count-badge" class="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">0 ปลายทาง</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">สามารถเพิ่มได้หลายคน และหลายกลุ่มพร้อมกัน</p>
               </div>
+              <button onclick="openAddRecipientModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition self-start sm:self-auto">
+                <i data-lucide="user-plus" class="w-4 h-4"></i>
+                <span>+ เพิ่มผู้รับ / เพิ่มกลุ่ม</span>
+              </button>
+            </div>
 
-              <!-- Expiry Alert Days -->
-              <div>
-                <label class="block font-semibold text-slate-700 mb-1">เตือนวันหมดอายุล่วงหน้า (วัน)</label>
-                <input type="number" id="setting-expiry-days" min="1" max="90" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none" value="7">
-                <p class="text-[11px] text-slate-400 mt-1">เช่น 7 วันก่อนถึงวันหมดอายุ</p>
+            <!-- Recipients Table / List -->
+            <div class="overflow-x-auto border border-slate-100 rounded-xl">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                  <tr>
+                    <th class="p-3">ประเภท</th>
+                    <th class="p-3">ชื่อเรียกปลายทาง</th>
+                    <th class="p-3">Target ID</th>
+                    <th class="p-3 text-center">สถานะรับข้อความ</th>
+                    <th class="p-3 text-center">จัดการ</th>
+                  </tr>
+                </thead>
+                <tbody id="recipients-table-body" class="divide-y divide-slate-100">
+                  <!-- Rendered via JS -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Broadcast Buttons -->
+            <div class="pt-3 border-t border-slate-100 flex flex-wrap gap-2 items-center justify-between">
+              <div class="text-[11px] text-slate-400">
+                💡 เวลาระบบส่งเตือนอัตโนมัติ จะส่งหาทุกปลายทางที่เปิดสถานะ "ใช้งาน" พร้อมกัน
+              </div>
+              <div class="flex items-center space-x-2">
+                <button type="button" onclick="triggerSendTestMessage()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition flex items-center space-x-1.5 text-xs">
+                  <i data-lucide="bell" class="w-4 h-4"></i>
+                  <span>🔔 ทดสอบส่งทุกคน/ทุกกลุ่ม</span>
+                </button>
+                <button type="button" onclick="triggerSendLiveReport()" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded-lg transition flex items-center space-x-1.5 text-xs">
+                  <i data-lucide="send" class="w-4 h-4"></i>
+                  <span>🚀 ส่งรายงานสด (ทุกกลุ่ม)</span>
+                </button>
               </div>
             </div>
+          </div>
 
-            <!-- Toggles -->
-            <div class="space-y-2 pt-2">
-              <label class="flex items-center space-x-2 cursor-pointer">
-                <input type="checkbox" id="setting-enable-low-stock" class="rounded text-emerald-600 focus:ring-emerald-500" checked>
-                <span class="text-slate-700 font-medium">เปิดการแจ้งเตือนสต็อกใกล้หมด (ต่ำกว่า Safety Stock)</span>
-              </label>
-              <label class="flex items-center space-x-2 cursor-pointer">
-                <input type="checkbox" id="setting-enable-expiry" class="rounded text-emerald-600 focus:ring-emerald-500" checked>
-                <span class="text-slate-700 font-medium">เปิดการแจ้งเตือนวันหมดอายุ (ใกล้หมด & หมดอายุแล้ว)</span>
-              </label>
-            </div>
-
-            <div class="pt-4 border-t border-slate-100 flex flex-wrap gap-2">
-              <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-sm transition flex items-center space-x-1.5">
-                <i data-lucide="save" class="w-4 h-4"></i>
-                <span>บันทึกการตั้งค่า</span>
-              </button>
-              <button type="button" onclick="triggerSendTestMessage()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition flex items-center space-x-1.5">
-                <i data-lucide="bell" class="w-4 h-4"></i>
-                <span>🔔 ทดสอบส่งข้อความ</span>
-              </button>
-              <button type="button" onclick="triggerSendLiveReport()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg transition flex items-center space-x-1.5">
-                <i data-lucide="send" class="w-4 h-4"></i>
-                <span>🚀 ส่งรายงานสด (Live Flex)</span>
-              </button>
-            </div>
-          </form>
         </div>
 
         <!-- Setup Guide & Group ID Discovery -->
@@ -652,6 +697,49 @@
         <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
           <button type="button" onclick="closeDialog('modal-usage')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg">ยกเลิก</button>
           <button type="submit" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg">บันทึกตัดสต็อก</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Modal 4: Add / Edit LINE Recipient (เพิ่ม/แก้ไข ผู้รับและกลุ่ม) -->
+  <dialog id="modal-recipient" class="rounded-2xl p-0 w-full max-w-md shadow-2xl border border-slate-200 backdrop:bg-slate-900/40">
+    <div class="p-5 bg-white space-y-4 text-xs">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 id="modal-recipient-title" class="text-sm font-bold text-slate-900 flex items-center space-x-1.5">
+          <i data-lucide="user-plus" class="w-4 h-4 text-blue-600"></i>
+          <span>เพิ่มปลายทางรับแจ้งเตือน</span>
+        </h3>
+        <button onclick="closeDialog('modal-recipient')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="form-recipient" onsubmit="handleSaveRecipient(event)" class="space-y-3">
+        <input type="hidden" id="rec-id">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">ชื่อเรียกปลายทาง <span class="text-rose-500">*</span></label>
+          <input type="text" id="rec-name" required class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="เช่น กลุ่มครัวหลัก, ผู้จัดการสมชาย, ทีมจัดซื้อ">
+          <p class="text-[11px] text-slate-400 mt-1">ตั้งชื่อที่จำง่าย เพื่อให้รู้ว่าเป็นใครหรือกลุ่มไหน</p>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">Target ID (User ID หรือ Group ID) <span class="text-rose-500">*</span></label>
+          <input type="text" id="rec-target-id" required class="w-full p-2 font-mono rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="ขึ้นต้นด้วย U... (ส่วนตัว) หรือ C... / R... (กลุ่ม)">
+          <p class="text-[11px] text-slate-400 mt-1">
+            • ถ้าเป็นแชทส่วนตัว: ใส่ User ID (`U...`) จากแท็บ Basic settings<br>
+            • ถ้าเป็นไลน์กลุ่ม: ใส่ Group ID (`C...` หรือ `R...`) จากการเชิญบอทเข้ากลุ่ม
+          </p>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">หมายเหตุเพิ่มเติม</label>
+          <input type="text" id="rec-notes" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="เช่น เบอร์โทร หรือ บทบาทหน้าที่">
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+          <button type="button" onclick="closeDialog('modal-recipient')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg">ยกเลิก</button>
+          <button type="submit" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">บันทึกปลายทาง</button>
         </div>
       </form>
     </div>

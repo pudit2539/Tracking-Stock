@@ -57,7 +57,30 @@ function initSchema() {
       key TEXT PRIMARY KEY,
       value TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS line_recipients (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      target_id TEXT NOT NULL UNIQUE,
+      type TEXT DEFAULT 'USER',
+      is_active INTEGER DEFAULT 1,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
   `);
+
+  // Migrate existing line_target_id to line_recipients if recipients table is empty
+  const recipientCount = db.prepare('SELECT COUNT(*) as count FROM line_recipients').get().count;
+  if (recipientCount === 0) {
+    const existingTarget = db.prepare("SELECT value FROM settings WHERE key = 'line_target_id'").get();
+    if (existingTarget && existingTarget.value && existingTarget.value.trim().length > 10) {
+      const val = existingTarget.value.trim();
+      const type = (val.startsWith('C') || val.startsWith('R')) ? 'GROUP' : 'USER';
+      const name = type === 'GROUP' ? 'LINE กลุ่มหลัก' : 'LINE ส่วนตัวหลัก';
+      db.prepare('INSERT OR IGNORE INTO line_recipients (name, target_id, type, is_active) VALUES (?, ?, ?, 1)')
+        .run(name, val, type);
+    }
+  }
 
   // Default settings if not already present
   const defaultSettings = [

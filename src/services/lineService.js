@@ -17,18 +17,7 @@ class LineService {
     return { token, targetId };
   }
 
-  async sendPushMessage(messages, customTargetId = null, customToken = null) {
-    const { token: defaultToken, targetId: defaultTarget } = await this.getCredentials();
-    const token = customToken || defaultToken;
-    const targetId = customTargetId || defaultTarget;
-
-    if (!token) {
-      throw new Error('กรุณากรอก LINE Channel Access Token ในหน้าตั้งค่า');
-    }
-    if (!targetId) {
-      throw new Error('กรุณากรอก LINE Target ID (User ID หรือ Group ID) ในหน้าตั้งค่า');
-    }
-
+  async sendToSingleTarget(token, targetId, messages) {
     const payload = {
       to: targetId,
       messages: Array.isArray(messages) ? messages : [messages]
@@ -56,10 +45,66 @@ class LineService {
       throw new Error(errorMsg);
     }
 
-    // Update last sent timestamp
-    await this.saveSetting('last_alert_sent_at', new Date().toISOString());
+    return true;
+  }
 
-    return { success: true, timestamp: new Date().toISOString() };
+  async sendPushMessage(messages, customTargetId = null, customToken = null) {
+    const { token: defaultToken, targetId: defaultTarget } = await this.getCredentials();
+    const token = customToken || defaultToken;
+
+    if (!token) {
+      throw new Error('กรุณากรอก LINE Channel Access Token ในหน้าตั้งค่า');
+    }
+
+    // Case 1: Send to a specific target directly
+    if (customTargetId) {
+      await this.sendToSingleTarget(token, customTargetId, messages);
+      await this.saveSetting('last_alert_sent_at', new Date().toISOString());
+      return { success: true, count: 1, targets: [customTargetId] };
+    }
+
+    // Case 2: Send to all active recipients in list
+    const activeRecipients = await dbClient.getActiveRecipients();
+
+    if (activeRecipients && activeRecipients.length > 0) {
+      const results = [];
+      const errors = [];
+
+      for (const rec of activeRecipients) {
+        try {
+          await this.sendToSingleTarget(token, rec.target_id, messages);
+          results.push({ id: rec.id, name: rec.name, target_id: rec.target_id, status: 'OK' });
+        } catch (err) {
+          console.error(`[LINE Error sending to ${rec.name} (${rec.target_id})]:`, err.message);
+          errors.push({ id: rec.id, name: rec.name, target_id: rec.target_id, error: err.message });
+        }
+      }
+
+      if (results.length > 0) {
+        await this.saveSetting('last_alert_sent_at', new Date().toISOString());
+      }
+
+      if (results.length === 0 && errors.length > 0) {
+        throw new Error(`ส่งไม่สำเร็จทุกปลายทาง: ${errors.map(e => `${e.name}: ${e.error}`).join('; ')}`);
+      }
+
+      return {
+        success: true,
+        count: results.length,
+        total: activeRecipients.length,
+        delivered: results,
+        failed: errors
+      };
+    }
+
+    // Case 3: Fallback to single target in settings
+    if (defaultTarget) {
+      await this.sendToSingleTarget(token, defaultTarget, messages);
+      await this.saveSetting('last_alert_sent_at', new Date().toISOString());
+      return { success: true, count: 1, targets: [defaultTarget] };
+    }
+
+    throw new Error('ยังไม่มีผู้รับหรือกลุ่มที่เปิดรับการแจ้งเตือน (กรุณาเพิ่มในตารางผู้รับ)');
   }
 
   // 1. Send Test Notification

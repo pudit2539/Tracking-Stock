@@ -61,6 +61,107 @@ const dbClient = {
     }
   },
 
+  // 1.1 RECIPIENTS (Multiple Users and Groups)
+  async getRecipients() {
+    if (isSupabase) {
+      const { data, error } = await supabase.from('line_recipients').select('*').order('created_at', { ascending: false });
+      if (error) throw new Error(error.message);
+      return (data || []).map(r => ({
+        ...r,
+        is_active: r.is_active ? 1 : 0
+      }));
+    } else {
+      return sqliteDb.prepare('SELECT * FROM line_recipients ORDER BY created_at DESC').all();
+    }
+  },
+
+  async getActiveRecipients() {
+    if (isSupabase) {
+      const { data, error } = await supabase.from('line_recipients').select('*').eq('is_active', true);
+      if (error) throw new Error(error.message);
+      return data || [];
+    } else {
+      return sqliteDb.prepare('SELECT * FROM line_recipients WHERE is_active = 1').all();
+    }
+  },
+
+  async createRecipient(data) {
+    const targetId = data.target_id.trim();
+    const type = (targetId.startsWith('C') || targetId.startsWith('R')) ? 'GROUP' : 'USER';
+    const payload = {
+      name: data.name?.trim() || (type === 'GROUP' ? 'LINE กลุ่ม' : 'LINE ส่วนตัว'),
+      target_id: targetId,
+      type,
+      is_active: data.is_active !== undefined ? (data.is_active ? 1 : 0) : 1,
+      notes: data.notes?.trim() || ''
+    };
+
+    if (isSupabase) {
+      const { data: res, error } = await supabase.from('line_recipients')
+        .upsert({ ...payload, is_active: Boolean(payload.is_active) }, { onConflict: 'target_id' })
+        .select().single();
+      if (error) throw new Error(error.message);
+      return res;
+    } else {
+      const stmt = sqliteDb.prepare(`
+        INSERT INTO line_recipients (name, target_id, type, is_active, notes)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(target_id) DO UPDATE SET
+          name = excluded.name,
+          type = excluded.type,
+          is_active = excluded.is_active,
+          notes = excluded.notes
+      `);
+      stmt.run(payload.name, payload.target_id, payload.type, payload.is_active, payload.notes);
+      return sqliteDb.prepare('SELECT * FROM line_recipients WHERE target_id = ?').get(payload.target_id);
+    }
+  },
+
+  async updateRecipient(id, data) {
+    const targetId = data.target_id?.trim();
+    const type = targetId ? ((targetId.startsWith('C') || targetId.startsWith('R')) ? 'GROUP' : 'USER') : data.type;
+    const payload = {
+      name: data.name?.trim(),
+      target_id: targetId,
+      type,
+      notes: data.notes?.trim() || ''
+    };
+
+    if (isSupabase) {
+      const { data: res, error } = await supabase.from('line_recipients').update(payload).eq('id', id).select().single();
+      if (error) throw new Error(error.message);
+      return res;
+    } else {
+      sqliteDb.prepare(`
+        UPDATE line_recipients
+        SET name = ?, target_id = ?, type = ?, notes = ?
+        WHERE id = ?
+      `).run(payload.name, payload.target_id, payload.type, payload.notes, id);
+      return sqliteDb.prepare('SELECT * FROM line_recipients WHERE id = ?').get(id);
+    }
+  },
+
+  async toggleRecipient(id, isActive) {
+    const val = isActive ? 1 : 0;
+    if (isSupabase) {
+      await supabase.from('line_recipients').update({ is_active: Boolean(val) }).eq('id', id);
+      return true;
+    } else {
+      sqliteDb.prepare('UPDATE line_recipients SET is_active = ? WHERE id = ?').run(val, id);
+      return true;
+    }
+  },
+
+  async deleteRecipient(id) {
+    if (isSupabase) {
+      await supabase.from('line_recipients').delete().eq('id', id);
+      return true;
+    } else {
+      sqliteDb.prepare('DELETE FROM line_recipients WHERE id = ?').run(id);
+      return true;
+    }
+  },
+
   // 2. PRODUCTS
   async getAllProducts() {
     const today = new Date().toISOString().split('T')[0];

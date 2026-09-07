@@ -169,6 +169,53 @@ router.post('/settings', async (req, res) => {
   }
 });
 
+// 5.1 LINE RECIPIENTS (Multiple Users & Groups)
+router.get('/line/recipients', async (req, res) => {
+  try {
+    const recipients = await dbClient.getRecipients();
+    res.json({ success: true, data: recipients });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/line/recipients', async (req, res) => {
+  try {
+    const recipient = await dbClient.createRecipient(req.body);
+    res.json({ success: true, data: recipient, message: 'เพิ่มผู้รับการแจ้งเตือนสำเร็จ' });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.put('/line/recipients/:id', async (req, res) => {
+  try {
+    const recipient = await dbClient.updateRecipient(req.params.id, req.body);
+    res.json({ success: true, data: recipient, message: 'แก้ไขข้อมูลผู้รับสำเร็จ' });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.patch('/line/recipients/:id/toggle', async (req, res) => {
+  try {
+    const { is_active } = req.body;
+    await dbClient.toggleRecipient(req.params.id, is_active);
+    res.json({ success: true, message: 'อัปเดตสถานะผู้รับเรียบร้อยแล้ว' });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.delete('/line/recipients/:id', async (req, res) => {
+  try {
+    await dbClient.deleteRecipient(req.params.id);
+    res.json({ success: true, message: 'ลบผู้รับการแจ้งเตือนเรียบร้อยแล้ว' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 6. MANUAL LINE TRIGGERS
 router.post('/line/test', async (req, res) => {
   try {

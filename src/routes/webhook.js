@@ -1,33 +1,47 @@
 const express = require('express');
 const router = express.Router();
 const lineService = require('../services/lineService');
+const dbClient = require('../db/dbClient');
 
-// Optional Webhook endpoint to easily discover User ID or Group ID
+// Webhook endpoint to auto-discover and register User ID or Group ID
 router.post('/webhook', async (req, res) => {
   const events = req.body.events || [];
-  const { token } = lineService.getCredentials();
+  const { token } = await lineService.getCredentials();
 
   for (const event of events) {
     let targetId = '';
     let targetType = '';
+    let typeCode = 'USER';
 
     if (event.source.type === 'group') {
       targetId = event.source.groupId;
-      targetType = 'LINE Group (กลุ่ม)';
+      targetType = 'LINE กลุ่ม (Group)';
+      typeCode = 'GROUP';
     } else if (event.source.type === 'room') {
       targetId = event.source.roomId;
-      targetType = 'LINE Room (ห้องสนทนา)';
+      targetType = 'LINE ห้องแชท (Room)';
+      typeCode = 'GROUP';
     } else {
       targetId = event.source.userId;
-      targetType = 'LINE User (แชทส่วนตัว)';
+      targetType = 'LINE ส่วนตัว (User)';
+      typeCode = 'USER';
     }
 
     console.log(`[LINE Webhook] Event from ${targetType}: ID = ${targetId}`);
 
-    // Auto-save group ID to settings so user doesn't even need to copy-paste manually!
-    if (targetId.startsWith('C') || targetId.startsWith('R')) {
-      lineService.saveSetting('line_target_id', targetId);
-      console.log(`[LINE Webhook] ✅ Auto-saved Group ID to system settings: ${targetId}`);
+    // Auto-register to line_recipients table so user doesn't even need to type it!
+    if (targetId) {
+      try {
+        await dbClient.createRecipient({
+          name: `${targetType.split(' ')[0]} ${targetId.slice(0, 4)}...${targetId.slice(-4)}`,
+          target_id: targetId,
+          type: typeCode,
+          is_active: 1
+        });
+        console.log(`[LINE Webhook] ✅ Auto-registered recipient: ${targetId}`);
+      } catch (err) {
+        console.log(`[LINE Webhook Recipient Exists or Info]:`, err.message);
+      }
     }
 
     const isJoin = event.type === 'join';
@@ -46,7 +60,7 @@ router.post('/webhook', async (req, res) => {
             messages: [
               {
                 type: 'text',
-                text: `📌 ตรวจพบ ${targetType}!\nTarget ID: ${targetId}\n\n(คุณสามารถคัดลอก ID นี้ไปวางในช่อง LINE Target ID ในหน้าตั้งค่าของระบบ Tracking ได้เลยครับ)`
+                text: `📌 บันทึก ${targetType} เข้าสู่ระบบแล้ว!\nID: ${targetId}\n\nระบบ Tracking ได้เพิ่มปลายทางนี้เข้าสู่รายชื่อรับแจ้งเตือนอัตโนมัติเรียบร้อยครับ 🎉`
               }
             ]
           })
@@ -61,4 +75,3 @@ router.post('/webhook', async (req, res) => {
 });
 
 module.exports = router;
-
