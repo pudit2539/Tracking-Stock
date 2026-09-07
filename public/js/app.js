@@ -971,6 +971,7 @@ function populateSettingsForm() {
   const s = state.settings;
   if (!s) return;
   if (document.getElementById('setting-token')) document.getElementById('setting-token').value = s.line_channel_access_token || '';
+  if (document.getElementById('setting-app-url')) document.getElementById('setting-app-url').value = s.app_url || window.location.origin;
   if (document.getElementById('setting-alert-time')) document.getElementById('setting-alert-time').value = s.daily_alert_time || '08:00';
   if (document.getElementById('setting-expiry-days')) document.getElementById('setting-expiry-days').value = s.default_expiry_alert_days || '7';
   if (document.getElementById('setting-enable-low-stock')) document.getElementById('setting-enable-low-stock').checked = s.enable_low_stock_alert === '1';
@@ -981,6 +982,7 @@ async function saveSettings(e) {
   e.preventDefault();
   const payload = {
     line_channel_access_token: document.getElementById('setting-token').value,
+    app_url: document.getElementById('setting-app-url')?.value.trim() || window.location.origin,
     daily_alert_time: document.getElementById('setting-alert-time').value,
     default_expiry_alert_days: parseInt(document.getElementById('setting-expiry-days').value, 10) || 7,
     enable_low_stock_alert: document.getElementById('setting-enable-low-stock').checked,
@@ -995,7 +997,7 @@ async function saveSettings(e) {
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.error);
-    showToast('บันทึกการตั้งค่า Token เรียบร้อยแล้ว');
+    showToast('บันทึกการตั้งค่า Token & Web URL เรียบร้อยแล้ว');
     await fetchSettings();
   } catch (err) {
     showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
@@ -1003,15 +1005,38 @@ async function saveSettings(e) {
 }
 
 // Trigger Manual LINE Notifications (Broadcast to all active recipients)
+async function triggerSendTestToRecipient(targetId, name) {
+  const appUrl = document.getElementById('setting-app-url')?.value.trim() || window.location.origin;
+  showToast(`กำลังส่งข้อความทดสอบไปยัง "${name}"...`);
+  try {
+    const res = await fetch('/api/line/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: document.getElementById('setting-token')?.value || undefined,
+        target_id: targetId,
+        app_url: appUrl
+      })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    showToast(`ส่งข้อความทดสอบไปยัง "${name}" สำเร็จแล้ว!`);
+  } catch (err) {
+    showToast('ส่งไม่สำเร็จ: ' + err.message, 'error');
+  }
+}
+
 async function triggerSendTestMessage() {
   const activeCount = state.recipients.filter(r => r.is_active).length;
+  const appUrl = document.getElementById('setting-app-url')?.value.trim() || window.location.origin;
   showToast(`กำลังส่งข้อความทดสอบไปยัง ${activeCount} ปลายทาง...`);
   try {
     const res = await fetch('/api/line/test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        token: document.getElementById('setting-token')?.value || undefined
+        token: document.getElementById('setting-token')?.value || undefined,
+        app_url: appUrl
       })
     });
     const json = await res.json();
@@ -1024,13 +1049,15 @@ async function triggerSendTestMessage() {
 
 async function triggerSendLiveReport() {
   const activeCount = state.recipients.filter(r => r.is_active).length;
+  const appUrl = document.getElementById('setting-app-url')?.value.trim() || window.location.origin;
   showToast(`กำลังส่งรายงานสต็อกไปยัง ${activeCount} ปลายทาง...`);
   try {
     const res = await fetch('/api/line/report', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        token: document.getElementById('setting-token')?.value || undefined
+        token: document.getElementById('setting-token')?.value || undefined,
+        app_url: appUrl
       })
     });
     const json = await res.json();
@@ -1041,28 +1068,58 @@ async function triggerSendLiveReport() {
   }
 }
 
-// Toast Feedback Notification
+// Toast Feedback Notification (Auto dismiss + Click to dismiss)
+let toastTimeout = null;
+
 function showToast(message, type = 'success') {
   const toast = document.getElementById('toast');
   const toastMsg = document.getElementById('toast-message');
   const toastIcon = document.getElementById('toast-icon');
+  if (!toast || !toastMsg) return;
+
+  if (toastTimeout) {
+    clearTimeout(toastTimeout);
+    toastTimeout = null;
+  }
 
   toastMsg.textContent = message;
+
+  // Reveal toast
+  toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+  toast.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
+
   if (type === 'error') {
-    toast.className = 'fixed bottom-5 right-5 z-50 transform translate-y-0 opacity-100 transition-all duration-300 bg-rose-900 text-white text-xs px-4 py-3 rounded-xl shadow-xl flex items-center space-x-2 border border-rose-700';
-    toastIcon.setAttribute('data-lucide', 'alert-circle');
-    toastIcon.className = 'w-4 h-4 text-rose-300';
+    toast.classList.remove('bg-slate-900', 'border-slate-700');
+    toast.classList.add('bg-rose-900', 'border-rose-700');
+    if (toastIcon) {
+      toastIcon.setAttribute('data-lucide', 'alert-circle');
+      toastIcon.className = 'w-4 h-4 text-rose-300 shrink-0';
+    }
   } else {
-    toast.className = 'fixed bottom-5 right-5 z-50 transform translate-y-0 opacity-100 transition-all duration-300 bg-slate-900 text-white text-xs px-4 py-3 rounded-xl shadow-xl flex items-center space-x-2 border border-slate-700';
-    toastIcon.setAttribute('data-lucide', 'check-circle');
-    toastIcon.className = 'w-4 h-4 text-emerald-400';
+    toast.classList.remove('bg-rose-900', 'border-rose-700');
+    toast.classList.add('bg-slate-900', 'border-slate-700');
+    if (toastIcon) {
+      toastIcon.setAttribute('data-lucide', 'check-circle');
+      toastIcon.className = 'w-4 h-4 text-emerald-400 shrink-0';
+    }
   }
 
   if (window.lucide) lucide.createIcons();
 
-  setTimeout(() => {
-    toast.classList.add('translate-y-20', 'opacity-0');
-  }, 4000);
+  toastTimeout = setTimeout(() => {
+    hideToast();
+  }, 3500);
+}
+
+function hideToast() {
+  const toast = document.getElementById('toast');
+  if (!toast) return;
+  if (toastTimeout) {
+    clearTimeout(toastTimeout);
+    toastTimeout = null;
+  }
+  toast.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+  toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
 }
 
 // ==============================================================

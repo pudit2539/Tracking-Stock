@@ -11,6 +11,30 @@ class LineService {
     return dbClient.saveSetting(key, value);
   }
 
+  async getAppUrl(currentUrl = null) {
+    try {
+      const savedUrl = await this.getSetting('app_url', '');
+      if (savedUrl && savedUrl.trim()) {
+        return savedUrl.trim();
+      }
+    } catch (e) {
+      // ignore
+    }
+    if (currentUrl && currentUrl.trim()) {
+      return currentUrl.trim();
+    }
+    if (process.env.APP_URL) {
+      return process.env.APP_URL.trim();
+    }
+    if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+      return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.trim()}`;
+    }
+    if (process.env.VERCEL_URL) {
+      return `https://${process.env.VERCEL_URL.trim()}`;
+    }
+    return '';
+  }
+
   async getCredentials() {
     const token = await this.getSetting('line_channel_access_token', process.env.LINE_CHANNEL_ACCESS_TOKEN || '');
     const targetId = await this.getSetting('line_target_id', process.env.LINE_TARGET_ID || '');
@@ -108,16 +132,21 @@ class LineService {
   }
 
   // 1. Send Test Notification
-  async sendTestMessage(targetId = null, token = null) {
+  async sendTestMessage(targetId = null, token = null, currentUrl = null) {
+    const webUrl = await this.getAppUrl(currentUrl);
+    let text = '✅ ทดสอบการแจ้งเตือน LINE สำเร็จ\nระบบพร้อมใช้งานสำหรับการแจ้งเตือนสต็อกสินค้าและวันหมดอายุ';
+    if (webUrl) {
+      text += `\n\n🌐 แตะเพื่อเปิดเข้าระบบ:\n${webUrl}`;
+    }
     const message = {
       type: 'text',
-      text: '✅ ทดสอบการแจ้งเตือน LINE สำเร็จ\nระบบพร้อมใช้งานสำหรับการแจ้งเตือนสต็อกสินค้าและวันหมดอายุ'
+      text: text
     };
     return this.sendPushMessage(message, targetId, token);
   }
 
   // 2. Build Flex Message for Low Stock
-  buildLowStockFlex(items) {
+  buildLowStockFlex(items, webUrl = null) {
     if (!items || items.length === 0) return null;
 
     const bodyContents = [];
@@ -220,74 +249,100 @@ class LineService {
       });
     }
 
+    const bubble = {
+      type: 'bubble',
+      size: 'mega',
+      ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: webUrl } } : {}),
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#991B1B',
+        paddingTop: '18px',
+        paddingBottom: '16px',
+        paddingStart: '20px',
+        paddingEnd: '20px',
+        ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: webUrl } } : {}),
+        contents: [
+          {
+            type: 'text',
+            text: '⚠️ แจ้งเตือนสินค้าใกล้หมด',
+            weight: 'bold',
+            size: 'lg',
+            color: '#FFFFFF'
+          },
+          {
+            type: 'text',
+            text: `พบ ${items.length} รายการที่ต่ำกว่า Safety Stock`,
+            size: 'xs',
+            color: '#FECACA',
+            margin: 'xs'
+          }
+        ]
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingTop: '16px',
+        paddingBottom: '16px',
+        paddingStart: '20px',
+        paddingEnd: '20px',
+        spacing: 'md',
+        contents: bodyContents
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#F9FAFB',
+        paddingTop: '12px',
+        paddingBottom: '12px',
+        paddingStart: '16px',
+        paddingEnd: '16px',
+        spacing: 'sm',
+        contents: webUrl ? [
+          {
+            type: 'button',
+            style: 'primary',
+            color: '#DC2626',
+            height: 'sm',
+            action: {
+              type: 'uri',
+              label: '📱 เปิดเช็คสต็อกสินค้า',
+              uri: webUrl
+            }
+          },
+          {
+            type: 'text',
+            text: '🛒 แตะเพื่อเปิดหน้าระบบสต็อกทันที',
+            color: '#6B7280',
+            size: 'xxs',
+            align: 'center'
+          }
+        ] : [
+          {
+            type: 'text',
+            text: '🛒 กรุณาสั่งซื้อวัตถุดิบเพิ่มเติม',
+            color: '#3B82F6',
+            size: 'xs',
+            align: 'center',
+            weight: 'bold'
+          }
+        ]
+      },
+      styles: {
+        header: { backgroundColor: '#991B1B' },
+        footer: { separator: true }
+      }
+    };
+
     return {
       type: 'flex',
       altText: `⚠️ แจ้งเตือนสินค้าใกล้หมด ${items.length} รายการ`,
-      contents: {
-        type: 'bubble',
-        size: 'mega',
-        header: {
-          type: 'box',
-          layout: 'vertical',
-          backgroundColor: '#991B1B',
-          paddingTop: '18px',
-          paddingBottom: '16px',
-          paddingStart: '20px',
-          paddingEnd: '20px',
-          contents: [
-            {
-              type: 'text',
-              text: '⚠️ แจ้งเตือนสินค้าใกล้หมด',
-              weight: 'bold',
-              size: 'lg',
-              color: '#FFFFFF'
-            },
-            {
-              type: 'text',
-              text: `พบ ${items.length} รายการที่ต่ำกว่า Safety Stock`,
-              size: 'xs',
-              color: '#FECACA',
-              margin: 'xs'
-            }
-          ]
-        },
-        body: {
-          type: 'box',
-          layout: 'vertical',
-          paddingTop: '16px',
-          paddingBottom: '16px',
-          paddingStart: '20px',
-          paddingEnd: '20px',
-          spacing: 'md',
-          contents: bodyContents
-        },
-        footer: {
-          type: 'box',
-          layout: 'vertical',
-          backgroundColor: '#F9FAFB',
-          paddingTop: '12px',
-          paddingBottom: '12px',
-          contents: [
-            {
-              type: 'text',
-              text: '🛒 กรุณาสั่งซื้อวัตถุดิบเพิ่มเติม',
-              color: '#3B82F6',
-              size: 'xs',
-              align: 'center',
-              weight: 'bold'
-            }
-          ]
-        },
-        styles: {
-          header: { backgroundColor: '#991B1B' },
-          footer: { separator: true }
-        }
-      }
+      contents: bubble
     };
   }
 
   // 3. Build Flex Message for Expiring Items
-  buildExpiringFlex(batches) {
+  buildExpiringFlex(batches, webUrl = null) {
     if (!batches || batches.length === 0) return null;
 
     const bodyContents = [];
@@ -370,93 +425,124 @@ class LineService {
       }
     });
 
+    const bubble = {
+      type: 'bubble',
+      size: 'mega',
+      ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: webUrl } } : {}),
+      header: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#B45309',
+        paddingTop: '18px',
+        paddingBottom: '16px',
+        paddingStart: '20px',
+        paddingEnd: '20px',
+        ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: webUrl } } : {}),
+        contents: [
+          {
+            type: 'text',
+            text: '⏳ แจ้งเตือนวันหมดอายุสินค้า',
+            weight: 'bold',
+            size: 'lg',
+            color: '#FFFFFF'
+          },
+          {
+            type: 'text',
+            text: `พบ ${batches.length} รายการที่ใกล้หรือหมดอายุแล้ว`,
+            size: 'xs',
+            color: '#FEF3C7',
+            margin: 'xs'
+          }
+        ]
+      },
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        paddingTop: '16px',
+        paddingBottom: '16px',
+        paddingStart: '20px',
+        paddingEnd: '20px',
+        spacing: 'md',
+        contents: bodyContents
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: '#F9FAFB',
+        paddingTop: '12px',
+        paddingBottom: '12px',
+        paddingStart: '16px',
+        paddingEnd: '16px',
+        spacing: 'sm',
+        contents: webUrl ? [
+          {
+            type: 'button',
+            style: 'primary',
+            color: '#D97706',
+            height: 'sm',
+            action: {
+              type: 'uri',
+              label: '📱 เปิดเช็ควันหมดอายุ',
+              uri: webUrl
+            }
+          },
+          {
+            type: 'text',
+            text: '⚡ แตะเพื่อเปิดหน้าระบบและจัดการล็อต',
+            color: '#6B7280',
+            size: 'xxs',
+            align: 'center'
+          }
+        ] : [
+          {
+            type: 'text',
+            text: '⚡ กรุณาตรวจสอบและเร่งนำไปใช้ก่อนหมดอายุ',
+            color: '#D97706',
+            size: 'xs',
+            align: 'center',
+            weight: 'bold'
+          }
+        ]
+      },
+      styles: {
+        header: { backgroundColor: '#B45309' },
+        footer: { separator: true }
+      }
+    };
+
     return {
       type: 'flex',
       altText: `⏳ แจ้งเตือนสินค้าใกล้หมดอายุ ${batches.length} รายการ`,
-      contents: {
-        type: 'bubble',
-        size: 'mega',
-        header: {
-          type: 'box',
-          layout: 'vertical',
-          backgroundColor: '#B45309',
-          paddingTop: '18px',
-          paddingBottom: '16px',
-          paddingStart: '20px',
-          paddingEnd: '20px',
-          contents: [
-            {
-              type: 'text',
-              text: '⏳ แจ้งเตือนวันหมดอายุสินค้า',
-              weight: 'bold',
-              size: 'lg',
-              color: '#FFFFFF'
-            },
-            {
-              type: 'text',
-              text: `พบ ${batches.length} รายการที่ใกล้หรือหมดอายุแล้ว`,
-              size: 'xs',
-              color: '#FEF3C7',
-              margin: 'xs'
-            }
-          ]
-        },
-        body: {
-          type: 'box',
-          layout: 'vertical',
-          paddingTop: '16px',
-          paddingBottom: '16px',
-          paddingStart: '20px',
-          paddingEnd: '20px',
-          spacing: 'md',
-          contents: bodyContents
-        },
-        footer: {
-          type: 'box',
-          layout: 'vertical',
-          backgroundColor: '#F9FAFB',
-          paddingTop: '12px',
-          paddingBottom: '12px',
-          contents: [
-            {
-              type: 'text',
-              text: '⚡ กรุณาตรวจสอบและเร่งนำไปใช้ก่อนหมดอายุ',
-              color: '#D97706',
-              size: 'xs',
-              align: 'center',
-              weight: 'bold'
-            }
-          ]
-        },
-        styles: {
-          header: { backgroundColor: '#B45309' },
-          footer: { separator: true }
-        }
-      }
+      contents: bubble
     };
   }
 
   // 4. Send Live Stock & Expiry Report
-  async sendStockReport(alertsData, targetId = null, token = null) {
+  async sendStockReport(alertsData, targetId = null, token = null, currentUrl = null) {
     const messages = [];
+    const webUrl = await this.getAppUrl(currentUrl);
 
     const enableLowStock = (await this.getSetting('enable_low_stock_alert', '1')) === '1';
     const enableExpiry = (await this.getSetting('enable_expiry_alert', '1')) === '1';
 
     if (enableLowStock && alertsData.low_stock_items.length > 0) {
-      const lowStockFlex = this.buildLowStockFlex(alertsData.low_stock_items);
+      const lowStockFlex = this.buildLowStockFlex(alertsData.low_stock_items, webUrl);
       if (lowStockFlex) messages.push(lowStockFlex);
     }
 
     if (enableExpiry && alertsData.expiring_batches.length > 0) {
-      const expiringFlex = this.buildExpiringFlex(alertsData.expiring_batches);
+      const expiringFlex = this.buildExpiringFlex(alertsData.expiring_batches, webUrl);
       if (expiringFlex) messages.push(expiringFlex);
     }
 
     if (messages.length === 0) {
+      let text = '🎉 ข้อมูลสต็อกสินค้าปกติ:\nไม่มีรายการสินค้าที่ต่ำกว่า Safety Stock หรือใกล้หมดอายุในขณะนี้ครับ';
+      if (webUrl) {
+        text += `\n\n🌐 เข้าสู่ระบบ: ${webUrl}`;
+      }
       messages.push({
         type: 'text',
-        text: '🎉 ข้อมูลสต็อกสินค้าปกติ:\nไม่มีรายการสินค้าที่ต่ำกว่า Safety Stock หรือใกล้หมดอายุในขณะนี้ครับ'
+        text: text
       });
     }
 

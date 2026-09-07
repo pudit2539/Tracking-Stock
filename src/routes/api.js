@@ -165,11 +165,13 @@ router.post('/settings', async (req, res) => {
       enable_low_stock_alert,
       enable_expiry_alert,
       daily_alert_time,
-      default_expiry_alert_days
+      default_expiry_alert_days,
+      app_url
     } = req.body;
 
     if (line_channel_access_token !== undefined) await dbClient.saveSetting('line_channel_access_token', line_channel_access_token.trim());
     if (line_target_id !== undefined) await dbClient.saveSetting('line_target_id', line_target_id.trim());
+    if (app_url !== undefined) await dbClient.saveSetting('app_url', app_url.trim());
     if (enable_low_stock_alert !== undefined) await dbClient.saveSetting('enable_low_stock_alert', enable_low_stock_alert ? '1' : '0');
     if (enable_expiry_alert !== undefined) await dbClient.saveSetting('enable_expiry_alert', enable_expiry_alert ? '1' : '0');
     if (default_expiry_alert_days !== undefined) await dbClient.saveSetting('default_expiry_alert_days', default_expiry_alert_days.toString());
@@ -237,8 +239,11 @@ router.delete('/line/recipients/:id', async (req, res) => {
 // 6. MANUAL LINE TRIGGERS
 router.post('/line/test', async (req, res) => {
   try {
-    const { target_id, token } = req.body;
-    const result = await lineService.sendTestMessage(target_id, token);
+    const { target_id, token, app_url } = req.body;
+    const host = req.get('host');
+    const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const detectedUrl = app_url || (host ? `${protocol}://${host}` : null);
+    const result = await lineService.sendTestMessage(target_id, token, detectedUrl);
     res.json({ success: true, message: 'ส่งข้อความทดสอบไปยัง LINE สำเร็จแล้ว!', result });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
@@ -247,9 +252,12 @@ router.post('/line/test', async (req, res) => {
 
 router.post('/line/report', async (req, res) => {
   try {
-    const { target_id, token } = req.body;
+    const { target_id, token, app_url } = req.body;
+    const host = req.get('host');
+    const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const detectedUrl = app_url || (host ? `${protocol}://${host}` : null);
     const alertsData = await stockService.getAlertsData();
-    const result = await lineService.sendStockReport(alertsData, target_id, token);
+    const result = await lineService.sendStockReport(alertsData, target_id, token, detectedUrl);
     res.json({ success: true, message: 'ส่งรายงานสต็อกและวันหมดอายุไปยัง LINE สำเร็จแล้ว!', result });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
