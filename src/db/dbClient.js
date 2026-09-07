@@ -690,12 +690,13 @@ const dbClient = {
     const today = new Date().toISOString().split('T')[0];
     const products = await this.getAllProducts();
     const batches = await this.getAllBatches();
+    const expiryDaysSetting = parseInt(await this.getSetting('default_expiry_alert_days', '7'), 10) || 7;
 
     const lowStockItems = products.filter(p => p.is_low_stock);
     const activeBatches = batches.filter(b => b.quantity > 0);
-    const expiringBatches = activeBatches.filter(b => b.days_until_expiry <= 7);
+    const expiringBatches = activeBatches.filter(b => b.days_until_expiry <= expiryDaysSetting);
     const expiredBatches = activeBatches.filter(b => b.days_until_expiry < 0);
-    const expiringSoonBatches = activeBatches.filter(b => b.days_until_expiry >= 0 && b.days_until_expiry <= 7);
+    const expiringSoonBatches = activeBatches.filter(b => b.days_until_expiry >= 0 && b.days_until_expiry <= expiryDaysSetting);
 
     return {
       today,
