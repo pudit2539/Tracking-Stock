@@ -1,14 +1,16 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const isSupabase = Boolean(process.env.SUPABASE_URL && (process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY));
+const rawSupabaseUrl = (process.env.SUPABASE_URL || '').trim();
+const supabaseUrl = rawSupabaseUrl.replace(/\/rest\/v1\/?$/i, '').replace(/\/+$/, '');
+const isSupabase = Boolean(supabaseUrl && (process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY));
 
 let supabase = null;
 let sqliteDb = null;
 
 if (isSupabase) {
   const key = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
-  supabase = createClient(process.env.SUPABASE_URL, key);
-  console.log('✅ Connected to Cloud Database (Supabase PostgreSQL)');
+  supabase = createClient(supabaseUrl, key);
+  console.log('✅ Connected to Cloud Database (Supabase PostgreSQL):', supabaseUrl);
 } else {
   try {
     sqliteDb = require('./database');
@@ -52,7 +54,8 @@ const dbClient = {
 
   async saveSetting(key, value) {
     if (isSupabase) {
-      await supabase.from('settings').upsert({ key, value: String(value) }, { onConflict: 'key' });
+      const { error } = await supabase.from('settings').upsert({ key, value: String(value) }, { onConflict: 'key' });
+      if (error) throw new Error(error.message);
     } else {
       sqliteDb.prepare(`
         INSERT INTO settings (key, value) VALUES (?, ?)
