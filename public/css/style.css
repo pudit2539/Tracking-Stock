@@ -1,0 +1,98 @@
+@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
+
+body {
+  font-family: 'Prompt', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #f8fafc;
+  color: #1e293b;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Dialog styling */
+dialog {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out, overlay 0.2s ease-out allow-discrete, display 0.2s ease-out allow-discrete;
+}
+dialog[open] {
+  opacity: 1;
+  transform: scale(1);
+}
+@starting-style {
+  dialog[open] {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+dialog::backdrop {
+  background-color: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 0.2s ease-out, overlay 0.2s ease-out allow-discrete, display 0.2s ease-out allow-discrete;
+}
+dialog[open]::backdrop {
+  opacity: 1;
+}
+@starting-style {
+  dialog[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+/* Badge styles */
+.badge-danger {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+.badge-warning {
+  background-color: #ffedd5;
+  color: #c2410c;
+  border: 1px solid #fdba74;
+}
+.badge-success {
+  background-color: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+.badge-neutral {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+/* Line Mockup Card */
+.line-phone-frame {
+  max-width: 380px;
+  background: #738a9c;
+  border-radius: 36px;
+  padding: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 4px solid #334155;
+}
+.line-screen {
+  background-color: #8c9dad;
+  border-radius: 26px;
+  overflow: hidden;
+}
+.line-chat-bubble-red {
+  background: white;
+  border-radius: 18px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+

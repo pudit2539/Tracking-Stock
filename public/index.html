@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบติดตามวันหมดอายุ & สต็อกสินค้า (LINE Tracking Alert)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="min-h-screen bg-slate-50 flex flex-col">
+
+  <!-- Top Navigation Bar -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16 items-center">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 to-amber-500 flex items-center justify-center text-white shadow-md shadow-rose-200">
+            <i data-lucide="boxes" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h1 class="text-lg font-bold text-slate-900 leading-tight">Stock & Expiry Tracker</h1>
+            <p class="text-xs text-slate-500">ระบบติดตามสต็อกและวันหมดอายุ แจ้งเตือนผ่าน LINE</p>
+          </div>
+        </div>
+
+        <!-- Header Actions -->
+        <div class="flex items-center space-x-2">
+          <button onclick="triggerSendLiveReport()" class="hidden sm:inline-flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition">
+            <i data-lucide="send" class="w-4 h-4"></i>
+            <span>ส่งรายงานเข้า LINE ทันที</span>
+          </button>
+          <div id="connection-status" class="flex items-center space-x-1.5 px-2.5 py-1 bg-slate-100 rounded-full text-xs text-slate-600">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>ระบบพร้อมใช้งาน</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex space-x-1 sm:space-x-8 border-t border-slate-100 -mb-px overflow-x-auto text-sm">
+        <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn py-3 px-3 border-b-2 font-medium border-rose-600 text-rose-600 whitespace-nowrap flex items-center space-x-2">
+          <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+          <span>ภาพรวม (Dashboard)</span>
+        </button>
+        <button onclick="switchTab('inventory')" id="tab-inventory" class="tab-btn py-3 px-3 border-b-2 font-medium border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap flex items-center space-x-2">
+          <i data-lucide="package" class="w-4 h-4"></i>
+          <span>รายการสินค้าและล็อต (Inventory)</span>
+        </button>
+        <button onclick="switchTab('usage')" id="tab-usage" class="tab-btn py-3 px-3 border-b-2 font-medium border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap flex items-center space-x-2">
+          <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+          <span>บันทึกการใช้ & วางแผน (Usage & Planning)</span>
+        </button>
+        <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn py-3 px-3 border-b-2 font-medium border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap flex items-center space-x-2">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+          <span>ตั้งค่า LINE & แจ้งเตือน (LINE Settings)</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ============================================================== -->
+    <!-- TAB 1: DASHBOARD -->
+    <!-- ============================================================== -->
+    <div id="content-dashboard" class="tab-content space-y-6">
+      <!-- Top Metric Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Card 1: Total Products -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+          <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <i data-lucide="package-check" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <p class="text-xs text-slate-500 font-medium">สินค้าทั้งหมด</p>
+            <h3 id="stat-total-products" class="text-2xl font-bold text-slate-800">-</h3>
+            <span class="text-xs text-slate-400">รายการในระบบ</span>
+          </div>
+        </div>
+
+        <!-- Card 2: Low Stock (Safety Alert) -->
+        <div class="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm flex items-center space-x-4 bg-rose-50/20">
+          <div class="w-12 h-12 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
+            <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <p class="text-xs text-rose-600 font-semibold">ต่ำกว่า Safety Stock</p>
+            <h3 id="stat-low-stock" class="text-2xl font-bold text-rose-700">-</h3>
+            <span class="text-xs text-rose-500">ต้องสั่งซื้อเพิ่ม</span>
+          </div>
+        </div>
+
+        <!-- Card 3: Expiring Soon -->
+        <div class="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm flex items-center space-x-4 bg-amber-50/20">
+          <div class="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
+            <i data-lucide="hourglass" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <p class="text-xs text-amber-600 font-semibold">ใกล้หมดอายุ (7 วัน)</p>
+            <h3 id="stat-expiring-soon" class="text-2xl font-bold text-amber-700">-</h3>
+            <span class="text-xs text-amber-500">ต้องเร่งนำไปใช้</span>
+          </div>
+        </div>
+
+        <!-- Card 4: Expired -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+          <div class="w-12 h-12 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center">
+            <i data-lucide="calendar-x" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <p class="text-xs text-slate-500 font-medium">หมดอายุแล้ว</p>
+            <h3 id="stat-expired" class="text-2xl font-bold text-slate-800">-</h3>
+            <span class="text-xs text-slate-400">คัดแยก/ทำลาย</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Action Toolbar -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center space-x-2">
+          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">ทางลัดจัดการ:</span>
+          <button onclick="openAddProductModal()" class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-lg transition">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>เพิ่มสินค้าใหม่</span>
+          </button>
+          <button onclick="openAddBatchModal()" class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition">
+            <i data-lucide="archive-restore" class="w-4 h-4"></i>
+            <span>รับเข้าล็อตใหม่</span>
+          </button>
+          <button onclick="openRecordUsageModal()" class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded-lg transition">
+            <i data-lucide="minus-circle" class="w-4 h-4"></i>
+            <span>บันทึกการใช้งาน (ตัดสต็อก)</span>
+          </button>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <button onclick="triggerSendTestMessage()" class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition">
+            <i data-lucide="bell" class="w-4 h-4"></i>
+            <span>ทดสอบยิง LINE</span>
+          </button>
+          <button onclick="triggerSendLiveReport()" class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium rounded-lg transition">
+            <i data-lucide="send" class="w-4 h-4"></i>
+            <span>ส่ง Flex Message สต็อก</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Dashboard Grid: Live Alert Lists & LINE Flex Preview -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left 2 Cols: Urgent Alert Lists -->
+        <div class="lg:col-span-2 space-y-6">
+          
+          <!-- Low Stock Box -->
+          <div class="bg-white rounded-2xl border border-rose-200 shadow-sm overflow-hidden">
+            <div class="p-4 bg-rose-50/70 border-b border-rose-200 flex justify-between items-center">
+              <div class="flex items-center space-x-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping"></span>
+                <h3 class="font-bold text-rose-900 text-sm sm:text-base">⚠️ สินค้าที่ต่ำกว่าเกณฑ์ Safety Stock</h3>
+              </div>
+              <span id="low-stock-badge-count" class="text-xs px-2.5 py-0.5 rounded-full bg-rose-200 text-rose-800 font-semibold">0 รายการ</span>
+            </div>
+            <div id="low-stock-list" class="divide-y divide-slate-100 p-2">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Expiring Soon Box -->
+          <div class="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+            <div class="p-4 bg-amber-50/70 border-b border-amber-200 flex justify-between items-center">
+              <div class="flex items-center space-x-2">
+                <i data-lucide="clock" class="w-4 h-4 text-amber-600"></i>
+                <h3 class="font-bold text-amber-900 text-sm sm:text-base">⏳ ล็อตสินค้าที่ใกล้หรือหมดอายุแล้ว</h3>
+              </div>
+              <span id="expiring-badge-count" class="text-xs px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-800 font-semibold">0 รายการ</span>
+            </div>
+            <div id="expiring-batch-list" class="divide-y divide-slate-100 p-2">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Col: Live LINE Flex Message Simulator (Matches Reference Photo!) -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-slate-800 flex items-center space-x-1.5">
+              <i data-lucide="smartphone" class="w-4 h-4 text-emerald-600"></i>
+              <span>ตัวอย่างการ์ดที่จะส่งเข้า LINE</span>
+            </h3>
+            <span class="text-xs text-slate-400">Flex Message Card</span>
+          </div>
+
+          <!-- Simulated LINE Chat Message -->
+          <div class="bg-slate-200 p-4 rounded-3xl border border-slate-300 shadow-inner flex justify-center">
+            <div class="w-full max-w-[340px] space-y-3">
+              
+              <!-- Message Bubble 1: Text Test Message -->
+              <div class="bg-white text-slate-800 p-3 rounded-2xl rounded-tl-sm text-xs shadow-sm space-y-1">
+                <p class="font-medium text-emerald-600">✅ ทดสอบการแจ้งเตือน LINE สำเร็จ</p>
+                <p class="text-slate-600">ระบบพร้อมใช้งานสำหรับการแจ้งเตือนสต็อกสินค้าใกล้หมด</p>
+                <div class="text-[10px] text-slate-400 text-right">เมื่อสักครู่</div>
+              </div>
+
+              <!-- Message Bubble 2: Flex Message Red Header (Matching user's photo!) -->
+              <div class="bg-white rounded-2xl rounded-tl-sm shadow-md overflow-hidden border border-rose-100">
+                <!-- Red Header -->
+                <div class="bg-[#991B1B] text-white p-3.5">
+                  <div class="flex items-center space-x-1.5">
+                    <span class="text-base">⚠️</span>
+                    <h4 class="font-bold text-sm tracking-wide">แจ้งเตือนสินค้าใกล้หมด</h4>
+                  </div>
+                  <p id="preview-flex-subtitle" class="text-[11px] text-rose-200 mt-0.5">พบ 3 รายการที่ต่ำกว่า Safety Stock</p>
+                </div>
+
+                <!-- Items Container -->
+                <div id="preview-flex-items" class="p-3 space-y-2.5 text-xs">
+                  <!-- Dynamically populated from live data -->
+                </div>
+
+                <!-- Footer -->
+                <div class="bg-slate-50 p-2.5 border-t border-slate-100 text-center">
+                  <span class="text-blue-600 text-xs font-semibold">🛒 กรุณาสั่งซื้อวัตถุดิบเพิ่มเติม</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <p class="text-center text-[11px] text-slate-400">ดีไซน์การ์ดตรงตามรูปภาพตัวอย่างที่แนบมา</p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- TAB 2: INVENTORY & BATCHES -->
+    <!-- ============================================================== -->
+    <div id="content-inventory" class="tab-content hidden space-y-6">
+      
+      <!-- Toolbar & Filters -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center space-x-2 w-full sm:w-auto">
+          <div class="relative flex-1 sm:w-64">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+            <input type="text" id="search-inventory" oninput="filterInventory()" placeholder="ค้นหาชื่อสินค้า..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500">
+          </div>
+          <select id="filter-category" onchange="filterInventory()" class="text-xs py-1.5 px-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500">
+            <option value="ALL">ทุกหมวดหมู่</option>
+          </select>
+        </div>
+
+        <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+          <button onclick="openAddProductModal()" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>เพิ่มสินค้าใหม่</span>
+          </button>
+          <button onclick="openAddBatchModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition">
+            <i data-lucide="archive-restore" class="w-4 h-4"></i>
+            <span>รับเข้าล็อตใหม่</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Inventory Table / Cards -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+              <tr>
+                <th class="p-4">ชื่อสินค้า / หมวดหมู่</th>
+                <th class="p-4">สต็อกคงเหลือรวม</th>
+                <th class="p-4">Safety Stock</th>
+                <th class="p-4">วันหมดอายุใกล้สุด</th>
+                <th class="p-4">สถานะ</th>
+                <th class="p-4 text-center">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="inventory-table-body" class="divide-y divide-slate-100">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- TAB 3: USAGE LOG & PLANNING -->
+    <!-- ============================================================== -->
+    <div id="content-usage" class="tab-content hidden space-y-6">
+      
+      <!-- Top Section: Planning & Consumption Rate -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+          <div>
+            <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center space-x-2">
+              <i data-lucide="trending-up" class="w-4 h-4 text-blue-600"></i>
+              <span>อัตราการใช้งานและการวางแผนสต็อก (Consumption & Planning)</span>
+            </h3>
+            <p class="text-xs text-slate-500">คำนวณจากประวัติการใช้งานจริง 30 วันที่ผ่านมา เพื่อช่วยวางแผนการสั่งซื้อ</p>
+          </div>
+          <button onclick="openRecordUsageModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition self-start sm:self-auto">
+            <i data-lucide="minus-circle" class="w-4 h-4"></i>
+            <span>+ บันทึกการใช้งาน (ตัดสต็อก)</span>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+              <tr>
+                <th class="p-3">สินค้า</th>
+                <th class="p-3">สต็อกคงเหลือปัจจุบัน</th>
+                <th class="p-3">ยอดใช้ 30 วันที่ผ่านมา</th>
+                <th class="p-3">ใช้เฉลี่ยต่อวัน</th>
+                <th class="p-3">ประมาณการสต็อกอยู่ได้อีก</th>
+                <th class="p-3">คำแนะนำการสั่งซื้อ</th>
+              </tr>
+            </thead>
+            <tbody id="planning-table-body" class="divide-y divide-slate-100">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Bottom Section: Usage History Log Table -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 bg-slate-50/70 border-b border-slate-200 flex justify-between items-center">
+          <h3 class="font-bold text-slate-800 text-sm">ประวัติการเบิกใช้ / ตัดสต็อกล่าสุด</h3>
+          <span class="text-xs text-slate-500">100 รายการล่าสุด</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+              <tr>
+                <th class="p-3">วันที่ใช้</th>
+                <th class="p-3">สินค้า</th>
+                <th class="p-3">ล็อตที่ตัด</th>
+                <th class="p-3">จำนวนที่ใช้</th>
+                <th class="p-3">ประเภท</th>
+                <th class="p-3">วัตถุประสงค์ / หมายเหตุ</th>
+                <th class="p-3">ผู้เบิก</th>
+              </tr>
+            </thead>
+            <tbody id="usage-history-table-body" class="divide-y divide-slate-100">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- TAB 4: LINE SETTINGS & SETUP GUIDE -->
+    <!-- ============================================================== -->
+    <div id="content-settings" class="tab-content hidden space-y-6">
+      
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Form: Settings -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+          <div class="border-b border-slate-100 pb-3">
+            <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
+              <i data-lucide="message-square" class="w-5 h-5 text-emerald-600"></i>
+              <span>ตั้งค่าการเชื่อมต่อ LINE Messaging API</span>
+            </h3>
+            <p class="text-xs text-slate-500 mt-1">กรอกข้อมูล Channel Access Token และ Target ID เพื่อให้ระบบส่งแจ้งเตือนได้</p>
+          </div>
+
+          <form id="settings-form" onsubmit="saveSettings(event)" class="space-y-4 text-xs">
+            <!-- Token -->
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">
+                LINE Channel Access Token (Long-lived) <span class="text-rose-500">*</span>
+              </label>
+              <input type="password" id="setting-token" class="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="ได้จาก LINE Developers Console > Messaging API">
+              <p class="text-[11px] text-slate-400 mt-1">คัดลอกได้จากแท็บ Messaging API ของบอทในเว็บ LINE Developers</p>
+            </div>
+
+            <!-- Target ID -->
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">
+                LINE Target ID (User ID หรือ Group ID) <span class="text-rose-500">*</span>
+              </label>
+              <input type="text" id="setting-target-id" class="w-full p-2.5 rounded-lg border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="ขึ้นต้นด้วย U... (ส่วนตัว) หรือ C... / R... (กลุ่ม)">
+              <p class="text-[11px] text-slate-400 mt-1">หากต้องการส่งเข้ากลุ่ม ให้ใส่ Group ID (ดูวิธีหาได้จากคู่มือด้านขวา)</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <!-- Daily Alert Time -->
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">เวลาแจ้งเตือนประจำวัน</label>
+                <input type="time" id="setting-alert-time" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none" value="08:00">
+                <p class="text-[11px] text-slate-400 mt-1">ระบบจะส่งสรุปอัตโนมัติทุกวันในเวลานี้</p>
+              </div>
+
+              <!-- Expiry Alert Days -->
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">เตือนวันหมดอายุล่วงหน้า (วัน)</label>
+                <input type="number" id="setting-expiry-days" min="1" max="90" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none" value="7">
+                <p class="text-[11px] text-slate-400 mt-1">เช่น 7 วันก่อนถึงวันหมดอายุ</p>
+              </div>
+            </div>
+
+            <!-- Toggles -->
+            <div class="space-y-2 pt-2">
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input type="checkbox" id="setting-enable-low-stock" class="rounded text-emerald-600 focus:ring-emerald-500" checked>
+                <span class="text-slate-700 font-medium">เปิดการแจ้งเตือนสต็อกใกล้หมด (ต่ำกว่า Safety Stock)</span>
+              </label>
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input type="checkbox" id="setting-enable-expiry" class="rounded text-emerald-600 focus:ring-emerald-500" checked>
+                <span class="text-slate-700 font-medium">เปิดการแจ้งเตือนวันหมดอายุ (ใกล้หมด & หมดอายุแล้ว)</span>
+              </label>
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 flex flex-wrap gap-2">
+              <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-sm transition flex items-center space-x-1.5">
+                <i data-lucide="save" class="w-4 h-4"></i>
+                <span>บันทึกการตั้งค่า</span>
+              </button>
+              <button type="button" onclick="triggerSendTestMessage()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition flex items-center space-x-1.5">
+                <i data-lucide="bell" class="w-4 h-4"></i>
+                <span>🔔 ทดสอบส่งข้อความ</span>
+              </button>
+              <button type="button" onclick="triggerSendLiveReport()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg transition flex items-center space-x-1.5">
+                <i data-lucide="send" class="w-4 h-4"></i>
+                <span>🚀 ส่งรายงานสด (Live Flex)</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Setup Guide & Group ID Discovery -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 text-xs">
+          <div class="border-b border-slate-100 pb-3">
+            <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
+              <i data-lucide="book-open" class="w-5 h-5 text-blue-600"></i>
+              <span>คู่มือการเชื่อมต่อ LINE (แบบละเอียด)</span>
+            </h3>
+            <p class="text-xs text-slate-500 mt-1">ขั้นตอนเปิดใช้งานและนำ Group ID มาใส่</p>
+          </div>
+
+          <div class="space-y-3 text-slate-600">
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+              <h4 class="font-bold text-slate-800 flex items-center space-x-1.5">
+                <span class="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold">1</span>
+                <span>สร้าง Channel ใน LINE Developers</span>
+              </h4>
+              <p class="pl-6">เข้าเว็บ <a href="https://developers.line.biz/" target="_blank" class="text-blue-600 underline">developers.line.biz</a> > Login > สร้าง Provider > สร้าง Channel ประเภท <b>Messaging API</b></p>
+            </div>
+
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+              <h4 class="font-bold text-slate-800 flex items-center space-x-1.5">
+                <span class="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold">2</span>
+                <span>คัดลอก Channel Access Token</span>
+              </h4>
+              <p class="pl-6">ไปที่แท็บ <b>Messaging API</b> > เลื่อนลงล่างสุดคลิก <b>Issue</b> ที่หัวข้อ <i>Channel access token (long-lived)</i> แล้วคัดลอกมาวางในช่องด้านซ้าย</p>
+            </div>
+
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+              <h4 class="font-bold text-slate-800 flex items-center space-x-1.5">
+                <span class="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold">3</span>
+                <span>วิธีหา User ID หรือ Group ID (สำคัญมาก!)</span>
+              </h4>
+              <div class="pl-6 space-y-1">
+                <p>• <b>ถ้าส่งเข้าไลน์ส่วนตัว:</b> ดูในแท็บ Basic settings ในหัวข้อ <i>Your user ID</i> (ขึ้นต้นด้วย U...)</p>
+                <p>• <b>ถ้าส่งเข้าไลน์กลุ่ม:</b> เชิญ LINE Bot เข้ากลุ่ม จากนั้นพิมพ์ <code>id</code> ในกลุ่ม บอทจะตอบกลับเป็น Group ID (ขึ้นต้นด้วย C... หรือ R...) นำมาใส่ในช่องได้ทันที!</p>
+              </div>
+            </div>
+
+            <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-800">
+              <p class="font-semibold">💡 ปลายทางทดสอบ:</p>
+              <p class="text-[11px] mt-0.5">หลังจากใส่ Token และ ID ครบแล้ว ให้กดปุ่ม <b>"🔔 ทดสอบส่งข้อความ"</b> ระบบจะส่งข้อความว่า <i>"✅ ทดสอบการแจ้งเตือน LINE สำเร็จ..."</i> เข้าไลน์ของคุณทันทีเหมือนในภาพตัวอย่างครับ!</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ============================================================== -->
+  <!-- MODALS -->
+  <!-- ============================================================== -->
+
+  <!-- Modal 1: Add / Edit Product -->
+  <dialog id="modal-product" class="rounded-2xl p-0 w-full max-w-md shadow-2xl border border-slate-200 backdrop:bg-slate-900/40">
+    <div class="p-5 bg-white space-y-4 text-xs">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 id="modal-product-title" class="text-sm font-bold text-slate-900">เพิ่มสินค้าใหม่</h3>
+        <button onclick="closeDialog('modal-product')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="form-product" onsubmit="handleSaveProduct(event)" class="space-y-3">
+        <input type="hidden" id="prod-id">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">ชื่อสินค้า / วัตถุดิบ <span class="text-rose-500">*</span></label>
+          <input type="text" id="prod-name" required class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-rose-500 focus:outline-none" placeholder="เช่น Bread, Chicken Slice, นมสด">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">หมวดหมู่</label>
+            <input type="text" id="prod-category" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-rose-500 focus:outline-none" placeholder="เบเกอรี่, เนื้อสัตว์, เครื่องดื่ม">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">หน่วยนับ <span class="text-rose-500">*</span></label>
+            <input type="text" id="prod-unit" required class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-rose-500 focus:outline-none" placeholder="Fl, Piece, Kg, กล่อง">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">สต็อกปลอดภัย (Safety Stock) <span class="text-rose-500">*</span></label>
+            <input type="number" step="any" id="prod-safety" required min="0" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-rose-500 focus:outline-none" placeholder="เช่น 200">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">เตือนหมดอายุล่วงหน้า (วัน)</label>
+            <input type="number" id="prod-warn-days" value="7" min="1" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-rose-500 focus:outline-none">
+          </div>
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+          <button type="button" onclick="closeDialog('modal-product')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg">ยกเลิก</button>
+          <button type="submit" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded-lg">บันทึก</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Modal 2: Add / Edit Batch (รับเข้าล็อตใหม่) -->
+  <dialog id="modal-batch" class="rounded-2xl p-0 w-full max-w-md shadow-2xl border border-slate-200 backdrop:bg-slate-900/40">
+    <div class="p-5 bg-white space-y-4 text-xs">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 id="modal-batch-title" class="text-sm font-bold text-slate-900">รับเข้าสต็อกล็อตใหม่</h3>
+        <button onclick="closeDialog('modal-batch')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="form-batch" onsubmit="handleSaveBatch(event)" class="space-y-3">
+        <input type="hidden" id="batch-id">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">เลือกสินค้า <span class="text-rose-500">*</span></label>
+          <select id="batch-product-id" required class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <!-- Populated via JS -->
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">เลขล็อต (Lot / Batch No.)</label>
+            <input type="text" id="batch-lot" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="เช่น LOT-001">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">จำนวนที่รับเข้า <span class="text-rose-500">*</span></label>
+            <input type="number" step="any" id="batch-qty" required min="0.01" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="เช่น 100">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">วันหมดอายุ (Expiry Date) <span class="text-rose-500">*</span></label>
+            <input type="date" id="batch-expiry" required class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">วันที่รับเข้า</label>
+            <input type="date" id="batch-received" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          </div>
+        </div>
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">หมายเหตุ</label>
+          <input type="text" id="batch-notes" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="เช่น ตู้แช่ 2, ซื้อจาก Macro">
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+          <button type="button" onclick="closeDialog('modal-batch')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg">ยกเลิก</button>
+          <button type="submit" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">บันทึกรับเข้า</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Modal 3: Record Usage (บันทึกการใช้งาน / ตัดสต็อก) -->
+  <dialog id="modal-usage" class="rounded-2xl p-0 w-full max-w-md shadow-2xl border border-slate-200 backdrop:bg-slate-900/40">
+    <div class="p-5 bg-white space-y-4 text-xs">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="text-sm font-bold text-slate-900 flex items-center space-x-1.5">
+          <i data-lucide="minus-circle" class="w-4 h-4 text-amber-600"></i>
+          <span>บันทึกการใช้งาน (ตัดสต็อก)</span>
+        </h3>
+        <button onclick="closeDialog('modal-usage')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="form-usage" onsubmit="handleSaveUsage(event)" class="space-y-3">
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">เลือกสินค้าที่จะตัดสต็อก <span class="text-rose-500">*</span></label>
+          <select id="usage-product-id" required onchange="onUsageProductChange()" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none">
+            <!-- Populated via JS -->
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">เลือกล็อตที่ต้องการตัด</label>
+          <select id="usage-batch-id" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none">
+            <option value="">⚡ แนะนำ: ตัดอัตโนมัติตามล็อตที่ใกล้หมดอายุก่อน (FIFO)</option>
+          </select>
+          <p class="text-[11px] text-slate-400 mt-1">ระบบจะเลือกล็อตที่หมดอายุก่อนให้อัตโนมัติ เพื่อลดของเสีย</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">จำนวนที่ใช้ <span class="text-rose-500">*</span></label>
+            <input type="number" step="any" id="usage-qty" required min="0.01" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none" placeholder="เช่น 5">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">ประเภทการตัด</label>
+            <select id="usage-type" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none">
+              <option value="USE">เบิกใช้ปกติ (ทำอาหาร/จำหน่าย)</option>
+              <option value="WASTE">ของเสีย / ชำรุด / ทิ้ง</option>
+              <option value="ADJUST">ปรับยอดสต็อก</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">วันที่ใช้</label>
+            <input type="date" id="usage-date" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">ผู้เบิกใช้</label>
+            <input type="text" id="usage-by" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none" placeholder="ชื่อผู้เบิก">
+          </div>
+        </div>
+
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">วัตถุประสงค์ / หมายเหตุ</label>
+          <input type="text" id="usage-purpose" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none" placeholder="เช่น ทำแซนด์วิชรอบเช้า, ทดสอบเมนู">
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+          <button type="button" onclick="closeDialog('modal-usage')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg">ยกเลิก</button>
+          <button type="submit" class="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg">บันทึกตัดสต็อก</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 text-white text-xs px-4 py-3 rounded-xl shadow-lg flex items-center space-x-2">
+    <i id="toast-icon" data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+    <span id="toast-message">บันทึกสำเร็จ</span>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
+
