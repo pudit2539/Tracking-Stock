@@ -258,11 +258,50 @@ function renderLineFlexPreview() {
   `).join('');
 }
 
-// 4. Render Inventory Table
+// 4. Render Inventory Table with Filters & Quick Update
 function renderInventoryTable() {
   const tbody = document.getElementById('inventory-table-body');
   const searchTerm = (document.getElementById('search-inventory')?.value || '').toLowerCase();
   const selectedCat = document.getElementById('filter-category')?.value || 'ALL';
+  const currentFilter = state.inventoryFilter || 'ALL';
+
+  // Update counts in filter chips
+  const totalCount = state.products.length;
+  const lowCount = state.products.filter(p => p.is_low_stock).length;
+  const noExpiryCount = state.products.filter(p => !p.nearest_expiry).length;
+  const expiringCount = state.products.filter(p => p.is_expiring_soon || p.is_expired).length;
+
+  const countAllEl = document.getElementById('count-all');
+  if (countAllEl) countAllEl.textContent = totalCount;
+  const countLowEl = document.getElementById('count-low');
+  if (countLowEl) countLowEl.textContent = lowCount;
+  const countNoExpEl = document.getElementById('count-no-expiry');
+  if (countNoExpEl) countNoExpEl.textContent = noExpiryCount;
+  const countExpEl = document.getElementById('count-expiring');
+  if (countExpEl) countExpEl.textContent = expiringCount;
+
+  // Update active chip styles
+  document.querySelectorAll('.chip-filter').forEach(btn => {
+    btn.className = 'chip-filter px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
+  });
+  const activeChipId = {
+    'ALL': 'chip-filter-all',
+    'LOW': 'chip-filter-low',
+    'NO_EXPIRY': 'chip-filter-no-expiry',
+    'EXPIRING': 'chip-filter-expiring'
+  }[currentFilter] || 'chip-filter-all';
+  const activeChip = document.getElementById(activeChipId);
+  if (activeChip) {
+    if (currentFilter === 'LOW') {
+      activeChip.className = 'chip-filter px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-600 text-white transition';
+    } else if (currentFilter === 'NO_EXPIRY') {
+      activeChip.className = 'chip-filter px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-600 text-white transition';
+    } else if (currentFilter === 'EXPIRING') {
+      activeChip.className = 'chip-filter px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-600 text-white transition';
+    } else {
+      activeChip.className = 'chip-filter px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-900 text-white transition';
+    }
+  }
 
   // Extract unique categories
   const categories = [...new Set(state.products.map(p => p.category).filter(Boolean))];
@@ -279,22 +318,32 @@ function renderInventoryTable() {
   const filtered = state.products.filter(p => {
     const matchSearch = p.name.toLowerCase().includes(searchTerm) || (p.category && p.category.toLowerCase().includes(searchTerm));
     const matchCat = selectedCat === 'ALL' || p.category === selectedCat;
-    return matchSearch && matchCat;
+
+    let matchFilter = true;
+    if (currentFilter === 'LOW') matchFilter = p.is_low_stock;
+    else if (currentFilter === 'NO_EXPIRY') matchFilter = !p.nearest_expiry;
+    else if (currentFilter === 'EXPIRING') matchFilter = p.is_expiring_soon || p.is_expired;
+
+    return matchSearch && matchCat && matchFilter;
   });
 
   if (filtered.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" class="p-8 text-center text-slate-400">ไม่พบข้อมูลสินค้าที่ค้นหา</td>
+        <td colspan="6" class="p-8 text-center text-slate-400">
+          <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+          <p>ไม่พบรายการสินค้าที่ตรงกับเงื่อนไขการค้นหา/ตัวกรอง</p>
+        </td>
       </tr>
     `;
+    if (window.lucide) lucide.createIcons();
     return;
   }
 
   tbody.innerHTML = filtered.map(p => {
     let statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800">ปกติ</span>`;
     if (p.is_low_stock) {
-      statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-800">สต็อกใกล้หมด</span>`;
+      statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-800">⚠️ ต่ำกว่าเกณฑ์/หมด</span>`;
     } else if (p.is_expired) {
       statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-200 text-slate-800">หมดอายุแล้ว</span>`;
     } else if (p.is_expiring_soon) {
@@ -302,31 +351,56 @@ function renderInventoryTable() {
     }
 
     const expiryDisplay = p.nearest_expiry 
-      ? `${p.nearest_expiry} <span class="text-[10px] text-slate-400">(${p.days_until_expiry < 0 ? 'หมดอายุแล้ว' : `อีก ${p.days_until_expiry} วัน`})</span>`
-      : '<span class="text-slate-400">-</span>';
+      ? `
+        <div class="flex items-center space-x-1.5">
+          <span class="font-medium text-slate-800">${p.nearest_expiry}</span>
+          <span class="text-[10px] ${p.days_until_expiry < 0 ? 'text-rose-600 font-bold' : (p.days_until_expiry <= 7 ? 'text-amber-600 font-bold' : 'text-slate-400')}">
+            (${p.days_until_expiry < 0 ? 'หมดอายุแล้ว' : `อีก ${p.days_until_expiry} วัน`})
+          </span>
+          <button onclick="openQuickUpdateModal(${p.id})" title="ปรับวันหมดอายุ" class="p-1 hover:bg-blue-50 text-blue-500 rounded transition">
+            <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      `
+      : `
+        <button onclick="openQuickUpdateModal(${p.id})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium text-xs rounded-lg border border-blue-200 transition">
+          <i data-lucide="calendar-plus" class="w-3.5 h-3.5"></i>
+          <span>+ ใส่วันหมดอายุ</span>
+        </button>
+      `;
 
     return `
-      <tr class="hover:bg-slate-50 transition border-b border-slate-100">
-        <td class="p-4">
-          <div class="font-bold text-slate-900">${p.name}</div>
-          <span class="text-[10px] text-slate-500">${p.category}</span>
+      <tr class="hover:bg-slate-50/80 transition border-b border-slate-100">
+        <td class="p-3.5">
+          <div class="font-bold text-slate-900 text-xs">${p.name}</div>
+          <span class="text-[10px] text-slate-400">${p.category}</span>
         </td>
-        <td class="p-4">
-          <span class="font-bold ${p.is_low_stock ? 'text-rose-600' : 'text-slate-800'} text-sm">${p.current_stock}</span>
-          <span class="text-slate-500 text-xs">${p.unit}</span>
+        <td class="p-3.5">
+          <div class="flex items-center space-x-1.5">
+            <span class="font-bold ${p.is_low_stock ? 'text-rose-600 font-extrabold' : 'text-slate-800'} text-sm">${p.current_stock}</span>
+            <span class="text-slate-500 text-[11px] font-medium uppercase">${p.unit}</span>
+          </div>
         </td>
-        <td class="p-4 text-slate-600 font-medium">${p.safety_stock} ${p.unit}</td>
-        <td class="p-4 text-slate-700">${expiryDisplay}</td>
-        <td class="p-4">${statusBadge}</td>
-        <td class="p-4 text-center">
+        <td class="p-3.5">
+          <div class="flex items-center space-x-1.5">
+            <span class="font-semibold text-slate-700 text-xs">${p.safety_stock} ${p.unit}</span>
+            <button onclick="inlineEditSafetyStock(${p.id}, ${p.safety_stock}, '${p.name.replace(/'/g, "\\'")}')" title="คลิกเพื่อแก้จุดสั่งซื้อ" class="p-1 hover:bg-slate-200 text-slate-400 hover:text-slate-700 rounded transition">
+              <i data-lucide="edit-2" class="w-3 h-3"></i>
+            </button>
+          </div>
+        </td>
+        <td class="p-3.5">${expiryDisplay}</td>
+        <td class="p-3.5">${statusBadge}</td>
+        <td class="p-3.5 text-center">
           <div class="flex items-center justify-center space-x-1">
-            <button onclick="openAddBatchModalFor(${p.id})" title="รับเข้าล็อตใหม่" class="p-1.5 hover:bg-blue-50 text-blue-600 rounded-md transition">
-              <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            <button onclick="openQuickUpdateModal(${p.id})" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs rounded-lg flex items-center space-x-1 shadow-2xs transition" title="อัปเดตด่วน สต็อก & วันหมดอายุ">
+              <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+              <span>อัปเดตด่วน</span>
             </button>
-            <button onclick="openEditProductModal(${p.id})" title="แก้ไขสินค้า" class="p-1.5 hover:bg-slate-100 text-slate-600 rounded-md transition">
-              <i data-lucide="edit-3" class="w-4 h-4"></i>
+            <button onclick="openEditProductModal(${p.id})" title="แก้ไขข้อมูลสินค้า" class="p-1.5 hover:bg-slate-100 text-slate-500 rounded-md transition">
+              <i data-lucide="more-horizontal" class="w-4 h-4"></i>
             </button>
-            <button onclick="handleDeleteProduct(${p.id})" title="ลบสินค้า" class="p-1.5 hover:bg-rose-50 text-rose-600 rounded-md transition">
+            <button onclick="handleDeleteProduct(${p.id})" title="ลบสินค้า" class="p-1.5 hover:bg-rose-50 text-rose-500 rounded-md transition">
               <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
           </div>
@@ -339,6 +413,11 @@ function renderInventoryTable() {
 }
 
 function filterInventory() {
+  renderInventoryTable();
+}
+
+function setInventoryFilter(type) {
+  state.inventoryFilter = type;
   renderInventoryTable();
 }
 
@@ -917,5 +996,167 @@ function showToast(message, type = 'success') {
   setTimeout(() => {
     toast.classList.add('translate-y-20', 'opacity-0');
   }, 4000);
+}
+
+// ==============================================================
+// QUICK STOCK & EXPIRY UPDATE HANDLERS
+// ==============================================================
+let currentQuickIndex = -1;
+let quickProductList = [];
+
+function openQuickUpdateModal(productId) {
+  quickProductList = state.products;
+  currentQuickIndex = quickProductList.findIndex(p => p.id == productId);
+  if (currentQuickIndex === -1) currentQuickIndex = 0;
+  populateQuickModal();
+  openDialog('modal-quick-update');
+}
+
+function populateQuickModal() {
+  if (currentQuickIndex < 0 || currentQuickIndex >= quickProductList.length) return;
+  const prod = quickProductList[currentQuickIndex];
+
+  document.getElementById('quick-prod-id').value = prod.id;
+  document.getElementById('quick-prod-name').textContent = prod.name;
+  document.getElementById('quick-prod-category').textContent = prod.category || 'ของแห้ง';
+  document.getElementById('quick-unit-label-1').textContent = prod.unit || 'ชิ้น';
+  document.getElementById('quick-unit-label-2').textContent = prod.unit || 'ชิ้น';
+
+  document.getElementById('quick-safety-stock').value = prod.safety_stock;
+  document.getElementById('quick-quantity').value = prod.current_stock;
+  document.getElementById('quick-current-status').textContent = `คงเหลือเดิม: ${prod.current_stock} ${prod.unit}`;
+
+  document.getElementById('quick-expiry-date').value = prod.nearest_expiry || '';
+
+  const btnPrev = document.getElementById('btn-quick-prev');
+  const btnNext = document.getElementById('btn-quick-next');
+  if (btnPrev) btnPrev.disabled = currentQuickIndex <= 0;
+  if (btnNext) btnNext.disabled = currentQuickIndex >= quickProductList.length - 1;
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function setQuickSafety(val) {
+  document.getElementById('quick-safety-stock').value = val;
+}
+
+function setQuickQty(val) {
+  document.getElementById('quick-quantity').value = val;
+}
+
+function adjustQuickQty(delta) {
+  const el = document.getElementById('quick-quantity');
+  const cur = parseFloat(el.value) || 0;
+  el.value = Math.max(0, cur + delta);
+}
+
+function applyDatePreset(amount, unit) {
+  const d = new Date();
+  if (unit === 'days') {
+    d.setDate(d.getDate() + amount);
+  } else if (unit === 'months') {
+    d.setMonth(d.getMonth() + amount);
+  } else if (unit === 'years') {
+    d.setFullYear(d.getFullYear() + amount);
+  }
+  const str = d.toISOString().split('T')[0];
+  document.getElementById('quick-expiry-date').value = str;
+}
+
+async function handleSaveQuickUpdate(event) {
+  if (event) event.preventDefault();
+  const prodId = document.getElementById('quick-prod-id').value;
+  const safetyStock = document.getElementById('quick-safety-stock').value;
+  const quantity = document.getElementById('quick-quantity').value;
+  const expiryDate = document.getElementById('quick-expiry-date').value;
+
+  try {
+    const res = await fetch(`/api/products/${prodId}/quick-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        safety_stock: safetyStock,
+        quantity: quantity,
+        expiry_date: expiryDate
+      })
+    });
+
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+
+    showToast('✅ อัปเดตข้อมูลสินค้าสำเร็จ');
+    await loadAllData();
+    closeDialog('modal-quick-update');
+  } catch (err) {
+    showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+  }
+}
+
+async function handleSaveAndNextQuickUpdate(event) {
+  if (event) event.preventDefault();
+  const prodId = document.getElementById('quick-prod-id').value;
+  const safetyStock = document.getElementById('quick-safety-stock').value;
+  const quantity = document.getElementById('quick-quantity').value;
+  const expiryDate = document.getElementById('quick-expiry-date').value;
+
+  try {
+    const res = await fetch(`/api/products/${prodId}/quick-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        safety_stock: safetyStock,
+        quantity: quantity,
+        expiry_date: expiryDate
+      })
+    });
+
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+
+    showToast('✅ บันทึกแล้ว กำลังไปรายการถัดไป...');
+    await loadAllData();
+
+    if (currentQuickIndex < quickProductList.length - 1) {
+      currentQuickIndex++;
+      populateQuickModal();
+    } else {
+      closeDialog('modal-quick-update');
+      showToast('🎉 บันทึกครบทุกรายการแล้ว!');
+    }
+  } catch (err) {
+    showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+  }
+}
+
+function navigateQuickProduct(direction) {
+  const newIdx = currentQuickIndex + direction;
+  if (newIdx >= 0 && newIdx < quickProductList.length) {
+    currentQuickIndex = newIdx;
+    populateQuickModal();
+  }
+}
+
+async function inlineEditSafetyStock(productId, currentVal, name) {
+  const newVal = prompt(`ตั้งค่าจุดสั่งซื้อ (Safety Stock) สำหรับ:\n"${name}"\n(แจ้งเตือนเมื่อสต็อกเหลือ \u2264 ค่านี้)`, currentVal);
+  if (newVal === null) return;
+  const parsed = parseFloat(newVal);
+  if (isNaN(parsed) || parsed < 0) {
+    showToast('กรุณาระบุตัวเลขที่ถูกต้อง', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/products/${productId}/safety-stock`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ safety_stock: parsed })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    showToast(`✅ อัปเดตจุดสั่งซื้อของ ${name} เป็น ${parsed} สำเร็จ`);
+    await loadAllData();
+  } catch (err) {
+    showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+  }
 }
 

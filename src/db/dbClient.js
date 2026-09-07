@@ -320,6 +320,88 @@ const dbClient = {
     }
   },
 
+  async updateSafetyStock(id, safetyStock) {
+    const val = Math.max(0, Number(safetyStock) || 0);
+    if (isSupabase) {
+      await supabase.from('products').update({ safety_stock: val, updated_at: new Date().toISOString() }).eq('id', id);
+    } else {
+      sqliteDb.prepare('UPDATE products SET safety_stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(val, id);
+    }
+    return this.getProductById(id);
+  },
+
+  async quickUpdateProduct(id, data) {
+    // 1. Update safety stock if provided
+    if (data.safety_stock !== undefined && data.safety_stock !== '') {
+      const sVal = Math.max(0, Number(data.safety_stock) || 0);
+      if (isSupabase) {
+        await supabase.from('products').update({ safety_stock: sVal, updated_at: new Date().toISOString() }).eq('id', id);
+      } else {
+        sqliteDb.prepare('UPDATE products SET safety_stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(sVal, id);
+      }
+    }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const qty = data.quantity !== undefined && data.quantity !== '' ? Number(data.quantity) : null;
+    const expiryDate = data.expiry_date ? String(data.expiry_date).trim() : null;
+
+    if (qty !== null && qty <= 0) {
+      // Set all existing batches of this product to 0 (mark out of stock)
+      if (isSupabase) {
+        await supabase.from('inventory_batches').update({ quantity: 0 }).eq('product_id', id);
+      } else {
+        sqliteDb.prepare('UPDATE inventory_batches SET quantity = 0 WHERE product_id = ?').run(id);
+      }
+    } else if (qty !== null && qty > 0 && expiryDate) {
+      // Find existing active batch or create new batch
+      const batches = await this.getBatchesByProductId(id);
+      const activeBatches = batches.filter(b => b.quantity > 0);
+
+      if (activeBatches.length === 1) {
+        // Update the single batch
+        const b = activeBatches[0];
+        await this.updateBatch(b.id, {
+          quantity: qty,
+          expiry_date: expiryDate,
+          notes: data.notes || b.notes || 'อัปเดตด่วน'
+        });
+      } else {
+        // Create new batch with this expiry date and quantity
+        await this.createBatch({
+          product_id: id,
+          lot_number: data.lot_number || `LOT-${Date.now().toString().slice(-4)}`,
+          quantity: qty,
+          initial_quantity: qty,
+          expiry_date: expiryDate,
+          received_date: todayStr,
+          notes: data.notes || 'รับเข้า/อัปเดตด่วน'
+        });
+      }
+    } else if (expiryDate) {
+      // Only expiry date was updated
+      const batches = await this.getBatchesByProductId(id);
+      const activeBatches = batches.filter(b => b.quantity > 0);
+      if (activeBatches.length > 0) {
+        await this.updateBatch(activeBatches[0].id, {
+          expiry_date: expiryDate
+        });
+      } else {
+        const finalQty = (qty !== null && qty > 0) ? qty : 1;
+        await this.createBatch({
+          product_id: id,
+          lot_number: data.lot_number || `LOT-${Date.now().toString().slice(-4)}`,
+          quantity: finalQty,
+          initial_quantity: finalQty,
+          expiry_date: expiryDate,
+          received_date: todayStr,
+          notes: data.notes || 'บันทึกวันหมดอายุ'
+        });
+      }
+    }
+
+    return this.getProductById(id);
+  },
+
   // 3. BATCHES
   async getAllBatches() {
     const today = new Date().toISOString().split('T')[0];

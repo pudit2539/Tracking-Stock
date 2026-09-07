@@ -52,6 +52,24 @@ router.delete('/products/:id', async (req, res) => {
   }
 });
 
+router.patch('/products/:id/safety-stock', async (req, res) => {
+  try {
+    const product = await stockService.updateSafetyStock(req.params.id, req.body.safety_stock);
+    res.json({ success: true, data: product });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/products/:id/quick-update', async (req, res) => {
+  try {
+    const product = await stockService.quickUpdateProduct(req.params.id, req.body);
+    res.json({ success: true, data: product });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
 // 2. BATCHES
 router.get('/batches', async (req, res) => {
   try {

@@ -122,7 +122,10 @@ class LineService {
 
     const bodyContents = [];
 
-    items.forEach((item, index) => {
+    const maxDisplay = 15;
+    const displayItems = items.slice(0, maxDisplay);
+
+    displayItems.forEach((item, index) => {
       const itemRow = {
         type: 'box',
         layout: 'horizontal',
@@ -184,7 +187,7 @@ class LineService {
 
       bodyContents.push(itemRow);
 
-      if (index < items.length - 1) {
+      if (index < displayItems.length - 1) {
         bodyContents.push({
           type: 'separator',
           margin: 'md',
@@ -192,6 +195,30 @@ class LineService {
         });
       }
     });
+
+    if (items.length > maxDisplay) {
+      bodyContents.push({
+        type: 'separator',
+        margin: 'md',
+        color: '#E5E7EB'
+      });
+      bodyContents.push({
+        type: 'box',
+        layout: 'vertical',
+        margin: 'md',
+        paddingTop: '6px',
+        contents: [
+          {
+            type: 'text',
+            text: `... และอีก ${items.length - maxDisplay} รายการ (ตรวจสอบทั้งหมดบนเว็บ)`,
+            size: 'xs',
+            color: '#6B7280',
+            align: 'center',
+            weight: 'bold'
+          }
+        ]
+      });
+    }
 
     return {
       type: 'flex',

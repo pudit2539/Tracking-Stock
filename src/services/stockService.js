@@ -21,6 +21,14 @@ const stockService = {
     return dbClient.deleteProduct(id);
   },
 
+  updateSafetyStock(id, safetyStock) {
+    return dbClient.updateSafetyStock(id, safetyStock);
+  },
+
+  quickUpdateProduct(id, data) {
+    return dbClient.quickUpdateProduct(id, data);
+  },
+
   getBatchesByProductId(productId) {
     return dbClient.getBatchesByProductId(productId);
   },

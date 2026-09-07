@@ -243,25 +243,44 @@
     <div id="content-inventory" class="tab-content hidden space-y-6">
       
       <!-- Toolbar & Filters -->
-      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div class="flex items-center space-x-2 w-full sm:w-auto">
-          <div class="relative flex-1 sm:w-64">
-            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-            <input type="text" id="search-inventory" oninput="filterInventory()" placeholder="ค้นหาชื่อสินค้า..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500">
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div class="flex items-center space-x-2 w-full sm:w-auto">
+            <div class="relative flex-1 sm:w-64">
+              <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+              <input type="text" id="search-inventory" oninput="filterInventory()" placeholder="ค้นหาชื่อสินค้า..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500">
+            </div>
+            <select id="filter-category" onchange="filterInventory()" class="text-xs py-1.5 px-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500">
+              <option value="ALL">ทุกหมวดหมู่</option>
+            </select>
           </div>
-          <select id="filter-category" onchange="filterInventory()" class="text-xs py-1.5 px-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500">
-            <option value="ALL">ทุกหมวดหมู่</option>
-          </select>
+
+          <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+            <button onclick="openAddProductModal()" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>เพิ่มสินค้าใหม่</span>
+            </button>
+            <button onclick="openAddBatchModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition">
+              <i data-lucide="archive-restore" class="w-4 h-4"></i>
+              <span>รับเข้าล็อตใหม่</span>
+            </button>
+          </div>
         </div>
 
-        <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
-          <button onclick="openAddProductModal()" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition">
-            <i data-lucide="plus" class="w-4 h-4"></i>
-            <span>เพิ่มสินค้าใหม่</span>
+        <!-- Filter Quick Chips -->
+        <div class="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100 text-xs">
+          <span class="text-[11px] text-slate-400 mr-1">มุมมอง:</span>
+          <button type="button" onclick="setInventoryFilter('ALL')" id="chip-filter-all" class="chip-filter px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-900 text-white transition">
+            ทั้งหมด (<span id="count-all">0</span>)
           </button>
-          <button onclick="openAddBatchModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition">
-            <i data-lucide="archive-restore" class="w-4 h-4"></i>
-            <span>รับเข้าล็อตใหม่</span>
+          <button type="button" onclick="setInventoryFilter('LOW')" id="chip-filter-low" class="chip-filter px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-700 transition">
+            ⚠️ ต่ำกว่าเกณฑ์/หมด (<span id="count-low">0</span>)
+          </button>
+          <button type="button" onclick="setInventoryFilter('NO_EXPIRY')" id="chip-filter-no-expiry" class="chip-filter px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700 transition">
+            📅 ยังไม่ระบุวันหมดอายุ (<span id="count-no-expiry">0</span>)
+          </button>
+          <button type="button" onclick="setInventoryFilter('EXPIRING')" id="chip-filter-expiring" class="chip-filter px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition">
+            ⏳ ใกล้หมดอายุ (<span id="count-expiring">0</span>)
           </button>
         </div>
       </div>
@@ -740,6 +759,126 @@
         <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
           <button type="button" onclick="closeDialog('modal-recipient')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg">ยกเลิก</button>
           <button type="submit" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">บันทึกปลายทาง</button>
+        </div>
+      </form>
+    </div>
+  <!-- Modal 5: Quick Stock & Expiry Update (⚡ อัปเดตด่วน สต็อกและวันหมดอายุ) -->
+  <dialog id="modal-quick-update" class="rounded-2xl p-0 w-full max-w-lg shadow-2xl border border-slate-200 backdrop:bg-slate-900/40">
+    <div class="p-6 bg-white space-y-4 text-xs">
+      <div class="flex justify-between items-start border-b border-slate-100 pb-3">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider">Quick Update</span>
+            <span id="quick-prod-category" class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px]">ของแห้ง</span>
+          </div>
+          <h3 id="quick-prod-name" class="text-base font-bold text-slate-900 mt-1">ชื่อสินค้า</h3>
+          <p class="text-[11px] text-slate-400">อัปเดตวันหมดอายุ, สต็อกคงเหลือ และจุดแจ้งเตือนในหน้าเดียว</p>
+        </div>
+        <button onclick="closeDialog('modal-quick-update')" class="text-slate-400 hover:text-slate-600 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="form-quick-update" onsubmit="handleSaveQuickUpdate(event)" class="space-y-4">
+        <input type="hidden" id="quick-prod-id">
+
+        <!-- 1. Safety Stock (จุดสั่งซื้อ / แจ้งเตือนเมื่อต่ำกว่า) -->
+        <div class="p-3.5 bg-rose-50/50 rounded-xl border border-rose-100 space-y-2">
+          <div class="flex justify-between items-center">
+            <label class="font-bold text-rose-900 flex items-center space-x-1.5">
+              <i data-lucide="bell-ring" class="w-3.5 h-3.5 text-rose-600"></i>
+              <span>จุดแจ้งเตือนสต็อกใกล้หมด (Safety Stock)</span>
+            </label>
+            <span class="text-[10px] text-rose-600 font-medium">เตือนเมื่อเหลือ &le; ค่านี้</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <input type="number" step="any" min="0" id="quick-safety-stock" required class="flex-1 p-2 font-bold text-sm text-rose-700 rounded-lg border border-rose-200 bg-white focus:ring-2 focus:ring-rose-500 focus:outline-none" placeholder="1">
+            <span id="quick-unit-label-1" class="text-slate-500 font-medium text-xs px-2">PACK</span>
+          </div>
+          <div class="flex flex-wrap gap-1.5 pt-1">
+            <span class="text-[10px] text-slate-400 self-center mr-1">ค่าด่วน:</span>
+            <button type="button" onclick="setQuickSafety(0)" class="px-2 py-0.5 bg-white hover:bg-rose-100 border border-slate-200 text-[10px] font-medium rounded text-slate-600">0 (ปิดเตือน)</button>
+            <button type="button" onclick="setQuickSafety(1)" class="px-2 py-0.5 bg-white hover:bg-rose-100 border border-slate-200 text-[10px] font-medium rounded text-slate-600">1</button>
+            <button type="button" onclick="setQuickSafety(2)" class="px-2 py-0.5 bg-white hover:bg-rose-100 border border-slate-200 text-[10px] font-medium rounded text-slate-600">2</button>
+            <button type="button" onclick="setQuickSafety(5)" class="px-2 py-0.5 bg-white hover:bg-rose-100 border border-slate-200 text-[10px] font-medium rounded text-slate-600">5</button>
+            <button type="button" onclick="setQuickSafety(10)" class="px-2 py-0.5 bg-white hover:bg-rose-100 border border-slate-200 text-[10px] font-medium rounded text-slate-600">10</button>
+          </div>
+        </div>
+
+        <!-- 2. Current Stock (จำนวนคงเหลือ) -->
+        <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+          <div class="flex justify-between items-center">
+            <label class="font-bold text-slate-800 flex items-center space-x-1.5">
+              <i data-lucide="package" class="w-3.5 h-3.5 text-slate-600"></i>
+              <span>จำนวนในสต็อกปัจจุบัน</span>
+            </label>
+            <span id="quick-current-status" class="text-[10px] text-slate-500">คงเหลือเดิม: 0</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <input type="number" step="any" min="0" id="quick-quantity" class="flex-1 p-2 font-bold text-sm text-slate-900 rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="0">
+            <span id="quick-unit-label-2" class="text-slate-500 font-medium text-xs px-2">PACK</span>
+          </div>
+          <div class="flex flex-wrap gap-1.5 pt-1">
+            <span class="text-[10px] text-slate-400 self-center mr-1">ปุ่มลัด:</span>
+            <button type="button" onclick="setQuickQty(0)" class="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-[10px] font-bold rounded text-rose-700">🔴 หมด (0)</button>
+            <button type="button" onclick="adjustQuickQty(1)" class="px-2 py-0.5 bg-white hover:bg-slate-200 border border-slate-200 text-[10px] font-medium rounded text-slate-700">+1</button>
+            <button type="button" onclick="adjustQuickQty(5)" class="px-2 py-0.5 bg-white hover:bg-slate-200 border border-slate-200 text-[10px] font-medium rounded text-slate-700">+5</button>
+            <button type="button" onclick="adjustQuickQty(10)" class="px-2 py-0.5 bg-white hover:bg-slate-200 border border-slate-200 text-[10px] font-medium rounded text-slate-700">+10</button>
+            <button type="button" onclick="adjustQuickQty(20)" class="px-2 py-0.5 bg-white hover:bg-slate-200 border border-slate-200 text-[10px] font-medium rounded text-slate-700">+20</button>
+          </div>
+        </div>
+
+        <!-- 3. Expiry Date (วันหมดอายุ) - Super Fast & Convenient! -->
+        <div class="p-3.5 bg-blue-50/60 rounded-xl border border-blue-100 space-y-2">
+          <div class="flex justify-between items-center">
+            <label class="font-bold text-blue-950 flex items-center space-x-1.5">
+              <i data-lucide="calendar" class="w-3.5 h-3.5 text-blue-600"></i>
+              <span>วันหมดอายุ (Expiry Date)</span>
+            </label>
+            <span class="text-[10px] text-blue-600 font-medium">กดปุ่มลัดด้านล่างเพื่อใส่อัตโนมัติ</span>
+          </div>
+          <div>
+            <input type="date" id="quick-expiry-date" class="w-full p-2 text-xs font-semibold rounded-lg border border-blue-200 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          </div>
+          <!-- One-Click Presets for Fast Input -->
+          <div class="space-y-1.5 pt-1">
+            <div class="text-[10px] font-semibold text-blue-800 flex items-center space-x-1">
+              <span>⚡ ปุ่มลัดนับจากวันนี้ (กดแล้วลงวันที่ทันที):</span>
+            </div>
+            <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+              <button type="button" onclick="applyDatePreset(7, 'days')" class="px-2 py-1.5 bg-white hover:bg-blue-100 border border-blue-200 text-[11px] font-medium rounded-lg text-blue-700 text-center transition shadow-2xs">+7 วัน</button>
+              <button type="button" onclick="applyDatePreset(15, 'days')" class="px-2 py-1.5 bg-white hover:bg-blue-100 border border-blue-200 text-[11px] font-medium rounded-lg text-blue-700 text-center transition shadow-2xs">+15 วัน</button>
+              <button type="button" onclick="applyDatePreset(1, 'months')" class="px-2 py-1.5 bg-white hover:bg-blue-100 border border-blue-200 text-[11px] font-medium rounded-lg text-blue-700 text-center transition shadow-2xs">+1 เดือน</button>
+              <button type="button" onclick="applyDatePreset(3, 'months')" class="px-2 py-1.5 bg-white hover:bg-blue-100 border border-blue-200 text-[11px] font-medium rounded-lg text-blue-700 text-center transition shadow-2xs">+3 เดือน</button>
+              <button type="button" onclick="applyDatePreset(6, 'months')" class="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg text-center transition shadow-2xs">+6 เดือน</button>
+              <button type="button" onclick="applyDatePreset(1, 'years')" class="px-2 py-1.5 bg-white hover:bg-blue-100 border border-blue-200 text-[11px] font-medium rounded-lg text-blue-700 text-center transition shadow-2xs">+1 ปี</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons with Next/Prev for store auditing -->
+        <div class="pt-3 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-2">
+          <div class="flex items-center space-x-1.5 w-full sm:w-auto">
+            <button type="button" onclick="navigateQuickProduct(-1)" id="btn-quick-prev" title="รายการก่อนหน้า" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs flex items-center space-x-1">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+              <span>ก่อนหน้า</span>
+            </button>
+            <button type="button" onclick="navigateQuickProduct(1)" id="btn-quick-next" title="รายการถัดไป" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs flex items-center space-x-1">
+              <span>ถัดไป</span>
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+            <button type="button" onclick="closeDialog('modal-quick-update')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium">ปิด</button>
+            <button type="submit" id="btn-quick-save" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg text-xs flex items-center space-x-1 shadow-sm transition">
+              <i data-lucide="save" class="w-3.5 h-3.5"></i>
+              <span>บันทึก</span>
+            </button>
+            <button type="button" onclick="handleSaveAndNextQuickUpdate(event)" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs flex items-center space-x-1 shadow-sm transition">
+              <span>บันทึก & ถัดไป ⏭️</span>
+            </button>
+          </div>
         </div>
       </form>
     </div>

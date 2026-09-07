@@ -107,7 +107,7 @@ function initSchema() {
 
 function seedDemoData() {
   const insertProduct = db.prepare(`
-    INSERT INTO products (name, category, unit, safety_stock, expiry_warning_days)
+    INSERT OR IGNORE INTO products (name, category, unit, safety_stock, expiry_warning_days)
     VALUES (?, ?, ?, ?, ?)
   `);
 
@@ -116,30 +116,76 @@ function seedDemoData() {
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
-  const today = new Date();
-  const formatDate = (daysOffset) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() + daysOffset);
-    return d.toISOString().split('T')[0];
-  };
+  const dqItems = [
+    ['ผงโกโก้', 'ของแห้ง', 'EA', 1, 7],
+    ['ช้อนสั้น', 'ของแห้ง', 'PACK', 1, 7],
+    ['ช้อนยาว', 'ของแห้ง', 'PACK', 1, 7],
+    ['นมจืด', 'ของแห้ง', 'PACK', 1, 7],
+    ['แก้วซันเดย์', 'ของแห้ง', 'PACK', 1, 7],
+    ['หลอด', 'ของแห้ง', 'PACK', 1, 7],
+    ['โคน', 'ของแห้ง', 'PACK', 1, 7],
+    ['Oreo', 'ของแห้ง', 'PACK', 1, 7],
+    ['แก้ว8oz', 'ของแห้ง', 'PACK', 1, 7],
+    ['แก้ว12oz', 'ของแห้ง', 'PACK', 1, 7],
+    ['แก้ว16oz BZ', 'ของแห้ง', 'PACK', 1, 7],
+    ['แนปกิ้น', 'ของแห้ง', 'PACK', 1, 7],
+    ['Box hotdag', 'ของแห้ง', 'PACK', 1, 7],
+    ['Wrap hotdog', 'ของแห้ง', 'PACK', 1, 7],
+    ['กาแฟ', 'ของแห้ง', 'PACK', 1, 7],
+    ['ซอสมะเขือเทศ', 'ของแห้ง', 'BAG', 1, 7],
+    ['ซอสพริก', 'ของแห้ง', 'BAG', 1, 7],
+    ['โกโก้ฟัด', 'ของแห้ง', 'BAG', 1, 7],
+    ['ช็อคดิป', 'ของแห้ง', 'BAG', 1, 7],
+    ['คาราเมล', 'ของแห้ง', 'BAG', 1, 7],
+    ['ช็อคท็อปปิ้ง', 'ของแห้ง', 'BAG', 1, 7],
+    ['อัลมอนด์', 'ของแห้ง', 'BAG', 1, 7],
+    ['ชาเขียว', 'ของแห้ง', 'BAG', 1, 7],
+    ['ถุงขาว', 'ของแห้ง', 'PACK', 1, 7],
+    ['แก๊สบอม', 'ของแห้ง', 'BOX', 1, 7],
+    ['Kitkat', 'ของแห้ง', 'BOX', 1, 7],
+    ['ปอกโคน', 'ของแห้ง', 'PACK', 1, 7],
+    ['Purra', 'ของแห้ง', 'PACK', 1, 7],
+    ['มีด', 'ของแห้ง', 'PACK', 1, 7],
+    ['ส้อม', 'ของแห้ง', 'PACK', 1, 7],
+    ['วอวิค', 'ของแห้ง', 'CS', 1, 7],
+    ['โรล เปปเซฟ', 'ของแห้ง', 'EA', 1, 7],
+    ['เอเวียงฝาแดง', 'ของแห้ง', 'CS', 1, 7],
+    ['ชเวปเขียว', 'ของแห้ง', 'PACK', 1, 7],
+    ['ชเวปม่วง', 'ของแห้ง', 'CS', 1, 7],
+    ['ชเวปชมพู', 'ของแห้ง', 'PACK', 1, 7],
+    ['แก้ว16oz', 'ของแห้ง', 'PACK', 1, 7],
+    ['ฝา BZ.16 oz', 'ของแห้ง', 'PACK', 1, 7],
+    ['แก้วCoke 32oz', 'ของแห้ง', 'PACK', 1, 7],
+    ['ฝาแก้ว 32 oz', 'ของแห้ง', 'PACK', 1, 7],
+    ['แก้ว 22 oz', 'ของแห้ง', 'PACK', 1, 7],
+    ['ฝาแก้ว 22 oz', 'ของแห้ง', 'PACK', 1, 7],
+    ['ถุงขยะใหญ่', 'ของแห้ง', 'PACK', 1, 7],
+    ['Hand towel', 'ของแห้ง', 'PACK', 1, 7],
+    ['Perrier', 'ของแห้ง', 'PACK', 1, 7],
+    ['Perrier Lemon', 'ของแห้ง', 'PACK', 1, 7],
+    ['Cokeกด', 'ของแห้ง', 'CS', 1, 7],
+    ['Cokeขวดฝาแดง', 'ของแห้ง', 'CS', 1, 7],
+    ['ถุงมือS', 'ของแห้ง', 'BOX', 1, 7],
+    ['ถุงมือM', 'ของแห้ง', 'BOX', 1, 7],
+    ['ถังแดง', 'ของแห้ง', 'EA', 1, 7],
+    ['ขวดใส่ท็อปปิ้ง', 'ของแห้ง', 'EA', 1, 7],
+    ['มัลติ', 'ของแห้ง', 'EA', 1, 7],
+    ['ถุงขยะเล็ก', 'ของแห้ง', 'PACK', 1, 7]
+  ];
 
-  // Demo items matching the screenshot reference
-  // 1. Bread: Total 110 Fl, Safety 200 Fl
-  const breadRes = insertProduct.run('Bread', 'เบเกอรี่', 'Fl', 200, 5);
-  insertBatch.run(breadRes.lastInsertRowid, 'LOT-BR01', 50, 100, formatDate(3), formatDate(-2), 'ล็อตแรก');
-  insertBatch.run(breadRes.lastInsertRowid, 'LOT-BR02', 60, 100, formatDate(6), formatDate(-1), 'ล็อตสอง');
+  for (const item of dqItems) {
+    insertProduct.run(item[0], item[1], item[2], item[3], item[4]);
+  }
 
-  // 2. Chicken Slice: Total 1000 Piece, Safety 2000 Piece
-  const chickenRes = insertProduct.run('Chicken Slice', 'เนื้อสัตว์', 'Piece', 2000, 7);
-  insertBatch.run(chickenRes.lastInsertRowid, 'LOT-CK01', 1000, 2000, formatDate(14), formatDate(-3), 'อกไก่สไลด์แช่เย็น');
-
-  // 3. Ham: Total 1 Kg, Safety 1 Kg (or near threshold)
-  const hamRes = insertProduct.run('Ham', 'เนื้อสัตว์', 'Kg', 1, 7);
-  insertBatch.run(hamRes.lastInsertRowid, 'LOT-HM01', 1, 5, formatDate(4), formatDate(-5), 'แฮมหมูรมควัน');
-
-  // 4. Cheddar Cheese: Good stock, but expiring soon! (for expiry alert testing)
-  const cheeseRes = insertProduct.run('Cheddar Cheese', 'ผลิตภัณฑ์นม', 'Pack', 5, 10);
-  insertBatch.run(cheeseRes.lastInsertRowid, 'LOT-CH01', 12, 15, formatDate(2), formatDate(-10), 'ชีสแผ่น ใกล้หมดอายุ');
+  // Initial batch for 'ฝา BZ.16 oz' with 5 in stock
+  const p = db.prepare("SELECT id FROM products WHERE name = 'ฝา BZ.16 oz'").get();
+  if (p) {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 6);
+    const expiryStr = d.toISOString().split('T')[0];
+    const todayStr = new Date().toISOString().split('T')[0];
+    insertBatch.run(p.id, 'LOT-INIT', 5, 5, expiryStr, todayStr, 'ยอดยกมา 5 แพ็ค');
+  }
 }
 
 initSchema();

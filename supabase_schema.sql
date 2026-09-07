@@ -71,44 +71,74 @@ INSERT INTO settings (key, value) VALUES
   ('last_alert_sent_at', '')
 ON CONFLICT (key) DO NOTHING;
 
--- Initial Demo Data (Matching reference screenshot)
+-- Initial Data: 54 Dairy Queen Inventory Items (Dry goods)
+INSERT INTO products (name, category, unit, safety_stock, expiry_warning_days)
+VALUES
+  ('ผงโกโก้', 'ของแห้ง', 'EA', 1, 7),
+  ('ช้อนสั้น', 'ของแห้ง', 'PACK', 1, 7),
+  ('ช้อนยาว', 'ของแห้ง', 'PACK', 1, 7),
+  ('นมจืด', 'ของแห้ง', 'PACK', 1, 7),
+  ('แก้วซันเดย์', 'ของแห้ง', 'PACK', 1, 7),
+  ('หลอด', 'ของแห้ง', 'PACK', 1, 7),
+  ('โคน', 'ของแห้ง', 'PACK', 1, 7),
+  ('Oreo', 'ของแห้ง', 'PACK', 1, 7),
+  ('แก้ว8oz', 'ของแห้ง', 'PACK', 1, 7),
+  ('แก้ว12oz', 'ของแห้ง', 'PACK', 1, 7),
+  ('แก้ว16oz BZ', 'ของแห้ง', 'PACK', 1, 7),
+  ('แนปกิ้น', 'ของแห้ง', 'PACK', 1, 7),
+  ('Box hotdag', 'ของแห้ง', 'PACK', 1, 7),
+  ('Wrap hotdog', 'ของแห้ง', 'PACK', 1, 7),
+  ('กาแฟ', 'ของแห้ง', 'PACK', 1, 7),
+  ('ซอสมะเขือเทศ', 'ของแห้ง', 'BAG', 1, 7),
+  ('ซอสพริก', 'ของแห้ง', 'BAG', 1, 7),
+  ('โกโก้ฟัด', 'ของแห้ง', 'BAG', 1, 7),
+  ('ช็อคดิป', 'ของแห้ง', 'BAG', 1, 7),
+  ('คาราเมล', 'ของแห้ง', 'BAG', 1, 7),
+  ('ช็อคท็อปปิ้ง', 'ของแห้ง', 'BAG', 1, 7),
+  ('อัลมอนด์', 'ของแห้ง', 'BAG', 1, 7),
+  ('ชาเขียว', 'ของแห้ง', 'BAG', 1, 7),
+  ('ถุงขาว', 'ของแห้ง', 'PACK', 1, 7),
+  ('แก๊สบอม', 'ของแห้ง', 'BOX', 1, 7),
+  ('Kitkat', 'ของแห้ง', 'BOX', 1, 7),
+  ('ปอกโคน', 'ของแห้ง', 'PACK', 1, 7),
+  ('Purra', 'ของแห้ง', 'PACK', 1, 7),
+  ('มีด', 'ของแห้ง', 'PACK', 1, 7),
+  ('ส้อม', 'ของแห้ง', 'PACK', 1, 7),
+  ('วอวิค', 'ของแห้ง', 'CS', 1, 7),
+  ('โรล เปปเซฟ', 'ของแห้ง', 'EA', 1, 7),
+  ('เอเวียงฝาแดง', 'ของแห้ง', 'CS', 1, 7),
+  ('ชเวปเขียว', 'ของแห้ง', 'PACK', 1, 7),
+  ('ชเวปม่วง', 'ของแห้ง', 'CS', 1, 7),
+  ('ชเวปชมพู', 'ของแห้ง', 'PACK', 1, 7),
+  ('แก้ว16oz', 'ของแห้ง', 'PACK', 1, 7),
+  ('ฝา BZ.16 oz', 'ของแห้ง', 'PACK', 1, 7),
+  ('แก้วCoke 32oz', 'ของแห้ง', 'PACK', 1, 7),
+  ('ฝาแก้ว 32 oz', 'ของแห้ง', 'PACK', 1, 7),
+  ('แก้ว 22 oz', 'ของแห้ง', 'PACK', 1, 7),
+  ('ฝาแก้ว 22 oz', 'ของแห้ง', 'PACK', 1, 7),
+  ('ถุงขยะใหญ่', 'ของแห้ง', 'PACK', 1, 7),
+  ('Hand towel', 'ของแห้ง', 'PACK', 1, 7),
+  ('Perrier', 'ของแห้ง', 'PACK', 1, 7),
+  ('Perrier Lemon', 'ของแห้ง', 'PACK', 1, 7),
+  ('Cokeกด', 'ของแห้ง', 'CS', 1, 7),
+  ('Cokeขวดฝาแดง', 'ของแห้ง', 'CS', 1, 7),
+  ('ถุงมือS', 'ของแห้ง', 'BOX', 1, 7),
+  ('ถุงมือM', 'ของแห้ง', 'BOX', 1, 7),
+  ('ถังแดง', 'ของแห้ง', 'EA', 1, 7),
+  ('ขวดใส่ท็อปปิ้ง', 'ของแห้ง', 'EA', 1, 7),
+  ('มัลติ', 'ของแห้ง', 'EA', 1, 7),
+  ('ถุงขยะเล็ก', 'ของแห้ง', 'PACK', 1, 7)
+ON CONFLICT (name) DO NOTHING;
+
+-- Initial Batch for 'ฝา BZ.16 oz' (5 packs)
 DO $$
 DECLARE
-  bread_id BIGINT;
-  chicken_id BIGINT;
-  ham_id BIGINT;
-  cheese_id BIGINT;
+  bz_id BIGINT;
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM products LIMIT 1) THEN
-    -- 1. Bread (Total 110 Fl, Safety 200 Fl)
-    INSERT INTO products (name, category, unit, safety_stock, expiry_warning_days)
-    VALUES ('Bread', 'เบเกอรี่', 'Fl', 200, 5) RETURNING id INTO bread_id;
-    
+  SELECT id INTO bz_id FROM products WHERE name = 'ฝา BZ.16 oz' LIMIT 1;
+  IF bz_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM inventory_batches WHERE product_id = bz_id) THEN
     INSERT INTO inventory_batches (product_id, lot_number, quantity, initial_quantity, expiry_date, received_date, notes)
-    VALUES 
-      (bread_id, 'LOT-BR01', 50, 100, CURRENT_DATE + INTERVAL '3 days', CURRENT_DATE - INTERVAL '2 days', 'ล็อตแรก'),
-      (bread_id, 'LOT-BR02', 60, 100, CURRENT_DATE + INTERVAL '6 days', CURRENT_DATE - INTERVAL '1 day', 'ล็อตสอง');
-
-    -- 2. Chicken Slice (Total 1000 Piece, Safety 2000 Piece)
-    INSERT INTO products (name, category, unit, safety_stock, expiry_warning_days)
-    VALUES ('Chicken Slice', 'เนื้อสัตว์', 'Piece', 2000, 7) RETURNING id INTO chicken_id;
-    
-    INSERT INTO inventory_batches (product_id, lot_number, quantity, initial_quantity, expiry_date, received_date, notes)
-    VALUES (chicken_id, 'LOT-CK01', 1000, 2000, CURRENT_DATE + INTERVAL '14 days', CURRENT_DATE - INTERVAL '3 days', 'อกไก่สไลด์แช่เย็น');
-
-    -- 3. Ham (Total 1 Kg, Safety 1 Kg)
-    INSERT INTO products (name, category, unit, safety_stock, expiry_warning_days)
-    VALUES ('Ham', 'เนื้อสัตว์', 'Kg', 1, 7) RETURNING id INTO ham_id;
-    
-    INSERT INTO inventory_batches (product_id, lot_number, quantity, initial_quantity, expiry_date, received_date, notes)
-    VALUES (ham_id, 'LOT-HM01', 1, 5, CURRENT_DATE + INTERVAL '4 days', CURRENT_DATE - INTERVAL '5 days', 'แฮมหมูรมควัน');
-
-    -- 4. Cheddar Cheese (Expiring in 2 days)
-    INSERT INTO products (name, category, unit, safety_stock, expiry_warning_days)
-    VALUES ('Cheddar Cheese', 'ผลิตภัณฑ์นม', 'Pack', 5, 10) RETURNING id INTO cheese_id;
-    
-    INSERT INTO inventory_batches (product_id, lot_number, quantity, initial_quantity, expiry_date, received_date, notes)
-    VALUES (cheese_id, 'LOT-CH01', 12, 15, CURRENT_DATE + INTERVAL '2 days', CURRENT_DATE - INTERVAL '10 days', 'ชีสแผ่น');
+    VALUES (bz_id, 'LOT-INIT', 5, 5, CURRENT_DATE + INTERVAL '6 months', CURRENT_DATE, 'ยอดยกมา 5 แพ็ค');
   END IF;
 END $$;
 
