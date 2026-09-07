@@ -10,6 +10,50 @@ let state = {
   activeTab: 'dashboard'
 };
 
+// Cache configuration for instant 0ms rendering
+const CACHE_KEY = 'dq_stock_cache_v2';
+
+function loadCachedState() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return false;
+    const cached = JSON.parse(raw);
+    if (cached && Array.isArray(cached.products) && cached.products.length > 0) {
+      state.products = cached.products;
+      state.batches = cached.batches || [];
+      state.alerts = cached.alerts || state.alerts;
+      state.usageLogs = cached.usageLogs || [];
+      state.usageSummary = cached.usageSummary || [];
+      state.settings = cached.settings || {};
+      state.recipients = cached.recipients || [];
+      renderAll();
+      populateSettingsForm();
+      return true;
+    }
+  } catch (e) {
+    console.warn('Failed to load local cache:', e);
+  }
+  return false;
+}
+
+function saveStateToCache() {
+  try {
+    const toCache = {
+      products: state.products,
+      batches: state.batches,
+      alerts: state.alerts,
+      usageLogs: state.usageLogs,
+      usageSummary: state.usageSummary,
+      settings: state.settings,
+      recipients: state.recipients,
+      updated_at: Date.now()
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(toCache));
+  } catch (e) {
+    // Ignore storage quota limits
+  }
+}
+
 // Initialize app on DOM loaded
 document.addEventListener('DOMContentLoaded', async () => {
   if (window.lucide) lucide.createIcons();
@@ -21,11 +65,47 @@ document.addEventListener('DOMContentLoaded', async () => {
   const batchReceivedEl = document.getElementById('batch-received');
   if (batchReceivedEl) batchReceivedEl.value = today;
 
+  // 1. Instant 0ms Render from LocalStorage Cache
+  const hadCache = loadCachedState();
+
+  // 2. Refresh fresh server data in background
   await loadAllData();
 });
 
-// Load all data from API
+// Load all data from API (High speed 1-roundtrip bootstrap)
 async function loadAllData() {
+  const statusEl = document.getElementById('connection-status');
+  try {
+    const res = await fetch('/api/bootstrap');
+    if (!res.ok) throw new Error(`Server returned HTTP ${res.status}`);
+    const json = await res.json();
+    if (json.success && json.data) {
+      state.products = json.data.products || [];
+      state.batches = json.data.batches || [];
+      state.alerts = json.data.alerts || { low_stock_items: [], expiring_batches: [], expired_batches: [] };
+      state.usageLogs = json.data.usageLogs || [];
+      state.usageSummary = json.data.usageSummary || [];
+      state.settings = json.data.settings || {};
+      state.recipients = json.data.recipients || [];
+
+      renderAll();
+      populateSettingsForm();
+      saveStateToCache();
+
+      if (statusEl) {
+        statusEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>ข้อมูลล่าสุด</span>';
+      }
+    } else {
+      throw new Error(json.error || 'Failed to parse bootstrap data');
+    }
+  } catch (err) {
+    console.warn('Bootstrap API failed, falling back to legacy multi-fetch:', err.message);
+    await fallbackLoadAllData();
+  }
+}
+
+// Fallback to separate endpoints if /api/bootstrap ever fails
+async function fallbackLoadAllData() {
   try {
     await Promise.all([
       fetchProducts(),
@@ -37,6 +117,7 @@ async function loadAllData() {
       fetchRecipients()
     ]);
     renderAll();
+    saveStateToCache();
   } catch (err) {
     showToast('เกิดข้อผิดพลาดในการโหลดข้อมูล: ' + err.message, 'error');
   }

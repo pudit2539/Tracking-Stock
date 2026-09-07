@@ -5,6 +5,17 @@ const lineService = require('../services/lineService');
 const cronService = require('../services/cronService');
 const dbClient = require('../db/dbClient');
 
+// 0. HIGH-SPEED BOOTSTRAP (1 roundtrip for entire app load)
+router.get('/bootstrap', async (req, res) => {
+  try {
+    const data = await stockService.getBootstrapData();
+    res.json({ success: true, data });
+  } catch (err) {
+    console.error('[Bootstrap Route Error]:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 1. PRODUCTS
 router.get('/products', async (req, res) => {
   try {

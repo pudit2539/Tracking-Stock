@@ -63,6 +63,10 @@ const stockService = {
 
   getAlertsData() {
     return dbClient.getAlertsData();
+  },
+
+  getBootstrapData() {
+    return dbClient.getBootstrapData();
   }
 };
 

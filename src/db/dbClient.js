@@ -711,6 +711,169 @@ const dbClient = {
         expired_count: expiredBatches.length
       }
     };
+  },
+
+  async getBootstrapData() {
+    const today = new Date().toISOString().split('T')[0];
+
+    if (isSupabase) {
+      const [prodsRes, batchesRes, settingsRes, recipientsRes, logsRes] = await Promise.all([
+        supabase.from('products').select('*').order('name'),
+        supabase.from('inventory_batches').select('*').order('expiry_date'),
+        supabase.from('settings').select('*'),
+        supabase.from('line_recipients').select('*').order('created_at', { ascending: false }),
+        supabase.from('usage_logs').select('*, products(name, unit), inventory_batches(lot_number)').order('used_date', { ascending: false }).limit(50)
+      ]);
+
+      if (prodsRes.error) throw new Error(prodsRes.error.message);
+      if (batchesRes.error) throw new Error(batchesRes.error.message);
+
+      const rawProds = prodsRes.data || [];
+      const rawBatches = batchesRes.data || [];
+      const rawSettings = settingsRes.data || [];
+      const rawRecipients = recipientsRes.data || [];
+      const rawLogs = logsRes.data || [];
+
+      // 1. Settings Map
+      const settings = {};
+      rawSettings.forEach(r => { settings[r.key] = r.value; });
+      const defaultWarningDays = parseInt(settings.default_expiry_alert_days || '7', 10) || 7;
+
+      // 2. Enriched Batches
+      const batches = rawBatches.map(b => {
+        const prod = rawProds.find(p => p.id == b.product_id);
+        const diffTime = new Date(b.expiry_date) - new Date(today);
+        const daysUntilExpiry = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const warningDays = prod?.expiry_warning_days || defaultWarningDays;
+        return {
+          ...b,
+          quantity: Number(b.quantity),
+          initial_quantity: Number(b.initial_quantity),
+          product_name: prod?.name || '',
+          unit: prod?.unit || '',
+          category: prod?.category || '',
+          days_until_expiry: daysUntilExpiry,
+          is_expired: daysUntilExpiry < 0,
+          is_expiring_soon: daysUntilExpiry >= 0 && daysUntilExpiry <= warningDays
+        };
+      });
+
+      // 3. Enriched Products
+      const activeBatches = batches.filter(b => b.quantity > 0);
+      const products = rawProds.map(p => {
+        const pBatches = activeBatches.filter(b => b.product_id == p.id);
+        const currentStock = pBatches.reduce((sum, b) => sum + b.quantity, 0);
+        const nearestBatch = pBatches[0];
+        const nearestExpiry = nearestBatch ? nearestBatch.expiry_date : null;
+
+        let daysUntilExpiry = null;
+        let isExpired = false;
+        let isExpiringSoon = false;
+
+        if (nearestExpiry) {
+          const diffTime = new Date(nearestExpiry) - new Date(today);
+          daysUntilExpiry = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          if (daysUntilExpiry < 0) isExpired = true;
+          else if (daysUntilExpiry <= (p.expiry_warning_days || defaultWarningDays)) isExpiringSoon = true;
+        }
+
+        return {
+          ...p,
+          safety_stock: Number(p.safety_stock),
+          current_stock: currentStock,
+          batch_count: pBatches.length,
+          nearest_expiry: nearestExpiry,
+          days_until_expiry: daysUntilExpiry,
+          is_low_stock: currentStock <= Number(p.safety_stock),
+          is_expiring_soon: isExpiringSoon,
+          is_expired: isExpired
+        };
+      });
+
+      // 4. Alerts
+      const lowStockItems = products.filter(p => p.is_low_stock);
+      const expiringBatches = activeBatches.filter(b => b.days_until_expiry <= defaultWarningDays);
+      const expiredBatches = activeBatches.filter(b => b.days_until_expiry < 0);
+      const expiringSoonBatches = activeBatches.filter(b => b.days_until_expiry >= 0 && b.days_until_expiry <= defaultWarningDays);
+
+      const alerts = {
+        today,
+        low_stock_items: lowStockItems,
+        expiring_batches: expiringBatches,
+        expired_batches: expiredBatches,
+        expiring_soon_batches: expiringSoonBatches,
+        summary: {
+          total_products: products.length,
+          low_stock_count: lowStockItems.length,
+          expiring_soon_count: expiringSoonBatches.length,
+          expired_count: expiredBatches.length
+        }
+      };
+
+      // 5. Usage Logs
+      const usageLogs = rawLogs.map(u => ({
+        ...u,
+        product_name: u.products?.name,
+        unit: u.products?.unit,
+        lot_number: u.inventory_batches?.lot_number
+      }));
+
+      // 6. Usage Summary
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - 30);
+      const cutoffStr = cutoffDate.toISOString().split('T')[0];
+
+      const usageSummary = products.map(p => {
+        const pLogs = usageLogs.filter(l => l.product_id == p.id && l.used_date >= cutoffStr && l.type === 'USE');
+        const totalUsed = pLogs.reduce((sum, l) => sum + Number(l.quantity), 0);
+        const avgDaily = Number((totalUsed / 30).toFixed(2));
+        return {
+          product_id: p.id,
+          product_name: p.name,
+          unit: p.unit,
+          safety_stock: p.safety_stock,
+          total_used: totalUsed,
+          usage_count: pLogs.length,
+          avg_daily_use: avgDaily
+        };
+      }).sort((a, b) => b.total_used - a.total_used);
+
+      // 7. Recipients
+      const recipients = rawRecipients.map(r => ({
+        ...r,
+        is_active: r.is_active ? 1 : 0
+      }));
+
+      return {
+        products,
+        batches,
+        alerts,
+        usageLogs,
+        usageSummary,
+        settings,
+        recipients
+      };
+    } else {
+      const [products, batches, alerts, usageLogs, usageSummary, settings, recipients] = await Promise.all([
+        this.getAllProducts(),
+        this.getAllBatches(),
+        this.getAlertsData(),
+        this.getUsageLogs(50),
+        this.getUsageSummary(30),
+        this.getAllSettings(),
+        this.getRecipients()
+      ]);
+
+      return {
+        products,
+        batches,
+        alerts,
+        usageLogs,
+        usageSummary,
+        settings,
+        recipients
+      };
+    }
   }
 };
 
