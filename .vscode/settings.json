@@ -1,8 +1,10 @@
 {
+  "git.autorefresh": false,
   "git.autofetch": false,
   "git.autoStash": false,
   "git.status.submodules": false,
   "git.detectSubmodules": false,
+  "git.decorations.enabled": false,
   "files.watcherExclude": {
     "**/.git/**": true,
     "**/node_modules/**": true,
