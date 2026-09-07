@@ -409,6 +409,73 @@ function renderInventoryTable() {
     `;
   }).join('');
 
+  // 4.2 Render Mobile Cards View (Optimized for Phones & Thumb Interaction)
+  const mobileContainer = document.getElementById('inventory-mobile-cards');
+  if (mobileContainer) {
+    if (filtered.length === 0) {
+      mobileContainer.innerHTML = `
+        <div class="p-8 text-center text-slate-400 bg-white rounded-3xl border border-slate-200">
+          <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+          <p>ไม่พบรายการสินค้าที่ค้นหา</p>
+        </div>
+      `;
+    } else {
+      mobileContainer.innerHTML = filtered.map(p => {
+        let statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">ปกติ</span>`;
+        if (p.is_low_stock) {
+          statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">⚠️ ต่ำกว่าเกณฑ์/หมด</span>`;
+        } else if (p.is_expired) {
+          statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-800">หมดอายุแล้ว</span>`;
+        } else if (p.is_expiring_soon) {
+          statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">ใกล้หมดอายุ</span>`;
+        }
+
+        const expiryText = p.nearest_expiry 
+          ? `<span class="font-bold text-slate-900">${p.nearest_expiry}</span> <span class="text-[10px] ${p.days_until_expiry < 0 ? 'text-rose-600 font-bold' : (p.days_until_expiry <= 7 ? 'text-amber-600 font-bold' : 'text-slate-400')}">(${p.days_until_expiry < 0 ? 'หมดอายุแล้ว' : `อีก ${p.days_until_expiry} วัน`})</span>`
+          : `<span class="text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-md">ยังไม่ระบุ</span>`;
+
+        return `
+          <div class="bg-white p-4 rounded-3xl border ${p.is_low_stock ? 'border-rose-200 shadow-rose-100/40' : 'border-slate-200'} shadow-sm space-y-3">
+            <!-- Header: Title & Status -->
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <h4 class="font-extrabold text-slate-900 text-sm leading-snug">${p.name}</h4>
+                <span class="inline-block mt-0.5 text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${p.category}</span>
+              </div>
+              <div class="shrink-0">${statusBadge}</div>
+            </div>
+
+            <!-- Stats 3 Columns -->
+            <div class="grid grid-cols-3 gap-2 p-3 bg-slate-50/80 rounded-2xl border border-slate-100 text-xs">
+              <div>
+                <div class="text-[10px] text-slate-400 font-medium">คงเหลือ</div>
+                <div class="font-black ${p.is_low_stock ? 'text-rose-600 text-base' : 'text-slate-900 text-sm'}">
+                  ${p.current_stock} <span class="text-[10px] font-normal uppercase text-slate-500">${p.unit}</span>
+                </div>
+              </div>
+              <div>
+                <div class="text-[10px] text-slate-400 font-medium">จุดสั่งซื้อ</div>
+                <div class="font-bold text-slate-700">
+                  ${p.safety_stock} <span class="text-[10px] font-normal uppercase text-slate-500">${p.unit}</span>
+                </div>
+              </div>
+              <div>
+                <div class="text-[10px] text-slate-400 font-medium">วันหมดอายุ</div>
+                <div class="text-[11px] truncate mt-0.5">${expiryText}</div>
+              </div>
+            </div>
+
+            <!-- Big Thumb Action Button -->
+            <button onclick="openQuickUpdateModal(${p.id})" class="w-full py-3 px-4 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold text-xs rounded-2xl shadow-xs flex items-center justify-center space-x-2 transition">
+              <i data-lucide="zap" class="w-4 h-4"></i>
+              <span>⚡ แตะเพื่อกรอกวันหมดอายุ & สต็อก</span>
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
   if (window.lucide) lucide.createIcons();
 }
 
