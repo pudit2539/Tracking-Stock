@@ -60,18 +60,45 @@ CREATE TABLE IF NOT EXISTS line_recipients (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Default Settings
+-- =======================================================
+-- 6. PERMISSIONS & DISABLE RLS (Allow Web App & Serverless to Read/Write)
+-- =======================================================
+ALTER TABLE products DISABLE ROW LEVEL SECURITY;
+ALTER TABLE inventory_batches DISABLE ROW LEVEL SECURITY;
+ALTER TABLE usage_logs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE settings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE line_recipients DISABLE ROW LEVEL SECURITY;
+
+GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+
+-- =======================================================
+-- 7. CLONE SETTINGS (With Active LINE Channel Access Token & Group)
+-- =======================================================
 INSERT INTO settings (key, value) VALUES
-  ('line_channel_access_token', ''),
-  ('line_target_id', ''),
+  ('line_channel_access_token', 'HTbYnHl06QHsQK0VGnqnEomQGiuTrzbd2SIckhySTk26OoOCAhyVAMarTzbVAkOt7bD1lEbm6L0+snffeQAlnVpdh2GEN0ap+8D/D9rsOlfPdcV0fgMznNU+lZrwrJOoThkkfUS8kZq0ZSi1Rgd9ywdB04t89/1O/w1cDnyilFU='),
+  ('line_target_id', 'C19206933a0329f114fe2309fe3cb76dd'),
   ('enable_low_stock_alert', '1'),
   ('enable_expiry_alert', '1'),
   ('daily_alert_time', '08:00'),
   ('default_expiry_alert_days', '7'),
-  ('last_alert_sent_at', '')
-ON CONFLICT (key) DO NOTHING;
+  ('last_alert_sent_at', NOW()::text)
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
--- Initial Data: 54 Dairy Queen Inventory Items (Dry goods)
+-- =======================================================
+-- 8. CLONE LINE RECIPIENTS (Active Group C19206933a0329f114fe2309fe3cb76dd)
+-- =======================================================
+INSERT INTO line_recipients (name, target_id, type, is_active, notes)
+VALUES
+  ('LINE กลุ่มหลัก', 'C19206933a0329f114fe2309fe3cb76dd', 'GROUP', TRUE, 'กลุ่มไลน์พนักงานหลักสำหรับแจ้งเตือนสต็อก')
+ON CONFLICT (target_id) DO UPDATE SET
+  name = EXCLUDED.name,
+  is_active = EXCLUDED.is_active,
+  notes = EXCLUDED.notes;
+
+-- =======================================================
+-- 9. CLONE ALL 54 DAIRY QUEEN PRODUCTS (DQ SAT)
+-- =======================================================
 INSERT INTO products (name, category, unit, safety_stock, expiry_warning_days)
 VALUES
   ('ผงโกโก้', 'ของแห้ง', 'EA', 1, 7),
@@ -128,9 +155,13 @@ VALUES
   ('ขวดใส่ท็อปปิ้ง', 'ของแห้ง', 'EA', 1, 7),
   ('มัลติ', 'ของแห้ง', 'EA', 1, 7),
   ('ถุงขยะเล็ก', 'ของแห้ง', 'PACK', 1, 7)
-ON CONFLICT (name) DO NOTHING;
+ON CONFLICT (name) DO UPDATE SET
+  category = EXCLUDED.category,
+  unit = EXCLUDED.unit,
+  safety_stock = EXCLUDED.safety_stock,
+  expiry_warning_days = EXCLUDED.expiry_warning_days;
 
--- Initial Batch for 'ฝา BZ.16 oz' (5 packs)
+-- 10. Initial Batch for 'ฝา BZ.16 oz' (5 packs)
 DO $$
 DECLARE
   bz_id BIGINT;

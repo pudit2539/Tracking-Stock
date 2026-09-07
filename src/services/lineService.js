@@ -88,7 +88,12 @@ class LineService {
     }
 
     // Case 2: Send to all active recipients in list
-    const activeRecipients = await dbClient.getActiveRecipients();
+    let activeRecipients = [];
+    try {
+      activeRecipients = await dbClient.getActiveRecipients();
+    } catch (err) {
+      console.warn('⚠️ Could not fetch active recipients, fallback to default target:', err.message);
+    }
 
     if (activeRecipients && activeRecipients.length > 0) {
       const results = [];
