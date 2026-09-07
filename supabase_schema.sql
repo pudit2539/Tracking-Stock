@@ -100,3 +100,4 @@ BEGIN
     VALUES (cheese_id, 'LOT-CH01', 12, 15, CURRENT_DATE + INTERVAL '2 days', CURRENT_DATE - INTERVAL '10 days', 'ชีสแผ่น');
   END IF;
 END $$;
+
