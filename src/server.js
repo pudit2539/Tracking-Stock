@@ -27,12 +27,16 @@ app.use((req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log('====================================================');
   console.log(`🚀 Expiration & Stock Tracking System is running!`);
   console.log(`🌐 Local Web URL: http://localhost:${PORT}`);
   console.log('====================================================');
 
   // Initialize automated daily cron scheduler
-  cronService.setupCron();
+  try {
+    await cronService.setupCron();
+  } catch (err) {
+    console.error('[Cron Init Error]', err.message);
+  }
 });

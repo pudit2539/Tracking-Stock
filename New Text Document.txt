@@ -1,0 +1,8 @@
+https://jrgcpnenanxbnepcypon.supabase.co/rest/v1/
+
+sb_publishable_akFnMys8e-w6iaHX2UNalw_k5Ga15J7
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpyZ2NwbmVuYW54Ym5lcGN5cG9uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg3NjMxNzMsImV4cCI6MjEwNDMzOTE3M30.OJlMiGjB3c0WW_ECTLzMyB9UKWLCcAbFLrIUH4VFAIQ
+
+
+https://github.com/pudit2539/Tracking-Stock.git
