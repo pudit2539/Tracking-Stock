@@ -182,6 +182,11 @@ const dbClient = {
         const nearestBatch = pBatches[0];
         const nearestExpiry = nearestBatch ? nearestBatch.expiry_date : null;
 
+        const batchDates = pBatches.map(b => new Date(b.created_at || b.received_date || 0).getTime());
+        const prodUpdated = new Date(p.updated_at || p.created_at || 0).getTime();
+        const maxTimestamp = Math.max(prodUpdated, ...batchDates, 0);
+        const lastUpdatedAt = maxTimestamp > 0 ? new Date(maxTimestamp).toISOString() : (p.updated_at || p.created_at || today);
+
         let daysUntilExpiry = null;
         let isExpired = false;
         let isExpiringSoon = false;
@@ -200,6 +205,7 @@ const dbClient = {
           batch_count: pBatches.length,
           nearest_expiry: nearestExpiry,
           days_until_expiry: daysUntilExpiry,
+          last_updated_at: lastUpdatedAt,
           is_low_stock: currentStock <= Number(p.safety_stock),
           is_expiring_soon: isExpiringSoon,
           is_expired: isExpired
@@ -236,7 +242,8 @@ const dbClient = {
           is_low_stock: isLowStock,
           is_expiring_soon: isExpiringSoon,
           is_expired: isExpired,
-          days_until_expiry: daysUntilExpiry
+          days_until_expiry: daysUntilExpiry,
+          last_updated_at: p.updated_at || p.created_at || today
         };
       });
     }
@@ -335,6 +342,20 @@ const dbClient = {
       sqliteDb.prepare('UPDATE products SET safety_stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(val, id);
     }
     return this.getProductById(id);
+  },
+
+  async touchProductUpdated(productId) {
+    if (!productId) return;
+    try {
+      const now = new Date().toISOString();
+      if (isSupabase) {
+        await supabase.from('products').update({ updated_at: now }).eq('id', productId);
+      } else {
+        sqliteDb.prepare('UPDATE products SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(productId);
+      }
+    } catch (e) {
+      console.warn('[touchProductUpdated Error]', e.message);
+    }
   },
 
   async quickUpdateProduct(id, data) {
@@ -445,6 +466,7 @@ const dbClient = {
       });
     }
 
+    await this.touchProductUpdated(productId);
     return this.getProductById(productId);
   },
 
@@ -473,6 +495,7 @@ const dbClient = {
       notes: `รับเข้าผ่าน LINE โดย ${updatedBy}`
     });
 
+    await this.touchProductUpdated(productId);
     return this.getProductById(productId);
   },
 
@@ -619,21 +642,25 @@ const dbClient = {
       notes: data.notes?.trim() || ''
     };
 
+    let batchId = null;
     if (isSupabase) {
       const { data: res, error } = await supabase.from('inventory_batches').insert(payload).select().single();
       if (error) throw new Error(error.message);
-      return res.id;
+      batchId = res.id;
     } else {
       const stmt = sqliteDb.prepare(`
         INSERT INTO inventory_batches (product_id, lot_number, quantity, initial_quantity, expiry_date, received_date, cost_per_unit, notes)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `);
       const res = stmt.run(payload.product_id, payload.lot_number, payload.quantity, payload.initial_quantity, payload.expiry_date, payload.received_date, payload.cost_per_unit, payload.notes);
-      return res.lastInsertRowid;
+      batchId = res.lastInsertRowid;
     }
+    await this.touchProductUpdated(payload.product_id);
+    return batchId;
   },
 
   async updateBatch(id, data) {
+    let productId = null;
     if (isSupabase) {
       const updateData = {};
       if (data.quantity !== undefined) updateData.quantity = Number(data.quantity);
@@ -643,7 +670,7 @@ const dbClient = {
       if (data.received_date !== undefined) updateData.received_date = data.received_date;
       const { data: res, error } = await supabase.from('inventory_batches').update(updateData).eq('id', id).select().maybeSingle();
       if (error) throw new Error(error.message);
-      return res;
+      if (res) productId = res.product_id;
     } else {
       const fields = [];
       const values = [];
@@ -652,21 +679,34 @@ const dbClient = {
       if (data.lot_number !== undefined) { fields.push('lot_number = ?'); values.push(data.lot_number); }
       if (data.notes !== undefined) { fields.push('notes = ?'); values.push(data.notes); }
       if (data.received_date !== undefined) { fields.push('received_date = ?'); values.push(data.received_date); }
-      if (fields.length === 0) return true;
-      values.push(id);
-      sqliteDb.prepare(`UPDATE inventory_batches SET ${fields.join(', ')} WHERE id = ?`).run(...values);
-      return true;
+      if (fields.length > 0) {
+        values.push(id);
+        sqliteDb.prepare(`UPDATE inventory_batches SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+      }
+      const row = sqliteDb.prepare('SELECT product_id FROM inventory_batches WHERE id = ?').get(id);
+      if (row) productId = row.product_id;
     }
+    if (productId) {
+      await this.touchProductUpdated(productId);
+    }
+    return true;
   },
 
   async deleteBatch(id) {
+    let productId = null;
     if (isSupabase) {
+      const { data } = await supabase.from('inventory_batches').select('product_id').eq('id', id).maybeSingle();
+      if (data) productId = data.product_id;
       await supabase.from('inventory_batches').delete().eq('id', id);
-      return true;
     } else {
+      const row = sqliteDb.prepare('SELECT product_id FROM inventory_batches WHERE id = ?').get(id);
+      if (row) productId = row.product_id;
       sqliteDb.prepare('DELETE FROM inventory_batches WHERE id = ?').run(id);
-      return true;
     }
+    if (productId) {
+      await this.touchProductUpdated(productId);
+    }
+    return true;
   },
 
   // 4. USAGE LOGS & FIFO DEDUCTION
@@ -732,6 +772,7 @@ const dbClient = {
           remaining -= deduct;
         }
       }
+      await this.touchProductUpdated(product_id);
       return true;
     } else {
       // SQLite FIFO transaction
@@ -775,6 +816,7 @@ const dbClient = {
       });
 
       transaction();
+      await this.touchProductUpdated(product_id);
       return true;
     }
   },
@@ -923,6 +965,11 @@ const dbClient = {
           else if (daysUntilExpiry <= (p.expiry_warning_days || defaultWarningDays)) isExpiringSoon = true;
         }
 
+        const batchDates = pBatches.map(b => new Date(b.created_at || b.received_date || 0).getTime());
+        const prodUpdated = new Date(p.updated_at || p.created_at || 0).getTime();
+        const maxTimestamp = Math.max(prodUpdated, ...batchDates, 0);
+        const lastUpdatedAt = maxTimestamp > 0 ? new Date(maxTimestamp).toISOString() : (p.updated_at || p.created_at || today);
+
         return {
           ...p,
           safety_stock: Number(p.safety_stock),
@@ -930,6 +977,7 @@ const dbClient = {
           batch_count: pBatches.length,
           nearest_expiry: nearestExpiry,
           days_until_expiry: daysUntilExpiry,
+          last_updated_at: lastUpdatedAt,
           is_low_stock: currentStock <= Number(p.safety_stock),
           is_expiring_soon: isExpiringSoon,
           is_expired: isExpired

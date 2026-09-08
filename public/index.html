@@ -259,14 +259,31 @@
       <!-- Toolbar & Filters -->
       <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
         <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div class="flex items-center space-x-2 w-full sm:w-auto">
-            <div class="relative flex-1 sm:w-64">
+          <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+            <div class="relative flex-1 sm:w-56">
               <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
               <input type="text" id="search-inventory" oninput="filterInventory()" placeholder="ค้นหาชื่อสินค้า..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500">
             </div>
-            <select id="filter-category" onchange="filterInventory()" class="text-xs py-1.5 px-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500">
+            <select id="filter-category" onchange="filterInventory()" class="text-xs py-1.5 px-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500">
               <option value="ALL">ทุกหมวดหมู่</option>
             </select>
+            <!-- User-Friendly Sort Dropdown (Default: Last Updated) -->
+            <div class="flex items-center space-x-1.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200">
+              <label for="sort-inventory" class="text-[11px] text-slate-600 font-semibold whitespace-nowrap flex items-center space-x-1">
+                <i data-lucide="arrow-down-up" class="w-3.5 h-3.5 text-indigo-600"></i>
+                <span class="hidden sm:inline">เรียง:</span>
+              </label>
+              <select id="sort-inventory" onchange="changeInventorySort(this.value)" class="text-xs py-0.5 px-2 rounded-md border border-slate-300 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs">
+                <option value="UPDATED_DESC">🕒 อัปเดตล่าสุด (ค่าเริ่มต้น)</option>
+                <option value="NAME_ASC">🔤 ชื่อสินค้า (ก - ฮ)</option>
+                <option value="NAME_DESC">🔤 ชื่อสินค้า (ฮ - ก)</option>
+                <option value="CREATED_DESC">📅 วันที่สร้าง (ใหม่ล่าสุด)</option>
+                <option value="CREATED_ASC">📅 วันที่สร้าง (เก่าสุด)</option>
+                <option value="EXPIRY_ASC">⏳ วันหมดอายุ (ใกล้หมดก่อน)</option>
+                <option value="STOCK_ASC">📦 คงเหลือ (น้อย ➔ มาก)</option>
+                <option value="STOCK_DESC">📦 คงเหลือ (มาก ➔ น้อย)</option>
+              </select>
+            </div>
           </div>
 
           <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
@@ -341,14 +358,35 @@
       <div class="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs">
-            <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+            <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 select-none">
               <tr>
-                <th class="p-4">ชื่อสินค้า / หมวดหมู่</th>
-                <th class="p-4">สต็อกคงเหลือรวม</th>
-                <th class="p-4">Safety Stock</th>
-                <th class="p-4">วันหมดอายุใกล้สุด</th>
-                <th class="p-4">สถานะ</th>
-                <th class="p-4 text-center">จัดการ</th>
+                <th class="p-3.5 cursor-pointer hover:text-indigo-600 transition" onclick="toggleSortHeader('NAME')" title="คลิกเพื่อเรียงตามชื่อสินค้า">
+                  <div class="flex items-center space-x-1">
+                    <span>ชื่อสินค้า / หมวดหมู่</span>
+                    <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                  </div>
+                </th>
+                <th class="p-3.5 cursor-pointer hover:text-indigo-600 transition" onclick="toggleSortHeader('STOCK')" title="คลิกเพื่อเรียงตามสต็อกคงเหลือ">
+                  <div class="flex items-center space-x-1">
+                    <span>สต็อกคงเหลือ</span>
+                    <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                  </div>
+                </th>
+                <th class="p-3.5">Safety Stock</th>
+                <th class="p-3.5 cursor-pointer hover:text-indigo-600 transition" onclick="toggleSortHeader('EXPIRY')" title="คลิกเพื่อเรียงตามวันหมดอายุ">
+                  <div class="flex items-center space-x-1">
+                    <span>วันหมดอายุใกล้สุด</span>
+                    <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                  </div>
+                </th>
+                <th class="p-3.5 cursor-pointer hover:text-indigo-600 transition" onclick="toggleSortHeader('UPDATED')" title="คลิกเพื่อเรียงตามวันที่อัปเดตล่าสุด">
+                  <div class="flex items-center space-x-1 text-indigo-600">
+                    <span>อัปเดตล่าสุด</span>
+                    <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5"></i>
+                  </div>
+                </th>
+                <th class="p-3.5">สถานะ</th>
+                <th class="p-3.5 text-center">จัดการ</th>
               </tr>
             </thead>
             <tbody id="inventory-table-body" class="divide-y divide-slate-100">

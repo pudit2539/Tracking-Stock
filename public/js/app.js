@@ -9,7 +9,8 @@ let state = {
   settings: {},
   recipients: [],
   activeTab: 'dashboard',
-  historySubTab: 'inbound'
+  historySubTab: 'inbound',
+  inventorySort: localStorage.getItem('dq_inventory_sort') || 'UPDATED_DESC'
 };
 
 // =======================================================
@@ -603,6 +604,46 @@ function filterInventory() {
   renderInventoryTable();
 }
 
+function formatRelativeTime(isoString) {
+  if (!isoString) return '-';
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return '-';
+  const diffSec = Math.round((Date.now() - d.getTime()) / 1000);
+  if (diffSec < 45) return 'เมื่อสักครู่';
+  if (diffSec < 3600) return `${Math.max(1, Math.floor(diffSec / 60))} นาทีที่แล้ว`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} ชม. ที่แล้ว`;
+  if (diffSec < 172800) return 'เมื่อวานนี้';
+  return d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
+}
+
+function changeInventorySort(sortType) {
+  playTapFeedback('click');
+  state.inventorySort = sortType;
+  localStorage.setItem('dq_inventory_sort', sortType);
+  const sel = document.getElementById('sort-inventory');
+  if (sel && sel.value !== sortType) {
+    sel.value = sortType;
+  }
+  renderInventoryTable();
+}
+
+function toggleSortHeader(field) {
+  playTapFeedback('click');
+  const current = state.inventorySort || 'UPDATED_DESC';
+  let next = 'UPDATED_DESC';
+
+  if (field === 'UPDATED') {
+    next = current === 'UPDATED_DESC' ? 'UPDATED_ASC' : 'UPDATED_DESC';
+  } else if (field === 'NAME') {
+    next = current === 'NAME_ASC' ? 'NAME_DESC' : 'NAME_ASC';
+  } else if (field === 'STOCK') {
+    next = current === 'STOCK_ASC' ? 'STOCK_DESC' : 'STOCK_ASC';
+  } else if (field === 'EXPIRY') {
+    next = current === 'EXPIRY_ASC' ? 'UPDATED_DESC' : 'EXPIRY_ASC';
+  }
+  changeInventorySort(next);
+}
+
 function setInventoryFilter(filter) {
   playTapFeedback('click');
   state.inventoryFilter = filter;
@@ -687,10 +728,60 @@ function renderInventoryTable() {
     return matchSearch && matchCat && matchFilter;
   });
 
+  // Sync sort dropdown if present
+  const sortSelect = document.getElementById('sort-inventory');
+  if (sortSelect && sortSelect.value !== (state.inventorySort || 'UPDATED_DESC')) {
+    sortSelect.value = state.inventorySort || 'UPDATED_DESC';
+  }
+
+  // Sort filtered products (Default: UPDATED_DESC)
+  const sortBy = state.inventorySort || 'UPDATED_DESC';
+  filtered.sort((a, b) => {
+    if (sortBy === 'UPDATED_DESC') {
+      const timeA = new Date(a.last_updated_at || a.updated_at || a.created_at || 0).getTime();
+      const timeB = new Date(b.last_updated_at || b.updated_at || b.created_at || 0).getTime();
+      return timeB - timeA;
+    }
+    if (sortBy === 'UPDATED_ASC') {
+      const timeA = new Date(a.last_updated_at || a.updated_at || a.created_at || 0).getTime();
+      const timeB = new Date(b.last_updated_at || b.updated_at || b.created_at || 0).getTime();
+      return timeA - timeB;
+    }
+    if (sortBy === 'NAME_ASC') {
+      return a.name.localeCompare(b.name, 'th');
+    }
+    if (sortBy === 'NAME_DESC') {
+      return b.name.localeCompare(a.name, 'th');
+    }
+    if (sortBy === 'CREATED_DESC') {
+      const timeA = new Date(a.created_at || 0).getTime();
+      const timeB = new Date(b.created_at || 0).getTime();
+      return timeB - timeA;
+    }
+    if (sortBy === 'CREATED_ASC') {
+      const timeA = new Date(a.created_at || 0).getTime();
+      const timeB = new Date(b.created_at || 0).getTime();
+      return timeA - timeB;
+    }
+    if (sortBy === 'EXPIRY_ASC') {
+      if (a.days_until_expiry === null && b.days_until_expiry === null) return 0;
+      if (a.days_until_expiry === null) return 1;
+      if (b.days_until_expiry === null) return -1;
+      return a.days_until_expiry - b.days_until_expiry;
+    }
+    if (sortBy === 'STOCK_ASC') {
+      return Number(a.current_stock) - Number(b.current_stock);
+    }
+    if (sortBy === 'STOCK_DESC') {
+      return Number(b.current_stock) - Number(a.current_stock);
+    }
+    return 0;
+  });
+
   if (filtered.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" class="p-8 text-center text-slate-400">
+        <td colspan="7" class="p-8 text-center text-slate-400">
           <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
           <p>ไม่พบรายการสินค้าที่ตรงกับเงื่อนไขการค้นหา/ตัวกรอง</p>
         </td>
@@ -750,6 +841,12 @@ function renderInventoryTable() {
           </div>
         </td>
         <td class="p-3.5">${expiryDisplay}</td>
+        <td class="p-3.5 whitespace-nowrap">
+          <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[11px] font-medium">
+            <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
+            <span>${formatRelativeTime(p.last_updated_at || p.updated_at || p.created_at)}</span>
+          </span>
+        </td>
         <td class="p-3.5">${statusBadge}</td>
         <td class="p-3.5 text-center">
           <div class="flex items-center justify-center space-x-1">
@@ -804,7 +901,13 @@ function renderInventoryTable() {
             <div class="flex items-start justify-between gap-2">
               <div>
                 <h4 class="font-extrabold text-slate-900 text-sm leading-snug">${p.name}</h4>
-                <span class="inline-block mt-0.5 text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${p.category}</span>
+                <div class="flex items-center space-x-2 mt-0.5">
+                  <span class="inline-block text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${p.category}</span>
+                  <span class="text-[10px] text-slate-400 flex items-center space-x-1">
+                    <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
+                    <span>${formatRelativeTime(p.last_updated_at || p.updated_at || p.created_at)}</span>
+                  </span>
+                </div>
               </div>
               <div class="shrink-0">${statusBadge}</div>
             </div>

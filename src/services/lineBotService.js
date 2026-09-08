@@ -1,4 +1,4 @@
-﻿const dbClient = require('../db/dbClient');
+const dbClient = require('../db/dbClient');
 const lineService = require('./lineService');
 
 const PRODUCT_ALIASES = [
@@ -70,14 +70,21 @@ const PRODUCT_ALIASES = [
 class LineBotService {
   findProduct(text) {
     const clean = text.toLowerCase().trim();
+    let bestMatch = null;
+    let maxLen = 0;
+
     for (const item of PRODUCT_ALIASES) {
       for (const alias of item.aliases) {
-        if (clean.includes(alias.toLowerCase())) {
-          return item.name;
+        const aliasLower = alias.toLowerCase();
+        if (clean.includes(aliasLower)) {
+          if (aliasLower.length > maxLen) {
+            maxLen = aliasLower.length;
+            bestMatch = item.name;
+          }
         }
       }
     }
-    return null;
+    return bestMatch;
   }
 
   extractQuantity(text) {
@@ -88,8 +95,9 @@ class LineBotService {
     return null;
   }
 
-  parseIntent(text) {
+  parseIntent(text, defaultAction = null) {
     const raw = text.toLowerCase().trim();
+    if (!raw) return null;
 
     // 1. HELP / GUIDE
     if (/^(วิธีใช้|คำสั่ง|คู่มือ|help|เมนู|\?)$/i.test(raw)) {
@@ -135,20 +143,74 @@ class LineBotService {
       return { action: 'CHECK_ITEM', productName: prodName };
     }
 
-    // Fallback if product and number found without explicit verb, assume USE if "coke 5"
+    // Fallback if product and number found without explicit verb
     if (prodName && qty !== null) {
-      return { action: 'USE', productName: prodName, quantity: qty };
+      return { action: defaultAction || 'USE', productName: prodName, quantity: qty };
     }
 
     return null;
   }
 
+  parseAllIntents(text) {
+    if (!text || typeof text !== 'string') return [];
+    const trimmed = text.trim();
+    if (!trimmed) return [];
+
+    // General single commands
+    const singleRaw = trimmed.toLowerCase();
+    if (/^(วิธีใช้|คำสั่ง|คู่มือ|help|เมนู|\?)$/i.test(singleRaw)) {
+      return [{ action: 'HELP' }];
+    }
+    if (/^(สั่งของ|ของหมด|ของใกล้หมด|order|สรุปสั่งของ)$/i.test(singleRaw) || singleRaw.includes('สรุปของหมด') || singleRaw.includes('ต้องสั่งอะไร')) {
+      return [{ action: 'ORDER_LIST' }];
+    }
+    if (/^(เช็คสต็อก|สต็อก|คงเหลือ|เช็คของ|stock)$/i.test(singleRaw)) {
+      return [{ action: 'STOCK_OVERVIEW' }];
+    }
+
+    // Split by newlines first
+    const rawLines = trimmed.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const commands = [];
+
+    for (const line of rawLines) {
+      if (line.includes(',') || line.includes(';') || /[\s,]+และ[\s,]+/i.test(line)) {
+        const parts = line.split(/[,;]|(?:[\s,]+และ[\s,]+)/).map(p => p.trim()).filter(Boolean);
+        commands.push(...parts);
+      } else {
+        commands.push(line);
+      }
+    }
+
+    const intents = [];
+    let lastAction = null;
+
+    for (const cmd of commands) {
+      const intent = this.parseIntent(cmd, lastAction);
+      if (intent) {
+        intents.push({ ...intent, rawText: cmd });
+        if (['USE', 'ADD_STOCK', 'SET_STOCK'].includes(intent.action)) {
+          lastAction = intent.action;
+        }
+      }
+    }
+
+    return intents;
+  }
+
   async handleMessage(text, senderName = 'พนักงาน', currentUrl = null) {
-    const intent = this.parseIntent(text);
-    if (!intent) return null;
+    const intents = this.parseAllIntents(text);
+    if (!intents || intents.length === 0) return null;
 
     const webUrl = await lineService.getAppUrl(currentUrl);
 
+    if (intents.length === 1) {
+      return this.executeSingleIntent(intents[0], senderName, webUrl);
+    }
+
+    return this.executeMultiIntents(intents, senderName, webUrl);
+  }
+
+  async executeSingleIntent(intent, senderName, webUrl) {
     // ACTION: HELP
     if (intent.action === 'HELP') {
       return this.buildHelpFlex(webUrl);
@@ -381,6 +443,266 @@ class LineBotService {
     }
 
     return null;
+  }
+
+  async executeMultiIntents(intents, senderName, webUrl) {
+    const allProducts = await dbClient.getAllProducts();
+    const results = [];
+
+    for (const item of intents) {
+      const product = allProducts.find(p => p.name === item.productName);
+      if (!product) {
+        results.push({
+          success: false,
+          name: item.productName || item.rawText,
+          error: 'ไม่พบสินค้าในระบบ'
+        });
+        continue;
+      }
+
+      if (item.action === 'ADD_STOCK') {
+        try {
+          const updated = await dbClient.addProductStockDirect(product.id, item.quantity, senderName);
+          results.push({
+            success: true,
+            action: 'ADD_STOCK',
+            product,
+            qty: item.quantity,
+            newStock: updated.current_stock,
+            unit: product.unit,
+            isLow: updated.current_stock <= Number(product.safety_stock)
+          });
+        } catch (err) {
+          results.push({ success: false, name: product.name, error: err.message });
+        }
+      } else if (item.action === 'USE') {
+        try {
+          const qty = item.quantity;
+          const batches = await dbClient.getBatchesByProductId(product.id);
+          const totalAvailable = batches.reduce((sum, b) => sum + Number(b.quantity), 0);
+
+          await dbClient.recordUsage({
+            product_id: product.id,
+            quantity: Math.min(qty, Math.max(0, totalAvailable)),
+            type: 'USE',
+            used_by: senderName,
+            notes: 'ตัดหลายรายการผ่าน LINE'
+          });
+
+          const updated = await dbClient.getProductById(product.id);
+          const newStock = updated.current_stock;
+          const isLow = newStock <= Number(updated.safety_stock);
+
+          results.push({
+            success: true,
+            action: 'USE',
+            product,
+            qty,
+            newStock,
+            unit: product.unit,
+            isLow
+          });
+        } catch (err) {
+          results.push({ success: false, name: product.name, error: err.message });
+        }
+      } else if (item.action === 'SET_STOCK') {
+        try {
+          const updated = await dbClient.setProductStockDirect(product.id, item.quantity, senderName);
+          const newStock = updated.current_stock;
+          const isLow = newStock <= Number(updated.safety_stock);
+
+          results.push({
+            success: true,
+            action: 'SET_STOCK',
+            product,
+            qty: item.quantity,
+            newStock,
+            unit: product.unit,
+            isLow
+          });
+        } catch (err) {
+          results.push({ success: false, name: product.name, error: err.message });
+        }
+      } else if (item.action === 'CHECK_ITEM') {
+        results.push({
+          success: true,
+          action: 'CHECK_ITEM',
+          product,
+          qty: 0,
+          newStock: product.current_stock,
+          unit: product.unit,
+          isLow: product.is_low_stock
+        });
+      }
+    }
+
+    return this.buildMultiResultFlex(results, senderName, webUrl);
+  }
+
+  buildMultiResultFlex(results, senderName, webUrl) {
+    const successItems = results.filter(r => r.success);
+    const failItems = results.filter(r => !r.success);
+
+    const isAllAdd = successItems.length > 0 && successItems.every(r => r.action === 'ADD_STOCK');
+    const isAllUse = successItems.length > 0 && successItems.every(r => r.action === 'USE');
+
+    let headerBg = '#2563EB'; // Blue
+    let headerTitle = `⚡ อัปเดตสำเร็จ (${successItems.length} รายการ)`;
+    let headerSubtitle = 'ประมวลผลคำสั่งพร้อมกันเรียบร้อยแล้ว';
+
+    if (isAllAdd) {
+      headerBg = '#059669'; // Emerald Green
+      headerTitle = `📦 รับของเข้าสำเร็จ (${successItems.length} รายการ)`;
+      headerSubtitle = 'เพิ่มเข้าสู่ระบบเรียบร้อยแล้ว';
+    } else if (isAllUse) {
+      headerBg = '#E11D48'; // Rose Red
+      headerTitle = `✂️ ตัดสต็อกสำเร็จ (${successItems.length} รายการ)`;
+      headerSubtitle = 'ตัดสต็อกตามหลัก FIFO เรียบร้อยแล้ว';
+    }
+
+    const itemRows = [];
+
+    successItems.forEach((r, idx) => {
+      let actionText = '';
+      let actionColor = '#059669';
+
+      if (r.action === 'ADD_STOCK') {
+        actionText = `+${r.qty} ${r.unit}`;
+        actionColor = '#059669';
+      } else if (r.action === 'USE') {
+        actionText = `-${r.qty} ${r.unit}`;
+        actionColor = '#E11D48';
+      } else if (r.action === 'SET_STOCK') {
+        actionText = `ปรับเป็น ${r.qty} ${r.unit}`;
+        actionColor = '#0284C7';
+      } else if (r.action === 'CHECK_ITEM') {
+        actionText = `คงเหลือ ${r.newStock} ${r.unit}`;
+        actionColor = '#64748B';
+      }
+
+      itemRows.push({
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'xs',
+        margin: idx === 0 ? 'none' : 'md',
+        contents: [
+          {
+            type: 'box',
+            layout: 'horizontal',
+            contents: [
+              {
+                type: 'text',
+                text: `${idx + 1}. ${r.product.name}`,
+                weight: 'bold',
+                size: 'sm',
+                color: '#0F172A',
+                flex: 6
+              },
+              {
+                type: 'text',
+                text: actionText,
+                weight: 'bold',
+                size: 'xs',
+                color: actionColor,
+                align: 'end',
+                flex: 4
+              }
+            ]
+          },
+          {
+            type: 'box',
+            layout: 'horizontal',
+            contents: [
+              {
+                type: 'text',
+                text: `คงเหลือใหม่: ${r.newStock} ${r.unit}`,
+                size: 'xs',
+                color: r.isLow ? '#DC2626' : '#64748B',
+                weight: r.isLow ? 'bold' : 'regular',
+                flex: 6
+              },
+              ...(r.isLow ? [{
+                type: 'text',
+                text: '⚠️ ต่ำกว่า Safety',
+                size: 'xxs',
+                color: '#DC2626',
+                align: 'end',
+                flex: 4
+              }] : [])
+            ]
+          }
+        ]
+      });
+
+      if (idx < successItems.length - 1) {
+        itemRows.push({ type: 'separator', margin: 'md', color: '#F1F5F9' });
+      }
+    });
+
+    if (failItems.length > 0) {
+      itemRows.push({ type: 'separator', margin: 'lg', color: '#CBD5E1' });
+      failItems.forEach(f => {
+        itemRows.push({
+          type: 'box',
+          layout: 'horizontal',
+          margin: 'sm',
+          contents: [
+            { type: 'text', text: `⚠️ ${f.name}:`, size: 'xs', color: '#EF4444', weight: 'bold', flex: 4 },
+            { type: 'text', text: f.error || 'ผิดพลาด', size: 'xs', color: '#64748B', flex: 6 }
+          ]
+        });
+      });
+    }
+
+    return {
+      type: 'flex',
+      altText: `${headerTitle} โดย ${senderName}`,
+      contents: {
+        type: 'bubble',
+        size: 'mega',
+        header: {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: headerBg,
+          paddingAll: '16px',
+          contents: [
+            { type: 'text', text: headerTitle, weight: 'bold', color: '#FFFFFF', size: 'md' },
+            { type: 'text', text: headerSubtitle, color: '#E2E8F0', size: 'xs', margin: 'xs' }
+          ]
+        },
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          paddingAll: '16px',
+          contents: [
+            ...itemRows,
+            { type: 'separator', margin: 'lg', color: '#E2E8F0' },
+            {
+              type: 'box',
+              layout: 'horizontal',
+              margin: 'md',
+              contents: [
+                { type: 'text', text: '👤 ผู้บันทึก:', size: 'xs', color: '#94A3B8', flex: 4 },
+                { type: 'text', text: senderName, size: 'xs', color: '#475569', align: 'end', flex: 6, weight: 'bold' }
+              ]
+            }
+          ]
+        },
+        footer: {
+          type: 'box',
+          layout: 'vertical',
+          paddingAll: '10px',
+          contents: [
+            {
+              type: 'button',
+              style: 'link',
+              height: 'sm',
+              action: { type: 'uri', label: '📱 ดูภาพรวมสต็อกบนเว็บ', uri: webUrl }
+            }
+          ]
+        }
+      }
+    };
   }
 
   buildDeductionResultFlex(product, deductedQty, newStock, isLow, webUrl) {
