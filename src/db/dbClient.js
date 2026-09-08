@@ -454,29 +454,78 @@ const dbClient = {
     const batches = await this.getBatchesByProductId(productId);
     const activeBatches = batches.filter(b => Number(b.quantity) > 0);
 
-    if (activeBatches.length > 0) {
-      const b = activeBatches[0];
-      await this.updateBatch(b.id, {
-        quantity: Number(b.quantity) + qty,
-        notes: `เติมสต็อกโดย ${updatedBy}`
-      });
+    let expiryDate = null;
+    if (activeBatches.length > 0 && activeBatches[0].expiry_date) {
+      expiryDate = activeBatches[0].expiry_date;
     } else {
       const d = new Date();
       d.setMonth(d.getMonth() + 6);
-      await this.createBatch({
-        product_id: productId,
-        lot_number: `LOT-${Date.now().toString().slice(-4)}`,
-        quantity: qty,
-        initial_quantity: qty,
-        expiry_date: d.toISOString().split('T')[0],
-        received_date: todayStr,
-        notes: `รับเข้าโดย ${updatedBy}`
-      });
+      expiryDate = d.toISOString().split('T')[0];
     }
+
+    await this.createBatch({
+      product_id: productId,
+      lot_number: `LOT-IN-${Date.now().toString().slice(-4)}`,
+      quantity: qty,
+      initial_quantity: qty,
+      expiry_date: expiryDate,
+      received_date: todayStr,
+      notes: `รับเข้าผ่าน LINE โดย ${updatedBy}`
+    });
+
     return this.getProductById(productId);
   },
 
-  // 3. BATCHES
+  // 3. BATCHES & RECEIVING LOGS
+  async getReceivingHistory(limit = 100) {
+    const today = new Date().toISOString().split('T')[0];
+
+    if (isSupabase) {
+      const { data, error } = await supabase
+        .from('inventory_batches')
+        .select('*, products(name, unit, category)')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      if (error) throw new Error(error.message);
+
+      return (data || []).map(b => {
+        const diffTime = new Date(b.expiry_date) - new Date(today);
+        const daysUntilExpiry = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return {
+          ...b,
+          quantity: Number(b.quantity),
+          initial_quantity: Number(b.initial_quantity || b.quantity),
+          product_name: b.products?.name || 'ไม่ระบุ',
+          unit: b.products?.unit || 'ชิ้น',
+          category: b.products?.category || 'ทั่วไป',
+          days_until_expiry: daysUntilExpiry,
+          is_expired: daysUntilExpiry < 0,
+          is_expiring_soon: daysUntilExpiry >= 0 && daysUntilExpiry <= 7
+        };
+      });
+    } else {
+      const batches = sqliteDb.prepare(`
+        SELECT b.*, p.name AS product_name, p.unit, p.category
+        FROM inventory_batches b
+        LEFT JOIN products p ON b.product_id = p.id
+        ORDER BY b.created_at DESC, b.id DESC
+        LIMIT ?
+      `).all(limit);
+
+      return batches.map(b => {
+        const diffTime = new Date(b.expiry_date) - new Date(today);
+        const daysUntilExpiry = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return {
+          ...b,
+          initial_quantity: Number(b.initial_quantity || b.quantity),
+          days_until_expiry: daysUntilExpiry,
+          is_expired: daysUntilExpiry < 0,
+          is_expiring_soon: daysUntilExpiry >= 0 && daysUntilExpiry <= 7
+        };
+      });
+    }
+  },
+
   async getAllBatches() {
     const today = new Date().toISOString().split('T')[0];
 
@@ -941,9 +990,13 @@ const dbClient = {
         is_active: r.is_active ? 1 : 0
       }));
 
+      // 8. Receiving History
+      const receivingHistory = await this.getReceivingHistory(100);
+
       return {
         products,
         batches,
+        receivingHistory,
         alerts,
         usageLogs,
         usageSummary,
@@ -951,9 +1004,10 @@ const dbClient = {
         recipients
       };
     } else {
-      const [products, batches, alerts, usageLogs, usageSummary, settings, recipients] = await Promise.all([
+      const [products, batches, receivingHistory, alerts, usageLogs, usageSummary, settings, recipients] = await Promise.all([
         this.getAllProducts(),
         this.getAllBatches(),
+        this.getReceivingHistory(100),
         this.getAlertsData(),
         this.getUsageLogs(50),
         this.getUsageSummary(30),
@@ -964,6 +1018,7 @@ const dbClient = {
       return {
         products,
         batches,
+        receivingHistory,
         alerts,
         usageLogs,
         usageSummary,

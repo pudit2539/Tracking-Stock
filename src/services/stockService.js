@@ -37,6 +37,10 @@ const stockService = {
     return dbClient.getAllBatches();
   },
 
+  getReceivingHistory(limit = 100) {
+    return dbClient.getReceivingHistory(limit);
+  },
+
   createBatch(data) {
     return dbClient.createBatch(data);
   },

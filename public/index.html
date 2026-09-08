@@ -270,6 +270,10 @@
           </div>
 
           <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+            <button onclick="switchTab('usage'); switchHistoryTab('inbound');" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition shadow-2xs active:scale-95">
+              <i data-lucide="history" class="w-4 h-4 text-emerald-600"></i>
+              <span>📥 ประวัติรับเข้า</span>
+            </button>
             <button onclick="openQuickGuideModal()" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition shadow-2xs active:scale-95">
               <i data-lucide="book-open" class="w-4 h-4 text-indigo-600"></i>
               <span>📖 คู่มือ</span>
@@ -401,29 +405,94 @@
         </div>
       </div>
 
-      <!-- Bottom Section: Usage History Log Table -->
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="p-4 bg-slate-50/70 border-b border-slate-200 flex justify-between items-center">
-          <h3 class="font-bold text-slate-800 text-sm">ประวัติการเบิกใช้ / ตัดสต็อกล่าสุด</h3>
-          <span class="text-xs text-slate-500">100 รายการล่าสุด</span>
+      <!-- Bottom Section: Dual History Hub (รับเข้า 📥 & เบิกใช้ 📤) -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
+        <!-- History Header & Sub-tab Switcher -->
+        <div class="p-4 bg-slate-50/80 border-b border-slate-200 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+          <div class="flex items-center space-x-2">
+            <div class="inline-flex p-1 bg-slate-200/80 rounded-xl text-xs font-semibold">
+              <button type="button" onclick="switchHistoryTab('inbound')" id="subtab-inbound" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white shadow-xs transition flex items-center space-x-1.5">
+                <i data-lucide="arrow-down-to-dot" class="w-3.5 h-3.5"></i>
+                <span>📥 ประวัติรับของเข้า (<span id="inbound-history-count">0</span>)</span>
+              </button>
+              <button type="button" onclick="switchHistoryTab('outbound')" id="subtab-outbound" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center space-x-1.5">
+                <i data-lucide="arrow-up-from-dot" class="w-3.5 h-3.5"></i>
+                <span>📤 ประวัติเบิกใช้ / ตัดสต็อก</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <button onclick="openAddBatchModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition shadow-2xs">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>+ รับเข้าล็อตใหม่</span>
+            </button>
+            <button onclick="openRecordUsageModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition shadow-2xs">
+              <i data-lucide="minus-circle" class="w-3.5 h-3.5"></i>
+              <span>- ตัดสต็อก</span>
+            </button>
+          </div>
         </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs">
-            <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
-              <tr>
-                <th class="p-3">วันที่ใช้</th>
-                <th class="p-3">สินค้า</th>
-                <th class="p-3">ล็อตที่ตัด</th>
-                <th class="p-3">จำนวนที่ใช้</th>
-                <th class="p-3">ประเภท</th>
-                <th class="p-3">วัตถุประสงค์ / หมายเหตุ</th>
-                <th class="p-3">ผู้เบิก</th>
-              </tr>
-            </thead>
-            <tbody id="usage-history-table-body" class="divide-y divide-slate-100">
-              <!-- Rendered via JS -->
-            </tbody>
-          </table>
+
+        <!-- 1. INBOUND RECEIVING HISTORY VIEW -->
+        <div id="history-view-inbound" class="space-y-0">
+          <div class="p-3 bg-emerald-50/50 border-b border-emerald-100 flex justify-between items-center text-xs">
+            <span class="text-emerald-800 font-medium">📦 ตรวจสอบรายการที่รับของเข้าสต็อก (ทั้งผ่านหน้าเว็บและผ่าน LINE) หากรับผิดสามารถกดลบหรือแก้ไขได้ทันที</span>
+            <span class="text-slate-400 text-[11px]">100 รายการล่าสุด</span>
+          </div>
+
+          <!-- Desktop Inbound Table -->
+          <div class="hidden md:block overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                <tr>
+                  <th class="p-3">วันที่รับเข้า</th>
+                  <th class="p-3">สินค้า / หมวดหมู่</th>
+                  <th class="p-3">จำนวนที่รับ</th>
+                  <th class="p-3">คงเหลือในล็อต</th>
+                  <th class="p-3">วันหมดอายุ</th>
+                  <th class="p-3">เลขล็อต</th>
+                  <th class="p-3">หมายเหตุ / ช่องทาง</th>
+                  <th class="p-3 text-center">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="receiving-history-table-body" class="divide-y divide-slate-100">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Mobile Inbound Cards -->
+          <div id="receiving-history-mobile-cards" class="md:hidden p-3 space-y-3">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+
+        <!-- 2. OUTBOUND USAGE HISTORY VIEW -->
+        <div id="history-view-outbound" class="hidden space-y-0">
+          <div class="p-3 bg-amber-50/50 border-b border-amber-100 flex justify-between items-center text-xs">
+            <span class="text-amber-800 font-medium">📋 บันทึกประวัติการเบิกใช้ ตัดของเสีย และการปรับยอดสต็อกตามหลัก FIFO</span>
+            <span class="text-slate-400 text-[11px]">100 รายการล่าสุด</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+                <tr>
+                  <th class="p-3">วันที่ใช้</th>
+                  <th class="p-3">สินค้า</th>
+                  <th class="p-3">ล็อตที่ตัด</th>
+                  <th class="p-3">จำนวนที่ใช้</th>
+                  <th class="p-3">ประเภท</th>
+                  <th class="p-3">วัตถุประสงค์ / หมายเหตุ</th>
+                  <th class="p-3">ผู้เบิก</th>
+                </tr>
+              </thead>
+              <tbody id="usage-history-table-body" class="divide-y divide-slate-100">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 

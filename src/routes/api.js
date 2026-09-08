@@ -100,6 +100,16 @@ router.get('/batches', async (req, res) => {
   }
 });
 
+router.get('/batches/history', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 100;
+    const history = await stockService.getReceivingHistory(limit);
+    res.json({ success: true, data: history });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.post('/batches', async (req, res) => {
   try {
     const id = await stockService.createBatch(req.body);

@@ -2,12 +2,14 @@
 let state = {
   products: [],
   batches: [],
+  receivingHistory: [],
   usageLogs: [],
   usageSummary: [],
   alerts: { low_stock_items: [], expiring_batches: [], expired_batches: [] },
   settings: {},
   recipients: [],
-  activeTab: 'dashboard'
+  activeTab: 'dashboard',
+  historySubTab: 'inbound'
 };
 
 // =======================================================
@@ -159,6 +161,7 @@ async function loadAllData() {
     if (json.success && json.data) {
       state.products = json.data.products || [];
       state.batches = json.data.batches || [];
+      state.receivingHistory = json.data.receivingHistory || [];
       state.alerts = json.data.alerts || { low_stock_items: [], expiring_batches: [], expired_batches: [] };
       state.usageLogs = json.data.usageLogs || [];
       state.usageSummary = json.data.usageSummary || [];
@@ -277,6 +280,7 @@ function renderAll() {
   renderLineFlexPreview();
   renderInventoryTable();
   renderPlanningTable();
+  renderReceivingHistoryTable();
   renderUsageHistoryTable();
   renderRecipientsTable();
   populateProductSelects();
@@ -908,6 +912,219 @@ function renderPlanningTable() {
       </tr>
     `;
   }).join('');
+}
+
+// 5.1 Switch Dual History Sub-Tabs (Inbound vs Outbound)
+function switchHistoryTab(tab) {
+  state.historySubTab = tab;
+  const btnInbound = document.getElementById('subtab-inbound');
+  const btnOutbound = document.getElementById('subtab-outbound');
+  const viewInbound = document.getElementById('history-view-inbound');
+  const viewOutbound = document.getElementById('history-view-outbound');
+
+  if (tab === 'inbound') {
+    if (btnInbound) btnInbound.className = 'px-3 py-1.5 rounded-lg bg-emerald-600 text-white shadow-xs transition flex items-center space-x-1.5';
+    if (btnOutbound) btnOutbound.className = 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center space-x-1.5';
+    if (viewInbound) viewInbound.classList.remove('hidden');
+    if (viewOutbound) viewOutbound.classList.add('hidden');
+  } else {
+    if (btnInbound) btnInbound.className = 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center space-x-1.5';
+    if (btnOutbound) btnOutbound.className = 'px-3 py-1.5 rounded-lg bg-amber-600 text-white shadow-xs transition flex items-center space-x-1.5';
+    if (viewInbound) viewInbound.classList.add('hidden');
+    if (viewOutbound) viewOutbound.classList.remove('hidden');
+  }
+  if (window.lucide) lucide.createIcons();
+}
+
+// 5.2 Render Inbound Receiving History Table (ตรวจเช็ค & ลบ/แก้ รายการรับเข้า)
+function renderReceivingHistoryTable() {
+  const tbody = document.getElementById('receiving-history-table-body');
+  const mobileContainer = document.getElementById('receiving-history-mobile-cards');
+  const countEl = document.getElementById('inbound-history-count');
+
+  const list = state.receivingHistory || [];
+  if (countEl) countEl.textContent = list.length;
+
+  if (list.length === 0) {
+    const emptyHtml = `
+      <tr>
+        <td colspan="8" class="p-8 text-center text-slate-400">
+          <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+          <p class="font-medium text-slate-600">ยังไม่มีประวัติการรับของเข้าสต็อก</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">เมื่อรับของเข้าผ่านเว็บหรือพิมพ์ใน LINE เช่น "รับ coke 24" รายการจะแสดงที่นี่</p>
+        </td>
+      </tr>
+    `;
+    if (tbody) tbody.innerHTML = emptyHtml;
+    if (mobileContainer) {
+      mobileContainer.innerHTML = `
+        <div class="p-8 text-center text-slate-400 bg-white rounded-2xl border border-slate-200">
+          <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+          <p class="font-medium text-slate-600">ยังไม่มีประวัติการรับของเข้าสต็อก</p>
+        </div>
+      `;
+    }
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  // Desktop Table Rows
+  if (tbody) {
+    tbody.innerHTML = list.map(b => {
+      const isLine = (b.notes || '').includes('LINE');
+      const sourceBadge = isLine 
+        ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">📲 LINE</span>`
+        : `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800">💻 Web</span>`;
+
+      const expBadge = b.is_expired
+        ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">หมดอายุ</span>`
+        : (b.is_expiring_soon
+          ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">อีก ${b.days_until_expiry} วัน</span>`
+          : `<span class="text-slate-600 text-xs">${b.expiry_date || '-'}</span>`);
+
+      const initialQty = b.initial_quantity || b.quantity;
+
+      return `
+        <tr class="hover:bg-slate-50/80 border-b border-slate-100 transition">
+          <td class="p-3 text-slate-700 font-mono text-xs">
+            <div class="font-semibold">${b.received_date || '-'}</div>
+            <div class="text-[10px] text-slate-400">${b.created_at ? new Date(b.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
+          </td>
+          <td class="p-3">
+            <div class="font-bold text-slate-900 text-xs">${b.product_name}</div>
+            <span class="text-[10px] text-slate-400">${b.category || ''}</span>
+          </td>
+          <td class="p-3 font-black text-emerald-700 text-sm">
+            +${initialQty} <span class="text-[10px] font-normal uppercase text-slate-500">${b.unit}</span>
+          </td>
+          <td class="p-3 font-bold text-slate-800 text-xs">
+            ${b.quantity} <span class="text-[10px] font-normal text-slate-400">${b.unit}</span>
+          </td>
+          <td class="p-3">
+            <div class="font-mono text-xs">${b.expiry_date || '-'}</div>
+            <div class="mt-0.5">${expBadge}</div>
+          </td>
+          <td class="p-3 font-mono text-xs text-slate-500">${b.lot_number || '-'}</td>
+          <td class="p-3">
+            <div class="mb-1">${sourceBadge}</div>
+            <div class="text-[11px] text-slate-600 truncate max-w-[180px]">${b.notes || '-'}</div>
+          </td>
+          <td class="p-3 text-center">
+            <div class="flex items-center justify-center space-x-1">
+              <button onclick="handleEditReceivedBatch('${b.id}', ${b.quantity}, '${b.expiry_date || ''}')" title="แก้ไขจำนวน/วันหมดอายุ" class="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg transition">
+                <i data-lucide="edit-3" class="w-4 h-4"></i>
+              </button>
+              <button onclick="handleDeleteReceivedBatch('${b.id}', '${(b.product_name || '').replace(/'/g, "\\'")}', ${b.quantity}, '${b.unit || 'ชิ้น'}')" title="ลบรายการรับเข้านี้ (ปรับลดยอดสต็อก)" class="p-1.5 hover:bg-rose-50 text-rose-600 rounded-lg transition">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // Mobile Cards View
+  if (mobileContainer) {
+    mobileContainer.innerHTML = list.map(b => {
+      const isLine = (b.notes || '').includes('LINE');
+      const sourceBadge = isLine 
+        ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">📲 LINE</span>`
+        : `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800">💻 Web</span>`;
+
+      const initialQty = b.initial_quantity || b.quantity;
+
+      return `
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3 text-xs">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <h4 class="font-extrabold text-slate-900 text-sm">${b.product_name}</h4>
+              <div class="flex items-center space-x-1.5 mt-0.5 text-slate-400 text-[11px]">
+                <span>📅 ${b.received_date || '-'}</span>
+                <span>•</span>
+                <span>${sourceBadge}</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="font-black text-emerald-700 text-base">+${initialQty}</span>
+              <span class="text-[10px] text-slate-500 uppercase"> ${b.unit}</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-[11px]">
+            <div>
+              <span class="text-slate-400">คงเหลือในล็อต:</span>
+              <span class="font-bold text-slate-800 ml-1">${b.quantity} ${b.unit}</span>
+            </div>
+            <div>
+              <span class="text-slate-400">วันหมดอายุ:</span>
+              <span class="font-bold ${b.is_expired ? 'text-rose-600' : 'text-slate-800'} ml-1">${b.expiry_date || '-'}</span>
+            </div>
+            <div class="col-span-2 text-slate-500 truncate">
+              <span class="text-slate-400">หมายเหตุ:</span> ${b.notes || '-'}
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end space-x-2 pt-1 border-t border-slate-100">
+            <button onclick="handleEditReceivedBatch('${b.id}', ${b.quantity}, '${b.expiry_date || ''}')" class="px-3 py-1.5 bg-slate-100 active:bg-slate-200 text-slate-700 rounded-xl font-semibold text-xs flex items-center space-x-1 transition">
+              <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+              <span>แก้ไข</span>
+            </button>
+            <button onclick="handleDeleteReceivedBatch('${b.id}', '${(b.product_name || '').replace(/'/g, "\\'")}', ${b.quantity}, '${b.unit || 'ชิ้น'}')" class="px-3 py-1.5 bg-rose-50 active:bg-rose-100 text-rose-600 rounded-xl font-semibold text-xs flex items-center space-x-1 transition">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              <span>ลบรายการนี้</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  if (window.lucide) lucide.createIcons();
+}
+
+async function handleDeleteReceivedBatch(batchId, prodName, qty, unit) {
+  if (!confirm(`ยืนยันการลบรายการรับเข้าของ "${prodName}" จำนวน ${qty} ${unit} หรือไม่?\n\n⚠️ ยอดสต็อกรวมของสินค้านี้จะถูกปรับลดลง ${qty} ${unit} ทันที`)) return;
+
+  try {
+    const res = await fetch(`/api/batches/${batchId}`, { method: 'DELETE' });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+
+    playTapFeedback('alert');
+    showToast(`ลบรายการรับเข้า ${prodName} และปรับสต็อกเรียบร้อยแล้ว`);
+    await loadAllData();
+  } catch (err) {
+    showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+  }
+}
+
+async function handleEditReceivedBatch(batchId, currentQty, currentExp) {
+  const newQtyStr = prompt(`แก้ไขจำนวนคงเหลือในล็อตนี้ (เดิม: ${currentQty}):`, currentQty);
+  if (newQtyStr === null) return;
+  const newQty = Number(newQtyStr);
+  if (isNaN(newQty) || newQty < 0) {
+    alert('กรุณาระบุตัวเลขจำนวนที่ถูกต้อง');
+    return;
+  }
+  const newExp = prompt(`แก้วันหมดอายุ (รูปแบบ YYYY-MM-DD):`, currentExp || '');
+  if (newExp === null) return;
+
+  try {
+    const res = await fetch(`/api/batches/${batchId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quantity: newQty, expiry_date: newExp.trim() })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+
+    playTapFeedback('save');
+    showToast('แก้ไขข้อมูลการรับเข้าสำเร็จ');
+    await loadAllData();
+  } catch (err) {
+    showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+  }
 }
 
 // 6. Render Usage History Table
