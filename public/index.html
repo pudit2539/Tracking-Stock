@@ -1312,13 +1312,24 @@
       <!-- VIEW 1: LINE USER MANUAL (FOCUS FOR LINE USERS) -->
       <!-- ============================================== -->
       <div id="guide-view-line" class="space-y-3">
-        <!-- Benefit Note: Auto User Tracking -->
+        <!-- Benefit Note 1: Group Prefix Requirement -->
+        <div class="p-3 bg-sky-50 rounded-2xl border border-sky-200 flex items-start space-x-2.5">
+          <span class="text-base">📢</span>
+          <div>
+            <h5 class="font-bold text-sky-950 text-xs">สั่งงานในกลุ่มไลน์ ต้องพิมพ์ "DQ" นำหน้าเสมอ</h5>
+            <p class="text-sky-800 text-[11px] leading-relaxed mt-0.5">
+              เพื่อป้องกันบอทตอบแทรกเวลาคุยทั่วไป ในกลุ่มไลน์ให้พิมพ์ <b class="text-sky-950 font-mono">DQ</b> นำหน้าทุกคำสั่ง เช่น <code class="bg-sky-100 font-bold text-sky-900 px-1 py-0.5 rounded">DQ ภาพรวม</code> หรือ <code class="bg-sky-100 font-bold text-sky-900 px-1 py-0.5 rounded">DQ ตัด coke 2</code> (ถ้าคุยในแชตส่วนตัว 1-on-1 จะใส่หรือไม่ใส่ DQ ก็ได้)
+            </p>
+          </div>
+        </div>
+
+        <!-- Benefit Note 2: Auto User Tracking -->
         <div class="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 flex items-start space-x-2.5">
           <span class="text-base">👤</span>
           <div>
             <h5 class="font-bold text-emerald-950 text-xs">บันทึกชื่อคนทำรายการให้อัตโนมัติ</h5>
             <p class="text-emerald-800 text-[11px] leading-relaxed mt-0.5">
-              เมื่อพิมพ์สั่งงานในกลุ่ม LINE บอทจะดึง <b>ชื่อโปรไฟล์ LINE</b> ของคุณไปลงบันทึกในประวัติรับเข้าและประวัติการเบิกใช้ทันที ทำให้รู้ว่าใครเป็นคนทำรายการโดยไม่ต้องพิมพ์ชื่อกำกับ
+              เมื่อพิมพ์สั่งงาน บอทจะดึง <b>ชื่อโปรไฟล์ LINE</b> ของคุณไปลงบันทึกในประวัติรับเข้าและประวัติการเบิกใช้ทันที ทำให้รู้ว่าใครเป็นคนทำรายการโดยไม่ต้องพิมพ์ชื่อกำกับ
             </p>
           </div>
         </div>
@@ -1337,9 +1348,9 @@
               พิมพ์คำว่า <code class="bg-rose-100/80 text-rose-900 px-1 py-0.5 rounded font-mono">ตัด</code>, <code class="bg-rose-100/80 text-rose-900 px-1 py-0.5 rounded font-mono">ใช้ไป</code>, <code class="bg-rose-100/80 text-rose-900 px-1 py-0.5 rounded font-mono">เบิก</code> หรือใส่เครื่องหมายลบ <code class="bg-rose-100/80 text-rose-900 px-1 py-0.5 rounded font-mono">-</code>
             </p>
             <div class="bg-white/80 p-2 rounded-xl border border-rose-200/60 font-mono text-[11px] text-slate-700 space-y-0.5">
-              <div>• "ตัด coke 5"</div>
-              <div>• "นมจืด ใช้ไป 2 pack"</div>
-              <div>• "ผงโกโก้ -1"</div>
+              <div>• "DQ ตัด coke 5"</div>
+              <div>• "DQ นมจืด ใช้ไป 2 pack"</div>
+              <div>• "DQ ผงโกโก้ -1"</div>
             </div>
           </div>
 
@@ -1355,9 +1366,9 @@
               พิมพ์คำว่า <code class="bg-emerald-100/80 text-emerald-900 px-1 py-0.5 rounded font-mono">รับ</code>, <code class="bg-emerald-100/80 text-emerald-900 px-1 py-0.5 rounded font-mono">เติม</code>, <code class="bg-emerald-100/80 text-emerald-900 px-1 py-0.5 rounded font-mono">เข้า</code> หรือใส่เครื่องหมายบวก <code class="bg-emerald-100/80 text-emerald-900 px-1 py-0.5 rounded font-mono">+</code>
             </p>
             <div class="bg-white/80 p-2 rounded-xl border border-emerald-200/60 font-mono text-[11px] text-slate-700 space-y-0.5">
-              <div>• "รับ coke 24"</div>
-              <div>• "เติม ช้อนสั้น 10 pack"</div>
-              <div>• "นมจืด +12"</div>
+              <div>• "DQ รับ coke 24"</div>
+              <div>• "DQ เติม ช้อนสั้น 10 pack"</div>
+              <div>• "DQ นมจืด +12"</div>
             </div>
           </div>
 
@@ -1373,8 +1384,8 @@
               พิมพ์คำว่า <code class="bg-sky-100/80 text-sky-900 px-1 py-0.5 rounded font-mono">เหลือ</code> หรือ <code class="bg-sky-100/80 text-sky-900 px-1 py-0.5 rounded font-mono">นับได้</code> เพื่อปรับยอดคงเหลือให้ตรงกับของจริงที่หน้าร้านทันที
             </p>
             <div class="bg-white/80 p-2 rounded-xl border border-sky-200/60 font-mono text-[11px] text-slate-700 space-y-0.5">
-              <div>• "coke เหลือ 12"</div>
-              <div>• "นับ นมจืด ได้ 8"</div>
+              <div>• "DQ coke เหลือ 12"</div>
+              <div>• "DQ นับ นมจืด ได้ 8"</div>
             </div>
           </div>
 
@@ -1391,35 +1402,39 @@
             </p>
             <div class="bg-white/90 p-2.5 rounded-xl border border-amber-300/80 font-mono text-[11px] text-slate-800 space-y-1">
               <div class="text-slate-400 text-[10px] font-sans font-semibold">ตัวอย่างที่ 1 (ขึ้นบรรทัดใหม่):</div>
-              <div class="text-rose-600">ตัด coke 2</div>
+              <div class="text-rose-600">DQ ตัด coke 2</div>
               <div class="text-emerald-700">รับ นมจืด 10</div>
               <div class="text-sky-700">ส้อม เหลือ 50</div>
               <div class="text-slate-400 text-[10px] font-sans font-semibold pt-1 border-t border-slate-100">ตัวอย่างที่ 2 (คั่นด้วยลูกน้ำ):</div>
-              <div class="text-indigo-700">"ตัด coke 2, รับ นม 10, ส้อม เหลือ 50"</div>
+              <div class="text-indigo-700">"DQ ตัด coke 2, รับ นม 10, ส้อม เหลือ 50"</div>
             </div>
           </div>
 
-          <!-- 5. Single Check & Overview -->
+          <!-- 5. Single Check & Overview & Expiry -->
           <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
             <span class="font-bold text-slate-800 text-xs flex items-center space-x-1.5">
-              <span>🔍 5. เช็คสินค้าเฉพาะตัว & สรุปของที่ต้องสั่ง</span>
+              <span>🔍 5. เช็คสต็อก, วันหมดอายุ & สรุปรายการ</span>
             </span>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
               <div class="bg-white p-2 rounded-xl border border-slate-200">
                 <span class="font-semibold text-slate-800">• เช็คสินค้าตัวเดียว:</span>
-                <div class="text-slate-500 font-mono mt-0.5">พิมพ์ "เช็ค coke" หรือ "? coke"</div>
+                <div class="text-slate-500 font-mono mt-0.5">"DQ เช็ค coke" หรือ "DQ ? coke"</div>
+              </div>
+              <div class="bg-white p-2 rounded-xl border border-slate-200">
+                <span class="font-semibold text-slate-800">• ดูของใกล้หมดอายุ:</span>
+                <div class="text-slate-500 font-mono mt-0.5">"DQ ใกล้หมดอายุ" หรือ "DQ หมดอายุ"</div>
               </div>
               <div class="bg-white p-2 rounded-xl border border-slate-200">
                 <span class="font-semibold text-slate-800">• สรุปของที่ต้องสั่งซื้อ:</span>
-                <div class="text-slate-500 font-mono mt-0.5">พิมพ์ "สั่งของ" หรือ "ของหมด"</div>
+                <div class="text-slate-500 font-mono mt-0.5">"DQ สั่งของ" หรือ "DQ ของหมด"</div>
               </div>
               <div class="bg-white p-2 rounded-xl border border-slate-200">
                 <span class="font-semibold text-slate-800">• ดูภาพรวมทั้งร้าน:</span>
-                <div class="text-slate-500 font-mono mt-0.5">พิมพ์ "ภาพรวม" หรือ "สรุป"</div>
+                <div class="text-slate-500 font-mono mt-0.5">"DQ ภาพรวม" หรือ "DQ สรุป"</div>
               </div>
-              <div class="bg-white p-2 rounded-xl border border-slate-200">
+              <div class="bg-white p-2 rounded-xl border border-slate-200 sm:col-span-2">
                 <span class="font-semibold text-slate-800">• เรียกดูคู่มือใน LINE:</span>
-                <div class="text-slate-500 font-mono mt-0.5">พิมพ์ "วิธีใช้" หรือ "help"</div>
+                <div class="text-slate-500 font-mono mt-0.5">พิมพ์ "DQ วิธีใช้" หรือพิมพ์ "DQ" เดี่ยวๆ เพื่อดูเมนู</div>
               </div>
             </div>
           </div>
@@ -1499,10 +1514,22 @@
             5
           </div>
           <div class="space-y-1">
-            <h4 class="font-bold text-slate-900 text-xs">🔗 ทางลัดแตะแล้วเปิดตรงหน้า (Smart Deep Link)</h4>
+            <h4 class="font-bold text-slate-900 text-xs">📜 ประวัติรับเข้า & ค้นหาวันที่ (Pop-up รายละเอียด)</h4>
             <p class="text-slate-600 text-[11px] leading-relaxed">
-              • แตะการ์ดสรุปยอด 4 ใบด้านบน Dashboard เพื่อสลับไปดูสินค้าตามสถานะนั้นได้ทันที<br>
-              • แตะปุ่ม <b class="text-indigo-600">"ดูในคลัง ➜"</b> ที่กล่องแจ้งเตือนสินค้าใกล้หมด หรือสินค้าใกล้หมดอายุ เพื่อกรองดูเฉพาะรายการที่มีปัญหาได้ทันที
+              ที่แท็บ <b>"ประวัติการเบิกใช้" &gt; "ประวัติการรับเข้า"</b> มีคอลัมน์วันที่รับเข้า และตัวกรองวันที่ พร้อมปุ่ม <b>"ดูรายการ"</b> เพื่อเปิดดูรายการสินค้าที่รับเข้าในครั้งนั้นแบบ Pop-up สะอาดตา
+            </p>
+          </div>
+        </div>
+
+        <!-- Step 6 -->
+        <div class="p-3.5 bg-amber-50/60 rounded-2xl border border-amber-100 flex items-start space-x-3">
+          <div class="w-8 h-8 rounded-xl bg-amber-600 text-white font-black flex items-center justify-center shrink-0 text-sm shadow-xs">
+            6
+          </div>
+          <div class="space-y-1">
+            <h4 class="font-bold text-slate-900 text-xs">🛡️ ระบบความปลอดภัย & สลับโหมด Admin (PIN)</h4>
+            <p class="text-slate-600 text-[11px] leading-relaxed">
+              หน้าเว็บแบ่งสิทธิ์ใช้งาน: พนักงานทั่วไปสามารถดูสต็อกและประวัติได้อย่างสะดวก ส่วนการลบ/แก้ไขสินค้าหรือตั้งค่าระบบ ต้องกดปุ่ม <b>"โหมดพนักงาน"</b> ด้านบนเพื่อใส่รหัส PIN เข้าสู่โหมด Admin (สามารถเปลี่ยน PIN ได้ในหน้าตั้งค่า)
             </p>
           </div>
         </div>
