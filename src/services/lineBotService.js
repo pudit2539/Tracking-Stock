@@ -181,17 +181,17 @@ class LineBotService {
     if (!raw) return null;
 
     // 1. HELP / GUIDE
-    if (/^(วิธีใช้|คำสั่ง|คู่มือ|help|เมนู|\?)$/i.test(raw)) {
+    if (/^(วิธีใช้|คำสั่ง|คู่มือ|help|เมนู|\?)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(raw)) {
       return { action: 'HELP' };
     }
 
     // 2. ORDER LIST
-    if (/^(สั่งของ|ของหมด|ของใกล้หมด|order|สรุปสั่งของ)$/i.test(raw) || raw.includes('สรุปของหมด') || raw.includes('ต้องสั่งอะไร')) {
+    if (/^(สั่งของ|ของหมด|ของใกล้หมด|order|สรุปสั่งของ)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(raw) || raw.includes('สรุปของหมด') || raw.includes('ต้องสั่งอะไร')) {
       return { action: 'ORDER_LIST' };
     }
 
     // 3. OVERVIEW CHECK STOCK
-    if (/^(เช็คสต็อก|สต็อก|คงเหลือ|เช็คของ|stock)$/i.test(raw)) {
+    if (/^(ภาพรวม|ดูภาพรวม|ขอภาพรวม|ภาพรวมร้าน|ภาพรวมทั้งหมด|สรุป|สรุปสต็อก|สรุปยอด|ดูสต็อก|เช็คสต็อก|สต็อก|คงเหลือ|เช็คของ|stock|overview|status|รายงาน|report)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(raw)) {
       return { action: 'STOCK_OVERVIEW' };
     }
 
@@ -219,9 +219,15 @@ class LineBotService {
       }
     }
 
-    // 7. SPECIFIC ITEM CHECK (เช็ค coke, coke เหลือเท่าไหร่)
-    if (prodName && /(เช็ค|ดู|เหลือเท่าไหร่|มีมั้ย|เท่าไหร่)/i.test(raw)) {
-      return { action: 'CHECK_ITEM', productName: prodName };
+    // 7. SPECIFIC ITEM CHECK (เช็ค coke, coke เหลือเท่าไหร่, ภาพรวม cokeกด, หรือพิมพ์ชื่อสินค้าเดี่ยวๆ)
+    if (prodName && qty === null) {
+      const isCheckWord = /(เช็ค|ดู|ตรวจ|ภาพรวม|สต็อก|คงเหลือ|เช็คของ|มีมั้ย|เหลือเท่าไหร่|เท่าไหร่|\?|ค้นหา)/i.test(raw);
+      const isJustProduct = raw.replace(/\s+/g, '') === prodName.toLowerCase().replace(/\s+/g, '') ||
+                            PRODUCT_ALIASES.some(p => p.aliases.some(a => a.toLowerCase().replace(/\s+/g, '') === raw.replace(/\s+/g, '')));
+
+      if (isCheckWord || isJustProduct) {
+        return { action: 'CHECK_ITEM', productName: prodName };
+      }
     }
 
     // Fallback if product and number found without explicit verb
@@ -267,13 +273,13 @@ class LineBotService {
 
     // General single commands
     const singleRaw = trimmed.toLowerCase();
-    if (/^(วิธีใช้|คำสั่ง|คู่มือ|help|เมนู|\?)$/i.test(singleRaw)) {
+    if (/^(วิธีใช้|คำสั่ง|คู่มือ|help|เมนู|\?)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(singleRaw)) {
       return [{ action: 'HELP' }];
     }
-    if (/^(สั่งของ|ของหมด|ของใกล้หมด|order|สรุปสั่งของ)$/i.test(singleRaw) || singleRaw.includes('สรุปของหมด') || singleRaw.includes('ต้องสั่งอะไร')) {
+    if (/^(สั่งของ|ของหมด|ของใกล้หมด|order|สรุปสั่งของ)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(singleRaw) || singleRaw.includes('สรุปของหมด') || singleRaw.includes('ต้องสั่งอะไร')) {
       return [{ action: 'ORDER_LIST' }];
     }
-    if (/^(เช็คสต็อก|สต็อก|คงเหลือ|เช็คของ|stock)$/i.test(singleRaw)) {
+    if (/^(ภาพรวม|ดูภาพรวม|ขอภาพรวม|ภาพรวมร้าน|ภาพรวมทั้งหมด|สรุป|สรุปสต็อก|สรุปยอด|ดูสต็อก|เช็คสต็อก|สต็อก|คงเหลือ|เช็คของ|stock|overview|status|รายงาน|report)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(singleRaw)) {
       return [{ action: 'STOCK_OVERVIEW' }];
     }
 
