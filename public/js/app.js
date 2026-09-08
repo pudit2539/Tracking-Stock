@@ -277,6 +277,10 @@ function switchTab(tabName) {
     activeBtn.classList.add('border-rose-600', 'text-rose-600');
   }
 
+  if (tabName === 'usage') {
+    switchUsageSubTab(state.historySubTab || 'inbound');
+  }
+
   if (window.lucide) lucide.createIcons();
 }
 
@@ -374,7 +378,10 @@ function renderAlertLists() {
           <div class="w-1.5 h-10 bg-rose-600 rounded-full"></div>
           <div>
             <div class="flex items-center space-x-2">
-              <span class="font-bold text-slate-900">${item.name}</span>
+              <button type="button" onclick="openProductDetailModal(${item.id})" class="text-left font-bold text-slate-900 hover:text-rose-600 flex items-center space-x-1 group transition" title="ดูรายละเอียดสินค้า">
+                <span class="group-hover:underline">${item.name}</span>
+                <i data-lucide="info" class="w-3 h-3 text-slate-400 group-hover:text-rose-600 transition"></i>
+              </button>
               <span class="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded">${item.category}</span>
             </div>
             <p class="text-[11px] text-slate-500">
@@ -442,7 +449,10 @@ function renderAlertLists() {
             <div class="w-1.5 h-10 ${statusClass} rounded-full"></div>
             <div>
               <div class="flex items-center space-x-2">
-                <span class="font-bold text-slate-900">${b.product_name || b.name}</span>
+                <button type="button" onclick="openProductDetailModal(${b.product_id || b.id})" class="text-left font-bold text-slate-900 hover:text-amber-700 flex items-center space-x-1 group transition" title="ดูรายละเอียดสินค้า">
+                  <span class="group-hover:underline">${b.product_name || b.name}</span>
+                  <i data-lucide="info" class="w-3 h-3 text-slate-400 group-hover:text-amber-700 transition"></i>
+                </button>
                 <span class="text-[10px] text-slate-500 font-mono">ล็อต ${b.lot_number || '-'}</span>
               </div>
               <p class="text-[11px] text-slate-500">
@@ -1007,7 +1017,10 @@ function renderInventoryTable() {
     return `
       <tr class="hover:bg-slate-50/80 transition border-b border-slate-100">
         <td class="p-3.5">
-          <div class="font-bold text-slate-900 text-xs">${p.name}</div>
+          <button type="button" onclick="openProductDetailModal('${p.id}')" class="text-left font-bold text-slate-900 hover:text-indigo-600 flex items-center space-x-1.5 group transition" title="คลิกเพื่อดูรายละเอียดสินค้าและประวัติย้อนหลัง">
+            <span class="group-hover:underline text-xs">${p.name}</span>
+            <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 transition"></i>
+          </button>
           <span class="text-[10px] text-slate-400">${p.category}</span>
         </td>
         <td class="p-3.5">
@@ -1040,9 +1053,13 @@ function renderInventoryTable() {
         <td class="p-3.5">${statusBadge}</td>
         <td class="p-3.5 text-center">
           <div class="flex items-center justify-center space-x-1">
+            <button onclick="openProductDetailModal('${p.id}')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-lg flex items-center space-x-1 transition" title="ดูรายละเอียดสินค้า">
+              <i data-lucide="info" class="w-3.5 h-3.5 text-slate-500"></i>
+              <span>ดูข้อมูล</span>
+            </button>
             <button onclick="openQuickUpdateModal('${p.id}')" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs rounded-lg flex items-center space-x-1 shadow-2xs transition" title="อัปเดตด่วน สต็อก & วันหมดอายุ">
               <i data-lucide="zap" class="w-3.5 h-3.5"></i>
-              <span>อัปเดตด่วน</span>
+              <span>อัปเดต</span>
             </button>
             <button onclick="openManageBatchesModal('${p.id}')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium text-xs rounded-lg flex items-center space-x-1 border border-indigo-200 transition" title="จัดการทุกล็อตของสินค้า">
               <i data-lucide="layers" class="w-3.5 h-3.5"></i>
@@ -1090,7 +1107,10 @@ function renderInventoryTable() {
             <!-- Header: Title & Status -->
             <div class="flex items-start justify-between gap-2">
               <div>
-                <h4 class="font-extrabold text-slate-900 text-sm leading-snug">${p.name}</h4>
+                <button type="button" onclick="openProductDetailModal('${p.id}')" class="text-left font-extrabold text-slate-900 text-sm leading-snug hover:text-indigo-600 flex items-center space-x-1 transition">
+                  <span>${p.name}</span>
+                  <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400"></i>
+                </button>
                 <div class="flex flex-wrap items-center gap-1.5 mt-0.5">
                   <span class="inline-block text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${p.category}</span>
                   <span class="text-[10px] text-slate-600 font-medium flex items-center space-x-1" title="แก้ไขล่าสุด: ${formatFullDateTime(p.last_updated_at || p.updated_at || p.created_at)}">
@@ -1166,10 +1186,12 @@ function setInventoryFilter(type) {
 // 5. Render Planning Table (Consumption Rate & Stock Days Forecast)
 function renderPlanningTable() {
   const tbody = document.getElementById('planning-table-body');
+  if (!tbody) return;
+
   if (!state.usageSummary || state.usageSummary.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="6" class="p-6 text-center text-slate-400">ยังไม่มีประวัติการใช้งานบันทึกในระบบ</td>
+        <td colspan="8" class="p-8 text-center text-slate-400">ยังไม่มีประวัติการใช้งานบันทึกในระบบ</td>
       </tr>
     `;
     return;
@@ -1199,6 +1221,12 @@ function renderPlanningTable() {
     const currentStock = product ? product.current_stock : 0;
     const avgDaily = item.avg_daily_use || 0;
 
+    // Last Inbound Date / Activity
+    const pBatches = (state.batches || []).filter(b => b.product_id == item.product_id);
+    const latestBatch = [...pBatches].sort((x, y) => new Date(y.received_date || y.created_at || 0) - new Date(x.received_date || x.created_at || 0))[0];
+    const lastReceived = latestBatch ? (latestBatch.received_date || formatDateOnly(latestBatch.created_at)) : '-';
+    const lastUpdated = product?.updated_at ? formatRelativeTime(product.updated_at) : '-';
+
     let daysRemainingText = '-';
     let recommendation = '<span class="text-slate-400">สต็อกเพียงพอ</span>';
 
@@ -1216,38 +1244,73 @@ function renderPlanningTable() {
     }
 
     return `
-      <tr class="hover:bg-slate-50 border-b border-slate-100">
-        <td class="p-3 font-semibold text-slate-800">${item.product_name}</td>
-        <td class="p-3"><span class="font-bold text-slate-900">${currentStock}</span> ${item.unit}</td>
-        <td class="p-3 text-slate-600">${item.total_used} ${item.unit}</td>
-        <td class="p-3 text-slate-600">${avgDaily} ${item.unit}/วัน</td>
+      <tr class="hover:bg-slate-50 border-b border-slate-100 transition">
+        <td class="p-3 font-semibold text-slate-800">
+          <button type="button" onclick="openProductDetailModal('${item.product_id}')" class="text-left font-bold text-slate-900 hover:text-indigo-600 flex items-center space-x-1.5 group transition" title="คลิกเพื่อดูรายละเอียดสินค้า">
+            <span class="group-hover:underline text-xs">${item.product_name}</span>
+            <i data-lucide="external-link" class="w-3 h-3 text-slate-400 group-hover:text-indigo-600 transition"></i>
+          </button>
+          <span class="text-[10px] text-slate-400">${product?.category || ''}</span>
+        </td>
+        <td class="p-3"><span class="font-bold text-slate-900">${currentStock}</span> <span class="text-slate-500 uppercase text-[11px]">${item.unit}</span></td>
+        <td class="p-3 whitespace-nowrap">
+          <div class="font-bold text-slate-800 text-xs">${lastReceived}</div>
+          <div class="text-[10px] text-slate-400 mt-0.5 flex items-center space-x-1" title="อัปเดตเมื่อ: ${formatFullDateTime(product?.updated_at)}">
+            <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
+            <span>แก้ ${lastUpdated}</span>
+          </div>
+        </td>
+        <td class="p-3 text-slate-600 font-medium">${item.total_used} <span class="text-[10px] uppercase text-slate-400">${item.unit}</span></td>
+        <td class="p-3 text-slate-600">${avgDaily} <span class="text-[10px] text-slate-400">${item.unit}/วัน</span></td>
         <td class="p-3 font-medium text-slate-700">${daysRemainingText}</td>
         <td class="p-3">${recommendation}</td>
+        <td class="p-3 text-center">
+          <button type="button" onclick="openProductDetailModal('${item.product_id}')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[11px] font-semibold flex items-center space-x-1 mx-auto transition active:scale-95 shadow-2xs">
+            <i data-lucide="info" class="w-3 h-3"></i>
+            <span>ดูข้อมูล</span>
+          </button>
+        </td>
       </tr>
     `;
   }).join('');
+
+  if (window.lucide) lucide.createIcons();
 }
 
-// 5.1 Switch Dual History Sub-Tabs (Inbound vs Outbound)
-function switchHistoryTab(tab) {
+// 5.1 Switch Dual History & Planning Sub-Tabs (Inbound vs Outbound vs Planning)
+function switchUsageSubTab(tab) {
   state.historySubTab = tab;
-  const btnInbound = document.getElementById('subtab-inbound');
-  const btnOutbound = document.getElementById('subtab-outbound');
+  const btnInbound = document.getElementById('subtab-main-inbound') || document.getElementById('subtab-inbound');
+  const btnOutbound = document.getElementById('subtab-main-outbound') || document.getElementById('subtab-outbound');
+  const btnPlanning = document.getElementById('subtab-main-planning');
   const viewInbound = document.getElementById('history-view-inbound');
   const viewOutbound = document.getElementById('history-view-outbound');
+  const viewPlanning = document.getElementById('history-view-planning');
+
+  const inactiveBtn = 'px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center space-x-1.5 whitespace-nowrap active:scale-95';
+  if (btnInbound) btnInbound.className = inactiveBtn;
+  if (btnOutbound) btnOutbound.className = inactiveBtn;
+  if (btnPlanning) btnPlanning.className = inactiveBtn;
+
+  if (viewInbound) viewInbound.classList.add('hidden');
+  if (viewOutbound) viewOutbound.classList.add('hidden');
+  if (viewPlanning) viewPlanning.classList.add('hidden');
 
   if (tab === 'inbound') {
-    if (btnInbound) btnInbound.className = 'px-3 py-1.5 rounded-lg bg-emerald-600 text-white shadow-xs transition flex items-center space-x-1.5';
-    if (btnOutbound) btnOutbound.className = 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center space-x-1.5';
+    if (btnInbound) btnInbound.className = 'px-4 py-2 rounded-lg bg-emerald-600 text-white shadow-xs transition flex items-center space-x-1.5 whitespace-nowrap active:scale-95';
     if (viewInbound) viewInbound.classList.remove('hidden');
-    if (viewOutbound) viewOutbound.classList.add('hidden');
-  } else {
-    if (btnInbound) btnInbound.className = 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center space-x-1.5';
-    if (btnOutbound) btnOutbound.className = 'px-3 py-1.5 rounded-lg bg-amber-600 text-white shadow-xs transition flex items-center space-x-1.5';
-    if (viewInbound) viewInbound.classList.add('hidden');
+  } else if (tab === 'outbound') {
+    if (btnOutbound) btnOutbound.className = 'px-4 py-2 rounded-lg bg-amber-600 text-white shadow-xs transition flex items-center space-x-1.5 whitespace-nowrap active:scale-95';
     if (viewOutbound) viewOutbound.classList.remove('hidden');
+  } else if (tab === 'planning') {
+    if (btnPlanning) btnPlanning.className = 'px-4 py-2 rounded-lg bg-blue-600 text-white shadow-xs transition flex items-center space-x-1.5 whitespace-nowrap active:scale-95';
+    if (viewPlanning) viewPlanning.classList.remove('hidden');
   }
   if (window.lucide) lucide.createIcons();
+}
+
+function switchHistoryTab(tab) {
+  switchUsageSubTab(tab);
 }
 
 // 5.2 Render Inbound Receiving History Table (ตรวจเช็ค & ลบ/แก้ รายการรับเข้า)
@@ -1344,7 +1407,7 @@ function renderReceivingHistoryTable() {
       return `
         <tr class="hover:bg-slate-50/80 border-b border-slate-100 transition">
           <td class="p-3 text-slate-700 text-xs whitespace-nowrap">
-            <div class="font-bold text-slate-900">${b.received_date || '-'}</div>
+            <div class="font-bold text-slate-900">📅 ${b.received_date || formatDateOnly(b.created_at) || '-'}</div>
             <div class="text-[10px] text-slate-400 flex items-center space-x-1 mt-0.5" title="บันทึกเมื่อ: ${formatFullDateTime(b.created_at)}">
               <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
               <span>${formatRelativeTime(b.created_at)}</span>
@@ -1353,7 +1416,10 @@ function renderReceivingHistoryTable() {
             </div>
           </td>
           <td class="p-3">
-            <div class="font-bold text-slate-900 text-xs">${b.product_name}</div>
+            <button type="button" onclick="openProductDetailModal('${b.product_id}')" class="text-left font-bold text-slate-900 hover:text-emerald-700 flex items-center space-x-1.5 group transition" title="คลิกเพื่อดูรายละเอียดสินค้าและประวัติย้อนหลัง">
+              <span class="group-hover:underline text-xs">${b.product_name}</span>
+              <i data-lucide="external-link" class="w-3 h-3 text-slate-400 group-hover:text-emerald-700 transition"></i>
+            </button>
             <span class="text-[10px] text-slate-400">${b.category || ''}</span>
           </td>
           <td class="p-3 font-black text-emerald-700 text-sm">
@@ -1373,6 +1439,9 @@ function renderReceivingHistoryTable() {
           </td>
           <td class="p-3 text-center">
             <div class="flex items-center justify-center space-x-1">
+              <button onclick="openProductDetailModal('${b.product_id}')" title="ดูรายละเอียดสินค้า" class="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg transition">
+                <i data-lucide="info" class="w-4 h-4"></i>
+              </button>
               <button onclick="handleEditReceivedBatch('${b.id}', ${b.quantity}, '${b.expiry_date || ''}')" title="แก้ไขจำนวน/วันหมดอายุ" class="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg transition">
                 <i data-lucide="edit-3" class="w-4 h-4"></i>
               </button>
@@ -1400,7 +1469,10 @@ function renderReceivingHistoryTable() {
         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3 text-xs">
           <div class="flex items-start justify-between gap-2">
             <div>
-              <h4 class="font-extrabold text-slate-900 text-sm">${b.product_name}</h4>
+              <button type="button" onclick="openProductDetailModal('${b.product_id}')" class="text-left font-extrabold text-slate-900 text-sm hover:text-emerald-700 transition flex items-center space-x-1" title="คลิกเพื่อดูรายละเอียดสินค้า">
+                <span>${b.product_name}</span>
+                <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400"></i>
+              </button>
               <div class="flex items-center space-x-1.5 mt-0.5 text-slate-400 text-[11px]">
                 <span title="บันทึกเมื่อ: ${formatFullDateTime(b.created_at)}">📅 ${b.received_date || '-'} (${formatRelativeTime(b.created_at)})</span>
                 <span>•</span>
@@ -1556,7 +1628,12 @@ function renderUsageHistoryTable() {
           <span>${log.created_at ? new Date(log.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.' : ''}</span>
         </div>
       </td>
-      <td class="p-3 font-bold text-slate-800">${log.product_name}</td>
+      <td class="p-3 font-bold text-slate-800">
+        <button type="button" onclick="openProductDetailModal('${log.product_id}')" class="text-left font-bold text-slate-900 hover:text-amber-700 flex items-center space-x-1.5 group transition" title="คลิกเพื่อดูรายละเอียดสินค้าและประวัติย้อนหลัง">
+          <span class="group-hover:underline text-xs">${log.product_name}</span>
+          <i data-lucide="external-link" class="w-3 h-3 text-slate-400 group-hover:text-amber-700 transition"></i>
+        </button>
+      </td>
       <td class="p-3 font-mono text-slate-500">${log.lot_number || 'FIFO (อัตโนมัติ)'}</td>
       <td class="p-3 font-bold text-amber-700">-${log.quantity} ${log.unit}</td>
       <td class="p-3">${typeLabels[log.type] || log.type}</td>
@@ -1638,6 +1715,230 @@ function openEditProductModal(id) {
   document.getElementById('prod-warn-days').value = product.expiry_warning_days;
 
   openDialog('modal-product');
+}
+
+// ==============================================================
+// MODAL: PRODUCT FULL DETAILS & HISTORY POPUP (ดูรายละเอียดสินค้า & ประวัติย้อนหลัง)
+// ==============================================================
+let currentDetailProductId = null;
+let currentDetailTab = 'batches';
+
+function switchProductDetailTab(tab) {
+  currentDetailTab = tab;
+  const btnBatches = document.getElementById('detail-tab-btn-batches');
+  const btnUsage = document.getElementById('detail-tab-btn-usage');
+  const viewBatches = document.getElementById('detail-view-batches');
+  const viewUsage = document.getElementById('detail-view-usage');
+
+  if (tab === 'batches') {
+    if (btnBatches) btnBatches.className = 'pb-2.5 border-b-2 border-indigo-600 text-indigo-600 flex items-center space-x-1.5 transition font-bold';
+    if (btnUsage) btnUsage.className = 'pb-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-600 flex items-center space-x-1.5 transition font-medium';
+    if (viewBatches) viewBatches.classList.remove('hidden');
+    if (viewUsage) viewUsage.classList.add('hidden');
+  } else {
+    if (btnBatches) btnBatches.className = 'pb-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-600 flex items-center space-x-1.5 transition font-medium';
+    if (btnUsage) btnUsage.className = 'pb-2.5 border-b-2 border-amber-600 text-amber-600 flex items-center space-x-1.5 transition font-bold';
+    if (viewBatches) viewBatches.classList.add('hidden');
+    if (viewUsage) viewUsage.classList.remove('hidden');
+  }
+  if (window.lucide) lucide.createIcons();
+}
+
+async function openProductDetailModal(productId) {
+  playTapFeedback('click');
+  currentDetailProductId = productId;
+  const product = state.products.find(p => p.id == productId);
+  if (!product) return;
+
+  // Header & Info
+  document.getElementById('product-detail-name').textContent = product.name;
+  document.getElementById('product-detail-category').textContent = product.category || 'ทั่วไป';
+
+  // Badges
+  const statusEl = document.getElementById('product-detail-status');
+  let badges = '';
+  if (product.is_expired) {
+    badges += `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">🚨 มีล็อตหมดอายุแล้ว</span>`;
+  } else if (product.is_expiring_soon) {
+    badges += `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">⏳ มีล็อตใกล้หมดอายุ</span>`;
+  }
+  if (product.is_low_stock) {
+    badges += `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">⚠️ ต่ำกว่า Safety Stock</span>`;
+  } else {
+    badges += `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">✅ สต็อกเพียงพอ</span>`;
+  }
+  statusEl.innerHTML = badges;
+
+  // 4 Metrics
+  document.getElementById('product-detail-stock').innerHTML = `${product.current_stock} <span class="text-xs font-normal text-slate-500 uppercase">${product.unit}</span>`;
+  document.getElementById('product-detail-safety').innerHTML = `${product.safety_stock} <span class="text-xs font-normal text-slate-500 uppercase">${product.unit}</span>`;
+  
+  const expiryText = product.nearest_expiry 
+    ? (product.days_until_expiry < 0 
+        ? `<span class="text-rose-600 font-bold">หมดอายุแล้ว</span>`
+        : `${product.nearest_expiry} <span class="text-[10px] text-slate-400">(${product.days_until_expiry} วัน)</span>`)
+    : `<span class="text-slate-400 font-normal">ไม่มีล็อต</span>`;
+  document.getElementById('product-detail-expiry').innerHTML = expiryText;
+
+  // Usage 30 Days
+  const planInfo = (state.usageSummary || []).find(s => s.product_id == productId);
+  if (planInfo && planInfo.total_used > 0) {
+    const daysRemaining = (planInfo.avg_daily_use > 0) ? Math.floor(product.current_stock / planInfo.avg_daily_use) : 999;
+    document.getElementById('product-detail-usage').innerHTML = `${planInfo.total_used} ${product.unit} <span class="text-[10px] text-slate-400 block font-normal">(เฉลี่ย ${planInfo.avg_daily_use}/วัน • อยู่ได้ ~${daysRemaining} วัน)</span>`;
+  } else {
+    document.getElementById('product-detail-usage').innerHTML = `0 ${product.unit} <span class="text-[10px] text-slate-400 block font-normal">(ยังไม่มีประวัติใช้ใน 30 วัน)</span>`;
+  }
+
+  // Footer Buttons Actions
+  const btnAdd = document.getElementById('product-detail-btn-add');
+  const btnUse = document.getElementById('product-detail-btn-use');
+  const btnEdit = document.getElementById('product-detail-btn-edit');
+  if (btnAdd) {
+    btnAdd.onclick = () => {
+      closeDialog('modal-product-detail');
+      openAddBatchModalFor(productId);
+    };
+  }
+  if (btnUse) {
+    btnUse.onclick = () => {
+      closeDialog('modal-product-detail');
+      openRecordUsageModal();
+      const sel = document.getElementById('usage-prod-id');
+      if (sel) sel.value = productId;
+    };
+  }
+  if (btnEdit) {
+    btnEdit.onclick = () => {
+      closeDialog('modal-product-detail');
+      openEditProductModal(productId);
+    };
+  }
+
+  // Set active tab
+  switchProductDetailTab('batches');
+  openDialog('modal-product-detail');
+
+  // Render Batches & Inbound History
+  const batchesContainer = document.getElementById('detail-view-batches');
+  batchesContainer.innerHTML = `
+    <div class="p-6 text-center text-slate-400 text-xs">
+      <div class="animate-spin w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full mx-auto mb-2"></div>
+      กำลังดึงประวัติทุกล็อต...
+    </div>
+  `;
+
+  try {
+    const res = await fetch(`/api/products/${productId}/batches`);
+    const json = await res.json();
+    const batches = json.data || [];
+
+    document.getElementById('product-detail-batches-count').textContent = batches.length;
+
+    if (batches.length === 0) {
+      batchesContainer.innerHTML = `
+        <div class="p-6 text-center text-slate-400 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
+          <i data-lucide="package-x" class="w-6 h-6 mx-auto mb-1.5 opacity-50"></i>
+          <p class="font-medium text-slate-600">ยังไม่มีล็อตในสต็อก (คงเหลือ 0)</p>
+          <p class="text-[10px] text-slate-400 mt-0.5">สามารถกดปุ่ม "+ รับเข้าล็อตใหม่" ด้านล่างเพื่อเพิ่มของเข้าได้ทันที</p>
+        </div>
+      `;
+    } else {
+      // Sort earliest expiry first
+      batches.sort((a, b) => (a.expiry_date || '9999-99-99').localeCompare(b.expiry_date || '9999-99-99'));
+
+      batchesContainer.innerHTML = batches.map((b, idx) => {
+        let expBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">ปกติ</span>`;
+        if (b.is_expired) {
+          expBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">หมดอายุแล้ว</span>`;
+        } else if (b.is_expiring_soon) {
+          expBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">ใกล้หมด (${b.days_until_expiry} วัน)</span>`;
+        }
+
+        const isLine = (b.notes || '').includes('LINE');
+        const sourceBadge = isLine 
+          ? `<span class="text-[10px] font-bold text-emerald-700">📲 LINE</span>`
+          : `<span class="text-[10px] font-semibold text-blue-700">💻 Web</span>`;
+
+        return `
+          <div class="p-3 bg-slate-50/70 hover:bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-2 transition">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span class="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center justify-center">${idx + 1}</span>
+                <span class="font-mono font-bold text-slate-800 text-xs">${b.lot_number || 'LOT-AUTO'}</span>
+                <span class="text-slate-300">•</span>
+                ${sourceBadge}
+              </div>
+              <div>${expBadge}</div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+              <div class="bg-white p-2 rounded-xl border border-slate-200/80">
+                <div class="text-[10px] text-slate-400 font-medium">📅 วันที่รับเข้า</div>
+                <div class="font-bold text-slate-900 mt-0.5">${b.received_date || formatDateOnly(b.created_at) || '-'}</div>
+              </div>
+              <div class="bg-white p-2 rounded-xl border border-slate-200/80">
+                <div class="text-[10px] text-slate-400 font-medium">⏳ วันหมดอายุ</div>
+                <div class="font-bold text-slate-900 mt-0.5">${b.expiry_date || '-'}</div>
+              </div>
+              <div class="bg-white p-2 rounded-xl border border-slate-200/80 col-span-2 sm:col-span-1">
+                <div class="text-[10px] text-slate-400 font-medium">📦 คงเหลือ / รับเข้า</div>
+                <div class="font-black text-indigo-700 mt-0.5">${b.quantity} <span class="text-[10px] font-normal text-slate-500">/ ${b.initial_quantity || b.quantity} ${product.unit}</span></div>
+              </div>
+            </div>
+
+            ${b.notes ? `<div class="text-[10px] text-slate-500 italic">หมายเหตุ: ${b.notes}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+  } catch (err) {
+    batchesContainer.innerHTML = `<p class="text-rose-500 p-4 text-center text-xs">เกิดข้อผิดพลาด: ${err.message}</p>`;
+  }
+
+  // Render Usage Logs for this product
+  const usageContainer = document.getElementById('detail-view-usage');
+  const productLogs = (state.usageLogs || []).filter(u => u.product_id == productId);
+  document.getElementById('product-detail-usage-count').textContent = productLogs.length;
+
+  if (productLogs.length === 0) {
+    usageContainer.innerHTML = `
+      <div class="p-6 text-center text-slate-400 bg-slate-50 rounded-2xl border border-slate-200 text-xs">
+        <i data-lucide="clipboard-x" class="w-6 h-6 mx-auto mb-1.5 opacity-50"></i>
+        <p class="font-medium text-slate-600">ยังไม่มีประวัติการเบิกใช้สินค้านี้</p>
+      </div>
+    `;
+  } else {
+    // Sort newest used date first
+    productLogs.sort((a, b) => new Date(b.used_date || b.created_at || 0) - new Date(a.used_date || a.created_at || 0));
+
+    usageContainer.innerHTML = productLogs.map(l => {
+      const typeBadge = l.type === 'WASTE' 
+        ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">ชำรุด/ทิ้ง</span>`
+        : (l.type === 'ADJUST' 
+            ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">ปรับยอด</span>`
+            : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">เบิกใช้</span>`);
+
+      return `
+        <div class="p-3 bg-slate-50/70 hover:bg-slate-50 rounded-2xl border border-slate-200 text-xs space-y-1.5 transition">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="font-bold text-slate-900">📅 ${l.used_date}</span>
+              <span class="text-slate-300">•</span>
+              <span class="text-[10px] text-slate-400">${formatRelativeTime(l.created_at)}</span>
+            </div>
+            <div>${typeBadge}</div>
+          </div>
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="text-slate-600">ตัดจำนวน: <strong class="text-rose-600 font-bold">-${l.quantity} ${product.unit}</strong></span>
+            <span class="text-slate-500">โดย: <strong>${l.used_by || 'พนักงาน'}</strong></span>
+          </div>
+          ${l.purpose || l.notes ? `<div class="text-[10px] text-slate-400 italic">${l.purpose || ''} ${l.notes ? '(' + l.notes + ')' : ''}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  if (window.lucide) lucide.createIcons();
 }
 
 let currentBatchProductId = null;

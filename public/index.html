@@ -55,7 +55,7 @@
         </button>
         <button onclick="switchTab('usage')" id="tab-usage" class="tab-btn py-3 px-3 border-b-2 font-medium border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap flex items-center space-x-2">
           <i data-lucide="clipboard-list" class="w-4 h-4"></i>
-          <span>บันทึกการใช้ & วางแผน (Usage & Planning)</span>
+          <span>ประวัติ & วางแผนสต็อก (History & Planning)</span>
         </button>
         <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn py-3 px-3 border-b-2 font-medium border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap flex items-center space-x-2">
           <i data-lucide="settings" class="w-4 h-4"></i>
@@ -88,154 +88,121 @@
 
         <!-- Card 2: Low Stock (Safety Alert) -->
         <div class="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm flex items-center space-x-4 bg-rose-50/20">
-          <div class="w-12 h-12 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
+          <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
             <i data-lucide="alert-triangle" class="w-6 h-6"></i>
           </div>
           <div>
-            <p class="text-xs text-rose-600 font-semibold">ต่ำกว่า Safety Stock</p>
-            <h3 id="stat-low-stock" class="text-2xl font-bold text-rose-700">-</h3>
-            <span class="text-xs text-rose-500">ต้องสั่งซื้อเพิ่ม</span>
+            <p class="text-xs text-rose-600 font-medium">ต่ำกว่า Safety Stock</p>
+            <h3 id="stat-low-stock" class="text-2xl font-bold text-rose-600">-</h3>
+            <span class="text-xs text-rose-400">ต้องสั่งซื้อเพิ่มด่วน</span>
           </div>
         </div>
 
-        <!-- Card 3: Expiring Soon -->
+        <!-- Card 3: Expiring Soon (0-7 Days) -->
         <div class="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm flex items-center space-x-4 bg-amber-50/20">
-          <div class="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
+          <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
             <i data-lucide="hourglass" class="w-6 h-6"></i>
           </div>
           <div>
-            <p class="text-xs text-amber-600 font-semibold">ใกล้หมดอายุ (7 วัน)</p>
-            <h3 id="stat-expiring-soon" class="text-2xl font-bold text-amber-700">-</h3>
-            <span class="text-xs text-amber-500">ต้องเร่งนำไปใช้</span>
+            <p class="text-xs text-amber-600 font-medium">หมดอายุใน 7 วัน</p>
+            <h3 id="stat-expiring-soon" class="text-2xl font-bold text-amber-600">-</h3>
+            <span class="text-xs text-amber-400">ต้องรีบใช้ก่อนเสีย</span>
           </div>
         </div>
 
-        <!-- Card 4: Expired -->
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
-          <div class="w-12 h-12 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center">
-            <i data-lucide="calendar-x" class="w-6 h-6"></i>
+        <!-- Card 4: Expired Items -->
+        <div class="bg-white p-5 rounded-2xl border border-red-300 shadow-sm flex items-center space-x-4 bg-red-100/30">
+          <div class="w-12 h-12 rounded-xl bg-red-100 text-red-700 flex items-center justify-center">
+            <i data-lucide="ban" class="w-6 h-6"></i>
           </div>
           <div>
-            <p class="text-xs text-slate-500 font-medium">หมดอายุแล้ว</p>
-            <h3 id="stat-expired" class="text-2xl font-bold text-slate-800">-</h3>
-            <span class="text-xs text-slate-400">คัดแยก/ทำลาย</span>
+            <p class="text-xs text-red-700 font-medium">หมดอายุแล้ว</p>
+            <h3 id="stat-expired" class="text-2xl font-bold text-red-700">-</h3>
+            <span class="text-xs text-red-500">ต้องตัดทิ้งทันที</span>
           </div>
         </div>
       </div>
 
-      <!-- Quick Action Toolbar -->
-      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center space-x-2">
-          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">ทางลัดจัดการ:</span>
-          <button onclick="openAddProductModal()" class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-lg transition">
-            <i data-lucide="plus" class="w-4 h-4"></i>
-            <span>เพิ่มสินค้าใหม่</span>
-          </button>
-          <button onclick="openAddBatchModal()" class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition">
-            <i data-lucide="archive-restore" class="w-4 h-4"></i>
-            <span>รับเข้าล็อตใหม่</span>
-          </button>
-          <button onclick="openRecordUsageModal()" class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded-lg transition">
-            <i data-lucide="minus-circle" class="w-4 h-4"></i>
-            <span>บันทึกการใช้งาน (ตัดสต็อก)</span>
-          </button>
+      <!-- Middle Grid: Low Stock Alert vs Expiring Soon Alert -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Box 1: Low Stock Alert List with Sort Dropdown -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex items-center space-x-2">
+              <span class="p-1.5 bg-rose-50 text-rose-600 rounded-lg">
+                <i data-lucide="trending-down" class="w-4 h-4"></i>
+              </span>
+              <h3 class="font-bold text-slate-800 text-sm sm:text-base">สินค้าใกล้หมด (ต่ำกว่า Safety Stock)</h3>
+            </div>
+            <!-- Sort dropdown for Low Stock -->
+            <div class="flex items-center space-x-1.5">
+              <label for="sort-low-stock" class="text-[11px] text-slate-400 font-medium hidden sm:inline">เรียง:</label>
+              <select id="sort-low-stock" onchange="changeLowStockSort(this.value)" class="text-[11px] bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-2 py-0.5 font-medium focus:ring-1 focus:ring-rose-500">
+                <option value="URGENCY_DESC">🚨 วิกฤตสุดก่อน</option>
+                <option value="UPDATED_DESC">🕒 อัปเดตล่าสุด</option>
+                <option value="NAME_ASC">🔤 ชื่อสินค้า (ก-ฮ)</option>
+                <option value="STOCK_ASC">📦 สต็อกน้อย ➔ มาก</option>
+              </select>
+            </div>
+          </div>
+          <div id="low-stock-list" class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+            <!-- Dynamically populated -->
+          </div>
         </div>
 
-        <div class="flex items-center space-x-2">
-          <button onclick="triggerSendTestMessage()" class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition">
-            <i data-lucide="bell" class="w-4 h-4"></i>
-            <span>ทดสอบยิง LINE</span>
-          </button>
-          <button onclick="triggerSendLiveReport()" class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium rounded-lg transition">
-            <i data-lucide="send" class="w-4 h-4"></i>
-            <span>ส่ง Flex Message สต็อก</span>
-          </button>
+        <!-- Box 2: Expiring Batches Alert List with Sort Dropdown -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div class="flex items-center space-x-2">
+              <span class="p-1.5 bg-amber-50 text-amber-600 rounded-lg">
+                <i data-lucide="clock" class="w-4 h-4"></i>
+              </span>
+              <h3 class="font-bold text-slate-800 text-sm sm:text-base">สินค้าใกล้หมดอายุ (0-7 วัน)</h3>
+            </div>
+            <!-- Sort dropdown for Expiring Soon -->
+            <div class="flex items-center space-x-1.5">
+              <label for="sort-expiring" class="text-[11px] text-slate-400 font-medium hidden sm:inline">เรียง:</label>
+              <select id="sort-expiring" onchange="changeExpiringSort(this.value)" class="text-[11px] bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-2 py-0.5 font-medium focus:ring-1 focus:ring-amber-500">
+                <option value="EXPIRY_ASC">⏳ หมดอายุก่อน (FIFO)</option>
+                <option value="DATE_DESC">🕒 รับเข้าล่าสุด</option>
+                <option value="NAME_ASC">🔤 ชื่อสินค้า (ก-ฮ)</option>
+                <option value="QTY_DESC">📦 จำนวนมาก ➔ น้อย</option>
+              </select>
+            </div>
+          </div>
+          <div id="expiring-batches-list" class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+            <!-- Dynamically populated -->
+          </div>
         </div>
       </div>
 
-      <!-- Main Dashboard Grid: Live Alert Lists & LINE Flex Preview -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <!-- Left 2 Cols: Urgent Alert Lists -->
-        <div class="lg:col-span-2 space-y-6">
-          
-          <!-- Low Stock Box -->
-          <div class="bg-white rounded-2xl border border-rose-200 shadow-sm overflow-hidden">
-            <div class="p-4 bg-rose-50/70 border-b border-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-              <div class="flex items-center space-x-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping"></span>
-                <h3 class="font-bold text-rose-900 text-sm sm:text-base">⚠️ สินค้าที่ต่ำกว่าเกณฑ์ Safety Stock</h3>
-                <span id="low-stock-badge-count" class="text-xs px-2.5 py-0.5 rounded-full bg-rose-200 text-rose-800 font-semibold">0 รายการ</span>
-              </div>
-              <div class="flex flex-wrap items-center gap-1.5">
-                <div class="flex items-center space-x-1 bg-white/80 px-2 py-1 rounded-lg border border-rose-200 text-xs">
-                  <label for="sort-low-stock" class="text-[11px] text-rose-700 font-semibold whitespace-nowrap flex items-center space-x-1">
-                    <i data-lucide="arrow-down-up" class="w-3 h-3 text-rose-500"></i>
-                    <span class="hidden sm:inline">เรียง:</span>
-                  </label>
-                  <select id="sort-low-stock" onchange="changeLowStockSort(this.value)" class="text-xs py-0.5 px-1.5 rounded-md border-0 bg-transparent font-medium text-slate-800 focus:ring-1 focus:ring-rose-400">
-                    <option value="URGENCY_DESC">🚨 ขาดมากสุด (ด่วนสุด)</option>
-                    <option value="UPDATED_DESC">🕒 แก้ไขล่าสุด</option>
-                    <option value="NAME_ASC">🔤 ชื่อสินค้า (ก-ฮ)</option>
-                    <option value="STOCK_ASC">📦 คงเหลือน้อยสุด</option>
-                  </select>
-                </div>
-                <button type="button" onclick="copyOrderListToClipboard()" title="คัดลอกรายการสั่งของนำไปวางใน LINE หรือแชต" class="inline-flex items-center space-x-1 px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 shadow-2xs transition active:scale-95">
-                  <i data-lucide="copy" class="w-3.5 h-3.5 text-slate-600"></i>
-                  <span>📋 คัดลอก</span>
-                </button>
-                <button type="button" onclick="triggerSendOrderReport()" title="ส่งใบสรุปสั่งของเข้า LINE กลุ่มทันที" class="inline-flex items-center space-x-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-semibold rounded-lg shadow-xs transition">
-                  <i data-lucide="send" class="w-3.5 h-3.5"></i>
-                  <span>📲 ส่ง LINE</span>
-                </button>
-              </div>
-            </div>
-            <div id="low-stock-list" class="divide-y divide-slate-100 p-2">
-              <!-- Rendered via JS -->
-            </div>
-          </div>
-
-          <!-- Expiring Soon Box -->
-          <div class="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
-            <div class="p-4 bg-amber-50/70 border-b border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-              <div class="flex items-center space-x-2">
-                <i data-lucide="clock" class="w-4 h-4 text-amber-600"></i>
-                <h3 class="font-bold text-amber-900 text-sm sm:text-base">⏳ ล็อตสินค้าที่ใกล้หรือหมดอายุแล้ว</h3>
-                <span id="expiring-badge-count" class="text-xs px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-800 font-semibold">0 รายการ</span>
-              </div>
-              <div class="flex items-center space-x-1 bg-white/80 px-2 py-1 rounded-lg border border-amber-200 text-xs">
-                <label for="sort-expiring" class="text-[11px] text-amber-800 font-semibold whitespace-nowrap flex items-center space-x-1">
-                  <i data-lucide="arrow-down-up" class="w-3 h-3 text-amber-600"></i>
-                  <span class="hidden sm:inline">เรียง:</span>
-                </label>
-                <select id="sort-expiring" onchange="changeExpiringSort(this.value)" class="text-xs py-0.5 px-1.5 rounded-md border-0 bg-transparent font-medium text-slate-800 focus:ring-1 focus:ring-amber-400">
-                  <option value="EXPIRY_ASC">⏳ หมดอายุเร็วสุด (FIFO)</option>
-                  <option value="DATE_DESC">🕒 วันที่รับเข้าล่าสุด</option>
-                  <option value="NAME_ASC">🔤 ชื่อสินค้า (ก-ฮ)</option>
-                  <option value="QTY_DESC">📦 จำนวนคงเหลือมากสุด</option>
-                </select>
-              </div>
-            </div>
-            <div id="expiring-batch-list" class="divide-y divide-slate-100 p-2">
-              <!-- Rendered via JS -->
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Right Col: Live LINE Flex Message Simulator (Matches Reference Photo!) -->
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-bold text-slate-800 flex items-center space-x-1.5">
-              <i data-lucide="smartphone" class="w-4 h-4 text-emerald-600"></i>
-              <span>ตัวอย่างการ์ดที่จะส่งเข้า LINE</span>
+      <!-- LINE Flex Message Live Interactive Preview Card -->
+      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-100 pb-3">
+          <div>
+            <h3 class="font-bold text-slate-800 text-base flex items-center space-x-2">
+              <span class="w-6 h-6 rounded-lg bg-[#06C755]/10 text-[#06C755] flex items-center justify-center font-bold text-xs">L</span>
+              <span>ตัวอย่างหน้าตาข้อความแจ้งเตือนที่จะส่งเข้า LINE จริง (Live Flex Preview)</span>
             </h3>
-            <span class="text-xs text-slate-400">Flex Message Card</span>
+            <p class="text-xs text-slate-500 mt-0.5">จำลองการแสดงผลจริงบนโทรศัพท์มือถือ อิงตามสต็อกปัจจุบัน</p>
           </div>
+          <button onclick="sendLineAlertNow()" class="px-4 py-2 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-xl text-xs font-semibold flex items-center space-x-2 transition shadow-xs self-start sm:self-auto active:scale-95">
+            <i data-lucide="send" class="w-4 h-4"></i>
+            <span>ส่งทดสอบเข้า LINE ทันที</span>
+          </button>
+        </div>
 
-          <!-- Simulated LINE Chat Message -->
-          <div class="bg-slate-200 p-4 rounded-3xl border border-slate-300 shadow-inner flex justify-center">
-            <div class="w-full max-w-[340px] space-y-3">
+        <div class="flex flex-col items-center justify-center p-4 bg-slate-100 rounded-2xl border border-slate-200 space-y-3">
+          <!-- Smartphone Screen Mockup -->
+          <div class="w-full max-w-sm bg-[#849EB5] rounded-3xl p-3 shadow-inner border-4 border-slate-700">
+            <!-- Chat Header -->
+            <div class="flex items-center space-x-2 text-white text-xs mb-3 px-1">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+              <span class="font-bold truncate">LINE Notify: Dairy Queen</span>
+            </div>
+
+            <!-- Messages -->
+            <div class="space-y-3">
               
               <!-- Message Bubble 1: Text Test Message -->
               <div class="bg-white text-slate-800 p-3 rounded-2xl rounded-tl-sm text-xs shadow-sm space-y-1">
@@ -288,130 +255,87 @@
               <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
               <input type="text" id="search-inventory" oninput="filterInventory()" placeholder="ค้นหาชื่อสินค้า..." class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500">
             </div>
-            <select id="filter-category" onchange="filterInventory()" class="text-xs py-1.5 px-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500">
-              <option value="ALL">ทุกหมวดหมู่</option>
-            </select>
-            <!-- User-Friendly Sort Dropdown (Default: Last Updated) -->
+            
+            <!-- User-Friendly Sort Dropdown -->
             <div class="flex items-center space-x-1.5 bg-slate-50 px-2 py-1 rounded-lg border border-slate-200">
               <label for="sort-inventory" class="text-[11px] text-slate-600 font-semibold whitespace-nowrap flex items-center space-x-1">
                 <i data-lucide="arrow-down-up" class="w-3.5 h-3.5 text-indigo-600"></i>
                 <span class="hidden sm:inline">เรียง:</span>
               </label>
               <select id="sort-inventory" onchange="changeInventorySort(this.value)" class="text-xs py-0.5 px-2 rounded-md border border-slate-300 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs">
-                <option value="UPDATED_DESC">🕒 วันที่แก้ไขล่าสุด (ค่าเริ่มต้น)</option>
-                <option value="UPDATED_ASC">🕒 วันที่แก้ไขนานสุด</option>
+                <option value="UPDATED_DESC">🕒 อัปเดตล่าสุด (ค่าเริ่มต้น)</option>
+                <option value="UPDATED_ASC">🕒 อัปเดตเก่าสุดก่อน</option>
                 <option value="CREATED_DESC">📅 วันที่สร้าง (ใหม่ล่าสุด)</option>
-                <option value="CREATED_ASC">📅 วันที่สร้าง (เก่าสุด)</option>
+                <option value="CREATED_ASC">📅 วันที่สร้าง (เก่าสุดก่อน)</option>
                 <option value="NAME_ASC">🔤 ชื่อสินค้า (ก - ฮ)</option>
                 <option value="NAME_DESC">🔤 ชื่อสินค้า (ฮ - ก)</option>
-                <option value="EXPIRY_ASC">⏳ วันหมดอายุ (ใกล้หมดก่อน)</option>
+                <option value="EXPIRY_ASC">⏳ วันหมดอายุ (ใกล้สุดก่อน)</option>
                 <option value="STOCK_ASC">📦 คงเหลือ (น้อย ➔ มาก)</option>
                 <option value="STOCK_DESC">📦 คงเหลือ (มาก ➔ น้อย)</option>
               </select>
             </div>
-          </div>
-
-          <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
-            <button onclick="switchTab('usage'); switchHistoryTab('inbound');" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition shadow-2xs active:scale-95">
-              <i data-lucide="history" class="w-4 h-4 text-emerald-600"></i>
+            <button onclick="openProductModal()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition shadow-2xs">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>+ เพิ่มสินค้าใหม่</span>
+            </button>
+            <button onclick="switchTab('usage'); switchUsageSubTab('inbound');" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition shadow-2xs active:scale-95">
+              <i data-lucide="history" class="w-3.5 h-3.5 text-emerald-600"></i>
               <span>📥 ประวัติรับเข้า</span>
             </button>
-            <button onclick="openQuickGuideModal()" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition shadow-2xs active:scale-95">
-              <i data-lucide="book-open" class="w-4 h-4 text-indigo-600"></i>
-              <span>📖 คู่มือ</span>
-            </button>
-            <button onclick="openOrderModal()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition shadow-xs">
+          </div>
+
+          <!-- Quick Stock Order Summary Button -->
+          <div class="flex items-center space-x-2 self-end sm:self-auto">
+            <button onclick="openQuickOrderSummaryModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition shadow-xs active:scale-95">
               <i data-lucide="shopping-cart" class="w-4 h-4"></i>
-              <span>🛒 สรุปสั่งของ (<span id="btn-inventory-order-count">0</span>)</span>
-            </button>
-            <button onclick="openAddProductModal()" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition">
-              <i data-lucide="plus" class="w-4 h-4"></i>
-              <span>เพิ่มสินค้า</span>
-            </button>
-            <button onclick="openAddBatchModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition">
-              <i data-lucide="archive-restore" class="w-4 h-4"></i>
-              <span>รับเข้าล็อตใหม่</span>
+              <span>🛒 สรุปสั่งของ (<span id="btn-order-count">0</span>)</span>
             </button>
           </div>
         </div>
 
-        <!-- Filter Quick Chips: Views -->
-        <div class="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100 text-xs">
-          <span class="text-[11px] text-slate-400 mr-1">มุมมอง:</span>
-          <button type="button" onclick="setInventoryFilter('ALL')" id="chip-filter-all" class="chip-filter px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-900 text-white transition">
-            ทั้งหมด (<span id="count-all">0</span>)
-          </button>
-          <button type="button" onclick="setInventoryFilter('LOW')" id="chip-filter-low" class="chip-filter px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-700 transition">
-            ⚠️ ต่ำกว่าเกณฑ์/หมด (<span id="count-low">0</span>)
-          </button>
-          <button type="button" onclick="setInventoryFilter('NO_EXPIRY')" id="chip-filter-no-expiry" class="chip-filter px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700 transition">
-            📅 ยังไม่ระบุวันหมดอายุ (<span id="count-no-expiry">0</span>)
-          </button>
-          <button type="button" onclick="setInventoryFilter('EXPIRING')" id="chip-filter-expiring" class="chip-filter px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-700 transition">
-            ⏳ ใกล้หมดอายุ (<span id="count-expiring">0</span>)
-          </button>
-        </div>
-
-        <!-- Shelf Quick Filter Chips (Feature 2: เชลฟ์หน้าร้าน 5 หมวด) -->
-        <div class="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100 text-xs">
-          <span class="text-[11px] text-slate-400 mr-1 flex items-center space-x-1">
-            <i data-lucide="layers" class="w-3.5 h-3.5 text-slate-400"></i>
-            <span>เชลฟ์หน้าร้าน:</span>
-          </span>
-          <button type="button" onclick="setCategoryFilter('ALL')" id="shelf-chip-all" class="shelf-chip px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-900 text-white transition active:scale-95">
-            ทั้งหมด
-          </button>
-          <button type="button" onclick="setCategoryFilter('แก้ว & ฝา')" id="shelf-chip-cups" class="shelf-chip px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition active:scale-95">
-            🥤 แก้ว & ฝา
-          </button>
-          <button type="button" onclick="setCategoryFilter('ช้อน & หลอด & หีบห่อ')" id="shelf-chip-pack" class="shelf-chip px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition active:scale-95">
-            🥄 ช้อน & หีบห่อ
-          </button>
-          <button type="button" onclick="setCategoryFilter('ท็อปปิ้ง & วัตถุดิบ')" id="shelf-chip-topping" class="shelf-chip px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition active:scale-95">
-            🍫 ท็อปปิ้ง & วัตถุดิบ
-          </button>
-          <button type="button" onclick="setCategoryFilter('ซอส & เครื่องดื่ม')" id="shelf-chip-sauce" class="shelf-chip px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition active:scale-95">
-            🌭 ซอส & เครื่องดื่ม
-          </button>
-          <button type="button" onclick="setCategoryFilter('อุปกรณ์ & ของใช้')" id="shelf-chip-tools" class="shelf-chip px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition active:scale-95">
-            🧤 อุปกรณ์ & ของใช้
-          </button>
+        <!-- Filter Pill Tags -->
+        <div class="flex flex-wrap gap-1.5 text-xs pt-1 border-t border-slate-100">
+          <button onclick="setInventoryFilter('ALL')" id="filter-pill-all" class="px-3 py-1 rounded-full font-medium bg-slate-800 text-white transition">ทั้งหมด</button>
+          <button onclick="setInventoryFilter('LOW_STOCK')" id="filter-pill-low" class="px-3 py-1 rounded-full font-medium bg-rose-50 text-rose-700 hover:bg-rose-100 transition">⚠️ ใกล้หมดสต็อก</button>
+          <button onclick="setInventoryFilter('EXPIRING')" id="filter-pill-exp" class="px-3 py-1 rounded-full font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 transition">⏳ ใกล้หมดอายุ</button>
+          <button onclick="setInventoryFilter('EXPIRED')" id="filter-pill-expired" class="px-3 py-1 rounded-full font-medium bg-red-100 text-red-800 hover:bg-red-200 transition">⛔ หมดอายุแล้ว</button>
         </div>
       </div>
 
-      <!-- Desktop Table View (Hidden on mobile) -->
+      <!-- Desktop Inventory Table -->
       <div class="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs">
             <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 select-none">
               <tr>
-                <th class="p-3.5 cursor-pointer hover:text-indigo-600 transition" onclick="toggleSortHeader('NAME')" title="คลิกเพื่อเรียงตามชื่อสินค้า">
+                <th class="p-3 cursor-pointer hover:text-slate-800 transition" onclick="toggleSortHeader('NAME')" title="คลิกเพื่อเรียงตามชื่อสินค้า">
                   <div class="flex items-center space-x-1">
-                    <span>ชื่อสินค้า / หมวดหมู่</span>
+                    <span>สินค้า</span>
                     <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
                   </div>
                 </th>
-                <th class="p-3.5 cursor-pointer hover:text-indigo-600 transition" onclick="toggleSortHeader('STOCK')" title="คลิกเพื่อเรียงตามสต็อกคงเหลือ">
+                <th class="p-3">หมวดหมู่</th>
+                <th class="p-3 cursor-pointer hover:text-slate-800 transition" onclick="toggleSortHeader('STOCK')" title="คลิกเพื่อเรียงตามจำนวนคงเหลือ">
                   <div class="flex items-center space-x-1">
-                    <span>สต็อกคงเหลือ</span>
+                    <span>คงเหลือรวม</span>
                     <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
                   </div>
                 </th>
-                <th class="p-3.5">Safety Stock</th>
-                <th class="p-3.5 cursor-pointer hover:text-indigo-600 transition" onclick="toggleSortHeader('EXPIRY')" title="คลิกเพื่อเรียงตามวันหมดอายุ">
+                <th class="p-3">จุดสั่งซื้อ (Safety)</th>
+                <th class="p-3 cursor-pointer hover:text-slate-800 transition" onclick="toggleSortHeader('EXPIRY')" title="คลิกเพื่อเรียงตามวันหมดอายุ">
                   <div class="flex items-center space-x-1">
-                    <span>วันหมดอายุใกล้สุด</span>
+                    <span>หมดอายุล็อตแรก</span>
                     <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
                   </div>
                 </th>
-                <th class="p-3.5 cursor-pointer hover:text-indigo-600 transition" onclick="toggleSortHeader('UPDATED')" title="คลิกเพื่อสลับเรียง: วันที่แก้ไขล่าสุด / วันที่สร้าง">
+                <th class="p-3 cursor-pointer hover:text-indigo-600 transition" onclick="toggleSortHeader('UPDATED')" title="คลิกเพื่อเรียงตามเวลาอัปเดต หรือวันที่สร้าง">
                   <div class="flex items-center space-x-1 text-indigo-600 font-bold">
                     <span>เวลาแก้ไข / วันที่สร้าง</span>
                     <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5"></i>
                   </div>
                 </th>
-                <th class="p-3.5">สถานะ</th>
-                <th class="p-3.5 text-center">จัดการ</th>
+                <th class="p-3">สถานะสต็อก</th>
+                <th class="p-3 text-center">จัดการ</th>
               </tr>
             </thead>
             <tbody id="inventory-table-body" class="divide-y divide-slate-100">
@@ -421,7 +345,7 @@
         </div>
       </div>
 
-      <!-- Mobile Card List View (Visible only on mobile/tablet screens) -->
+      <!-- Mobile Inventory Cards (Optimized for Thumb-first Tap & Swipe) -->
       <div id="inventory-mobile-cards" class="md:hidden space-y-3">
         <!-- Rendered via JS for easy thumb tapping -->
       </div>
@@ -429,24 +353,185 @@
     </div>
 
     <!-- ============================================================== -->
-    <!-- TAB 3: USAGE LOG & PLANNING -->
+    <!-- TAB 3: USAGE, INBOUND HISTORY & PLANNING -->
     <!-- ============================================================== -->
     <div id="content-usage" class="tab-content hidden space-y-6">
       
-      <!-- Top Section: Planning & Consumption Rate -->
-      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+      <!-- Top Control & Sub-tab Switcher Bar -->
+      <div class="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div class="inline-flex p-1 bg-slate-100/90 rounded-xl text-xs font-bold space-x-1 overflow-x-auto">
+          <button type="button" onclick="switchUsageSubTab('inbound')" id="subtab-main-inbound" class="px-4 py-2 rounded-lg bg-emerald-600 text-white shadow-xs transition flex items-center space-x-1.5 whitespace-nowrap active:scale-95">
+            <i data-lucide="arrow-down-to-dot" class="w-4 h-4"></i>
+            <span>📥 ประวัติรับของเข้า (<span id="inbound-history-count">0</span>)</span>
+          </button>
+          <button type="button" onclick="switchUsageSubTab('outbound')" id="subtab-main-outbound" class="px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center space-x-1.5 whitespace-nowrap active:scale-95">
+            <i data-lucide="arrow-up-from-dot" class="w-4 h-4"></i>
+            <span>📤 ประวัติเบิกใช้ / ตัดสต็อก</span>
+          </button>
+          <button type="button" onclick="switchUsageSubTab('planning')" id="subtab-main-planning" class="px-4 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center space-x-1.5 whitespace-nowrap active:scale-95">
+            <i data-lucide="trending-up" class="w-4 h-4"></i>
+            <span>📈 อัตราการใช้ & วางแผนสต็อก</span>
+          </button>
+        </div>
+
+        <div class="flex items-center space-x-2 self-end sm:self-auto">
+          <button onclick="openAddBatchModal()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl flex items-center space-x-1.5 transition shadow-2xs active:scale-95">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>+ รับเข้าล็อตใหม่</span>
+          </button>
+          <button onclick="openRecordUsageModal()" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-xl flex items-center space-x-1.5 transition shadow-2xs active:scale-95">
+            <i data-lucide="minus-circle" class="w-4 h-4"></i>
+            <span>- ตัดสต็อก</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- VIEW 1: INBOUND RECEIVING HISTORY VIEW (Default Active) -->
+      <div id="history-view-inbound" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
+        <div class="p-3.5 bg-emerald-50/60 border-b border-emerald-100 flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-xs">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <span class="text-emerald-900 font-semibold">📦 ตรวจสอบรายการรับของเข้าสต็อก (ทั้งผ่านหน้าเว็บและผ่าน LINE) สามารถกดดูรายละเอียด, แก้ไข หรือลบรายการได้ทันที</span>
+          </div>
+          <div class="flex items-center space-x-2 self-end sm:self-auto">
+            <label for="sort-inbound" class="text-slate-500 font-semibold whitespace-nowrap text-[11px] flex items-center space-x-1">
+              <i data-lucide="arrow-down-up" class="w-3.5 h-3.5 text-emerald-600"></i>
+              <span>เรียงตาม:</span>
+            </label>
+            <select id="sort-inbound" onchange="changeInboundSort(this.value)" class="text-xs bg-white border border-slate-300 text-slate-700 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-emerald-500 shadow-2xs font-medium">
+              <option value="DATE_DESC">🕒 วันที่รับเข้า (ล่าสุดก่อน)</option>
+              <option value="DATE_ASC">🕒 วันที่รับเข้า (เก่าสุดก่อน)</option>
+              <option value="EXPIRY_ASC">⏳ วันหมดอายุ (ใกล้สุดก่อน)</option>
+              <option value="EXPIRY_DESC">⏳ วันหมดอายุ (ไกลสุดก่อน)</option>
+              <option value="NAME_ASC">🔤 ชื่อสินค้า (ก - ฮ)</option>
+              <option value="NAME_DESC">🔤 ชื่อสินค้า (ฮ - ก)</option>
+              <option value="QTY_DESC">📦 จำนวนที่รับ (มาก ➔ น้อย)</option>
+              <option value="QTY_ASC">📦 จำนวนที่รับ (น้อย ➔ มาก)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Desktop Inbound Table -->
+        <div class="hidden md:block overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 select-none">
+              <tr>
+                <th class="p-3 cursor-pointer hover:text-emerald-700 transition" onclick="toggleInboundSortHeader('DATE')" title="คลิกเพื่อเรียงตามวันที่รับเข้า">
+                  <div class="flex items-center space-x-1 text-emerald-700 font-bold">
+                    <span>วันที่รับเข้า (Inbound Date)</span>
+                    <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5"></i>
+                  </div>
+                </th>
+                <th class="p-3 cursor-pointer hover:text-emerald-700 transition" onclick="toggleInboundSortHeader('NAME')" title="คลิกเพื่อเรียงตามชื่อสินค้า">
+                  <div class="flex items-center space-x-1">
+                    <span>สินค้า / หมวดหมู่</span>
+                    <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                  </div>
+                </th>
+                <th class="p-3 cursor-pointer hover:text-emerald-700 transition" onclick="toggleInboundSortHeader('QTY')" title="คลิกเพื่อเรียงตามจำนวนที่รับ">
+                  <div class="flex items-center space-x-1">
+                    <span>จำนวนที่รับ</span>
+                    <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                  </div>
+                </th>
+                <th class="p-3">คงเหลือในล็อต</th>
+                <th class="p-3 cursor-pointer hover:text-emerald-700 transition" onclick="toggleInboundSortHeader('EXPIRY')" title="คลิกเพื่อเรียงตามวันหมดอายุ">
+                  <div class="flex items-center space-x-1">
+                    <span>วันหมดอายุ (Expiry)</span>
+                    <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                  </div>
+                </th>
+                <th class="p-3">เลขล็อต</th>
+                <th class="p-3">หมายเหตุ / ช่องทาง</th>
+                <th class="p-3 text-center">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="receiving-history-table-body" class="divide-y divide-slate-100">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Mobile Inbound Cards -->
+        <div id="receiving-history-mobile-cards" class="md:hidden p-3 space-y-3">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <!-- VIEW 2: OUTBOUND USAGE HISTORY VIEW -->
+      <div id="history-view-outbound" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
+        <div class="p-3.5 bg-amber-50/60 border-b border-amber-100 flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-xs">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+            <span class="text-amber-900 font-semibold">📋 บันทึกประวัติการเบิกใช้ ตัดของเสีย และการปรับยอดสต็อกตามหลัก FIFO</span>
+          </div>
+          <div class="flex items-center space-x-2 self-end sm:self-auto">
+            <label for="sort-outbound" class="text-slate-500 font-semibold whitespace-nowrap text-[11px] flex items-center space-x-1">
+              <i data-lucide="arrow-down-up" class="w-3.5 h-3.5 text-amber-600"></i>
+              <span>เรียงตาม:</span>
+            </label>
+            <select id="sort-outbound" onchange="changeOutboundSort(this.value)" class="text-xs bg-white border border-slate-300 text-slate-700 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-amber-500 shadow-2xs font-medium">
+              <option value="DATE_DESC">🕒 วันที่ตัด (ล่าสุดก่อน)</option>
+              <option value="DATE_ASC">🕒 วันที่ตัด (เก่าสุดก่อน)</option>
+              <option value="NAME_ASC">🔤 ชื่อสินค้า (ก - ฮ)</option>
+              <option value="NAME_DESC">🔤 ชื่อสินค้า (ฮ - ก)</option>
+              <option value="QTY_DESC">📦 จำนวนที่ใช้ (มาก ➔ น้อย)</option>
+              <option value="QTY_ASC">📦 จำนวนที่ใช้ (น้อย ➔ มาก)</option>
+              <option value="USER_ASC">👤 ผู้เบิก (ก - ฮ)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 select-none">
+              <tr>
+                <th class="p-3 cursor-pointer hover:text-amber-700 transition" onclick="toggleOutboundSortHeader('DATE')" title="คลิกเพื่อเรียงตามวันที่ใช้">
+                  <div class="flex items-center space-x-1 text-amber-700 font-bold">
+                    <span>วันที่ใช้ / เวลาบันทึก</span>
+                    <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5"></i>
+                  </div>
+                </th>
+                <th class="p-3 cursor-pointer hover:text-amber-700 transition" onclick="toggleOutboundSortHeader('NAME')" title="คลิกเพื่อเรียงตามชื่อสินค้า">
+                  <div class="flex items-center space-x-1">
+                    <span>สินค้า</span>
+                    <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                  </div>
+                </th>
+                <th class="p-3">ล็อตที่ตัด</th>
+                <th class="p-3 cursor-pointer hover:text-amber-700 transition" onclick="toggleOutboundSortHeader('QTY')" title="คลิกเพื่อเรียงตามจำนวนที่ใช้">
+                  <div class="flex items-center space-x-1">
+                    <span>จำนวนที่ใช้</span>
+                    <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                  </div>
+                </th>
+                <th class="p-3">ประเภท</th>
+                <th class="p-3">วัตถุประสงค์ / หมายเหตุ</th>
+                <th class="p-3 cursor-pointer hover:text-amber-700 transition" onclick="toggleOutboundSortHeader('USER')" title="คลิกเพื่อเรียงตามชื่อผู้เบิก">
+                  <div class="flex items-center space-x-1">
+                    <span>ผู้เบิก</span>
+                    <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="usage-history-table-body" class="divide-y divide-slate-100">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- VIEW 3: CONSUMPTION & PLANNING VIEW -->
+      <div id="history-view-planning" class="hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
         <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
           <div>
             <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center space-x-2">
               <i data-lucide="trending-up" class="w-4 h-4 text-blue-600"></i>
               <span>อัตราการใช้งานและการวางแผนสต็อก (Consumption & Planning)</span>
             </h3>
-            <p class="text-xs text-slate-500">คำนวณจากประวัติการใช้งานจริง 30 วันที่ผ่านมา เพื่อช่วยวางแผนการสั่งซื้อ</p>
+            <p class="text-xs text-slate-500 mt-0.5">คำนวณจากประวัติการใช้งานจริง 30 วันที่ผ่านมา เพื่อช่วยวางแผนการสั่งซื้อ (แตะที่ชื่อสินค้าเพื่อดูรายละเอียดเจาะลึก)</p>
           </div>
-          <button onclick="openRecordUsageModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition self-start sm:self-auto">
-            <i data-lucide="minus-circle" class="w-4 h-4"></i>
-            <span>+ บันทึกการใช้งาน (ตัดสต็อก)</span>
-          </button>
         </div>
 
         <div class="overflow-x-auto">
@@ -461,13 +546,19 @@
                 </th>
                 <th class="p-3 cursor-pointer hover:text-blue-600 transition" onclick="togglePlanningSortHeader('STOCK')" title="คลิกเพื่อเรียงตามสต็อกคงเหลือ">
                   <div class="flex items-center space-x-1">
-                    <span>สต็อกคงเหลือปัจจุบัน</span>
+                    <span>สต็อกคงเหลือ</span>
                     <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                  </div>
+                </th>
+                <th class="p-3 text-slate-700">
+                  <div class="flex items-center space-x-1">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5 text-indigo-600"></i>
+                    <span>รับเข้าล่าสุด / แก้ไข</span>
                   </div>
                 </th>
                 <th class="p-3 cursor-pointer hover:text-blue-600 transition" onclick="togglePlanningSortHeader('USED')" title="คลิกเพื่อเรียงตามยอดใช้ 30 วัน">
                   <div class="flex items-center space-x-1">
-                    <span>ยอดใช้ 30 วันที่ผ่านมา</span>
+                    <span>ยอดใช้ 30 วัน</span>
                     <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
                   </div>
                 </th>
@@ -479,172 +570,13 @@
                   </div>
                 </th>
                 <th class="p-3">คำแนะนำการสั่งซื้อ</th>
+                <th class="p-3 text-center">รายละเอียด</th>
               </tr>
             </thead>
             <tbody id="planning-table-body" class="divide-y divide-slate-100">
               <!-- Rendered via JS -->
             </tbody>
           </table>
-        </div>
-      </div>
-
-      <!-- Bottom Section: Dual History Hub (รับเข้า 📥 & เบิกใช้ 📤) -->
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-0">
-        <!-- History Header & Sub-tab Switcher -->
-        <div class="p-4 bg-slate-50/80 border-b border-slate-200 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-          <div class="flex items-center space-x-2">
-            <div class="inline-flex p-1 bg-slate-200/80 rounded-xl text-xs font-semibold">
-              <button type="button" onclick="switchHistoryTab('inbound')" id="subtab-inbound" class="px-3 py-1.5 rounded-lg bg-emerald-600 text-white shadow-xs transition flex items-center space-x-1.5">
-                <i data-lucide="arrow-down-to-dot" class="w-3.5 h-3.5"></i>
-                <span>📥 ประวัติรับของเข้า (<span id="inbound-history-count">0</span>)</span>
-              </button>
-              <button type="button" onclick="switchHistoryTab('outbound')" id="subtab-outbound" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center space-x-1.5">
-                <i data-lucide="arrow-up-from-dot" class="w-3.5 h-3.5"></i>
-                <span>📤 ประวัติเบิกใช้ / ตัดสต็อก</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="flex items-center space-x-2">
-            <button onclick="openAddBatchModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition shadow-2xs">
-              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-              <span>+ รับเข้าล็อตใหม่</span>
-            </button>
-            <button onclick="openRecordUsageModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition shadow-2xs">
-              <i data-lucide="minus-circle" class="w-3.5 h-3.5"></i>
-              <span>- ตัดสต็อก</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- 1. INBOUND RECEIVING HISTORY VIEW -->
-        <div id="history-view-inbound" class="space-y-0">
-          <div class="p-3 bg-emerald-50/50 border-b border-emerald-100 flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-xs">
-            <span class="text-emerald-800 font-medium">📦 ตรวจสอบรายการที่รับของเข้าสต็อก (ทั้งผ่านหน้าเว็บและผ่าน LINE) หากรับผิดสามารถกดลบหรือแก้ไขได้ทันที</span>
-            <div class="flex items-center space-x-2 self-end sm:self-auto">
-              <label for="sort-inbound" class="text-slate-500 font-semibold whitespace-nowrap text-[11px] flex items-center space-x-1">
-                <i data-lucide="arrow-down-up" class="w-3.5 h-3.5 text-emerald-600"></i>
-                <span>เรียงตาม:</span>
-              </label>
-              <select id="sort-inbound" onchange="changeInboundSort(this.value)" class="text-xs bg-white border border-slate-300 text-slate-700 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-emerald-500 shadow-2xs font-medium">
-                <option value="DATE_DESC">🕒 วันที่รับเข้า (ล่าสุดก่อน)</option>
-                <option value="DATE_ASC">🕒 วันที่รับเข้า (เก่าสุดก่อน)</option>
-                <option value="EXPIRY_ASC">⏳ วันหมดอายุ (ใกล้สุดก่อน)</option>
-                <option value="EXPIRY_DESC">⏳ วันหมดอายุ (ไกลสุดก่อน)</option>
-                <option value="NAME_ASC">🔤 ชื่อสินค้า (ก - ฮ)</option>
-                <option value="NAME_DESC">🔤 ชื่อสินค้า (ฮ - ก)</option>
-                <option value="QTY_DESC">📦 จำนวนที่รับ (มาก ➔ น้อย)</option>
-                <option value="QTY_ASC">📦 จำนวนที่รับ (น้อย ➔ มาก)</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Desktop Inbound Table -->
-          <div class="hidden md:block overflow-x-auto">
-            <table class="w-full text-left text-xs">
-              <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 select-none">
-                <tr>
-                  <th class="p-3 cursor-pointer hover:text-emerald-700 transition" onclick="toggleInboundSortHeader('DATE')" title="คลิกเพื่อเรียงตามวันที่รับเข้า">
-                    <div class="flex items-center space-x-1 text-emerald-700 font-bold">
-                      <span>วันที่รับเข้า / เวลาบันทึก</span>
-                      <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5"></i>
-                    </div>
-                  </th>
-                  <th class="p-3 cursor-pointer hover:text-emerald-700 transition" onclick="toggleInboundSortHeader('NAME')" title="คลิกเพื่อเรียงตามชื่อสินค้า">
-                    <div class="flex items-center space-x-1">
-                      <span>สินค้า / หมวดหมู่</span>
-                      <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
-                    </div>
-                  </th>
-                  <th class="p-3 cursor-pointer hover:text-emerald-700 transition" onclick="toggleInboundSortHeader('QTY')" title="คลิกเพื่อเรียงตามจำนวนที่รับ">
-                    <div class="flex items-center space-x-1">
-                      <span>จำนวนที่รับ</span>
-                      <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
-                    </div>
-                  </th>
-                  <th class="p-3">คงเหลือในล็อต</th>
-                  <th class="p-3 cursor-pointer hover:text-emerald-700 transition" onclick="toggleInboundSortHeader('EXPIRY')" title="คลิกเพื่อเรียงตามวันหมดอายุ">
-                    <div class="flex items-center space-x-1">
-                      <span>วันหมดอายุ</span>
-                      <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
-                    </div>
-                  </th>
-                  <th class="p-3">เลขล็อต</th>
-                  <th class="p-3">หมายเหตุ / ช่องทาง</th>
-                  <th class="p-3 text-center">จัดการ</th>
-                </tr>
-              </thead>
-              <tbody id="receiving-history-table-body" class="divide-y divide-slate-100">
-                <!-- Rendered via JS -->
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Mobile Inbound Cards -->
-          <div id="receiving-history-mobile-cards" class="md:hidden p-3 space-y-3">
-            <!-- Rendered via JS -->
-          </div>
-        </div>
-
-        <!-- 2. OUTBOUND USAGE HISTORY VIEW -->
-        <div id="history-view-outbound" class="hidden space-y-0">
-          <div class="p-3 bg-amber-50/50 border-b border-amber-100 flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-xs">
-            <span class="text-amber-800 font-medium">📋 บันทึกประวัติการเบิกใช้ ตัดของเสีย และการปรับยอดสต็อกตามหลัก FIFO</span>
-            <div class="flex items-center space-x-2 self-end sm:self-auto">
-              <label for="sort-outbound" class="text-slate-500 font-semibold whitespace-nowrap text-[11px] flex items-center space-x-1">
-                <i data-lucide="arrow-down-up" class="w-3.5 h-3.5 text-amber-600"></i>
-                <span>เรียงตาม:</span>
-              </label>
-              <select id="sort-outbound" onchange="changeOutboundSort(this.value)" class="text-xs bg-white border border-slate-300 text-slate-700 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-amber-500 shadow-2xs font-medium">
-                <option value="DATE_DESC">🕒 วันที่ตัด (ล่าสุดก่อน)</option>
-                <option value="DATE_ASC">🕒 วันที่ตัด (เก่าสุดก่อน)</option>
-                <option value="NAME_ASC">🔤 ชื่อสินค้า (ก - ฮ)</option>
-                <option value="NAME_DESC">🔤 ชื่อสินค้า (ฮ - ก)</option>
-                <option value="QTY_DESC">📦 จำนวนที่ใช้ (มาก ➔ น้อย)</option>
-                <option value="QTY_ASC">📦 จำนวนที่ใช้ (น้อย ➔ มาก)</option>
-                <option value="USER_ASC">👤 ผู้เบิก (ก - ฮ)</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
-              <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 select-none">
-                <tr>
-                  <th class="p-3 cursor-pointer hover:text-amber-700 transition" onclick="toggleOutboundSortHeader('DATE')" title="คลิกเพื่อเรียงตามวันที่ใช้">
-                    <div class="flex items-center space-x-1 text-amber-700 font-bold">
-                      <span>วันที่ใช้ / เวลาบันทึก</span>
-                      <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5"></i>
-                    </div>
-                  </th>
-                  <th class="p-3 cursor-pointer hover:text-amber-700 transition" onclick="toggleOutboundSortHeader('NAME')" title="คลิกเพื่อเรียงตามชื่อสินค้า">
-                    <div class="flex items-center space-x-1">
-                      <span>สินค้า</span>
-                      <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
-                    </div>
-                  </th>
-                  <th class="p-3">ล็อตที่ตัด</th>
-                  <th class="p-3 cursor-pointer hover:text-amber-700 transition" onclick="toggleOutboundSortHeader('QTY')" title="คลิกเพื่อเรียงตามจำนวนที่ใช้">
-                    <div class="flex items-center space-x-1">
-                      <span>จำนวนที่ใช้</span>
-                      <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
-                    </div>
-                  </th>
-                  <th class="p-3">ประเภท</th>
-                  <th class="p-3">วัตถุประสงค์ / หมายเหตุ</th>
-                  <th class="p-3 cursor-pointer hover:text-amber-700 transition" onclick="toggleOutboundSortHeader('USER')" title="คลิกเพื่อเรียงตามชื่อผู้เบิก">
-                    <div class="flex items-center space-x-1">
-                      <span>ผู้เบิก</span>
-                      <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody id="usage-history-table-body" class="divide-y divide-slate-100">
-                <!-- Rendered via JS -->
-              </tbody>
-            </table>
-          </div>
         </div>
       </div>
 
@@ -1405,6 +1337,97 @@
       <!-- Footer Action -->
       <div class="pt-3 border-t border-slate-100 flex justify-end">
         <button type="button" onclick="closeDialog('modal-manage-batches')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition">
+          ปิดหน้าต่าง
+        </button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Modal 9: Product Full Details & History Popup (📦 ดูรายละเอียดสินค้า & ประวัติย้อนหลัง) -->
+  <dialog id="modal-product-detail" class="rounded-3xl p-0 w-full max-w-2xl shadow-2xl border border-slate-200 backdrop:bg-slate-900/50 m-auto max-h-[94vh] overflow-y-auto">
+    <div class="p-5 sm:p-6 space-y-4 bg-white text-xs">
+      <!-- Header -->
+      <div class="flex items-start justify-between border-b border-slate-100 pb-3">
+        <div class="space-y-1">
+          <div class="flex items-center space-x-2">
+            <span class="px-2.5 py-0.5 rounded-md bg-rose-100 text-rose-800 text-[10px] font-extrabold uppercase tracking-wider">Product Info</span>
+            <span id="product-detail-category" class="text-[11px] font-semibold text-slate-500">หมวดหมู่</span>
+          </div>
+          <h3 id="product-detail-name" class="text-base sm:text-xl font-black text-slate-900">
+            ชื่อสินค้า
+          </h3>
+          <div id="product-detail-status" class="flex flex-wrap items-center gap-1.5 pt-0.5">
+            <!-- Badges -->
+          </div>
+        </div>
+        <button onclick="closeDialog('modal-product-detail')" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Quick Metrics Grid (4 Cards) -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+          <div class="text-[10px] text-slate-400 font-medium">📦 คงเหลือปัจจุบัน</div>
+          <div id="product-detail-stock" class="font-black text-slate-900 text-base sm:text-lg mt-0.5">0</div>
+        </div>
+        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+          <div class="text-[10px] text-slate-400 font-medium">🛡️ จุดสั่งซื้อ (Safety)</div>
+          <div id="product-detail-safety" class="font-bold text-slate-800 text-sm sm:text-base mt-0.5">0</div>
+        </div>
+        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+          <div class="text-[10px] text-slate-400 font-medium">⏳ หมดอายุใกล้สุด</div>
+          <div id="product-detail-expiry" class="font-bold text-amber-600 text-xs sm:text-sm mt-0.5">-</div>
+        </div>
+        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+          <div class="text-[10px] text-slate-400 font-medium">📊 อัตราการใช้ (30 วัน)</div>
+          <div id="product-detail-usage" class="font-bold text-slate-800 text-xs sm:text-sm mt-0.5">-</div>
+        </div>
+      </div>
+
+      <!-- Internal Sub-Tabs: Batches Inbound vs Usage Logs -->
+      <div class="space-y-2.5 pt-1">
+        <div class="flex items-center justify-between border-b border-slate-200">
+          <div class="flex space-x-3 text-xs font-bold -mb-px">
+            <button type="button" onclick="switchProductDetailTab('batches')" id="detail-tab-btn-batches" class="pb-2.5 border-b-2 border-indigo-600 text-indigo-600 flex items-center space-x-1.5 transition">
+              <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+              <span>ประวัติรับเข้า / ทุกล็อต (<span id="product-detail-batches-count">0</span>)</span>
+            </button>
+            <button type="button" onclick="switchProductDetailTab('usage')" id="detail-tab-btn-usage" class="pb-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-600 flex items-center space-x-1.5 transition">
+              <i data-lucide="history" class="w-3.5 h-3.5"></i>
+              <span>ประวัติเบิกใช้ (<span id="product-detail-usage-count">0</span>)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 1. Batches / Inbound List -->
+        <div id="detail-view-batches" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- 2. Usage Logs List -->
+        <div id="detail-view-usage" class="hidden space-y-2 max-h-64 overflow-y-auto pr-1">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center space-x-1.5">
+          <button type="button" id="product-detail-btn-add" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-xs flex items-center space-x-1 transition shadow-2xs active:scale-95">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>+ รับเข้าล็อตใหม่</span>
+          </button>
+          <button type="button" id="product-detail-btn-use" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-semibold text-xs flex items-center space-x-1 transition shadow-2xs active:scale-95">
+            <i data-lucide="minus-circle" class="w-3.5 h-3.5"></i>
+            <span>- เบิกใช้</span>
+          </button>
+          <button type="button" id="product-detail-btn-edit" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold text-xs flex items-center space-x-1 transition shadow-2xs active:scale-95">
+            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+            <span>แก้ไขสินค้า</span>
+          </button>
+        </div>
+        <button type="button" onclick="closeDialog('modal-product-detail')" class="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition">
           ปิดหน้าต่าง
         </button>
       </div>
