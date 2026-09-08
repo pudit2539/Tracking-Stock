@@ -326,8 +326,41 @@ class LineBotService {
     return intents;
   }
 
-  async handleMessage(text, senderName = 'พนักงาน', currentUrl = null) {
-    const intents = this.parseAllIntents(text);
+  async handleMessage(text, senderName = 'พนักงาน', currentUrl = null, context = {}) {
+    if (!text || typeof text !== 'string') return null;
+    const rawTrimmed = text.trim();
+    if (!rawTrimmed) return null;
+
+    // 1. Check Bot Prefix Configuration
+    const botPrefix = ((await dbClient.getSetting('bot_prefix', 'DQ')) || 'DQ').trim();
+    const requireGroupPrefix = (await dbClient.getSetting('bot_require_group_prefix', '1')) === '1';
+
+    const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const prefixRegex = new RegExp(`^@?${escapeRegex(botPrefix)}(?:[:\\s,]+|$)`, 'i');
+    const hasPrefix = prefixRegex.test(rawTrimmed);
+
+    // In group chats: if requireGroupPrefix is active, must start with prefix
+    if (context.isGroup && requireGroupPrefix) {
+      if (!hasPrefix) {
+        return null; // Ignore non-prefixed talk in group
+      }
+    }
+
+    // Strip prefix if present
+    let processedText = rawTrimmed;
+    if (hasPrefix) {
+      processedText = rawTrimmed.replace(prefixRegex, '').trim();
+    }
+
+    // If user typed only the prefix (e.g. "DQ" or "dq")
+    if (!processedText) {
+      return {
+        type: 'text',
+        text: `🍦 สวัสดีครับ! บอท ${botPrefix} พร้อมทำงานครับ\n\n💡 ตัวอย่างคำสั่งที่ใช้ได้:\n• "${botPrefix} ภาพรวม" (ดูสต็อกทั้งหมด)\n• "${botPrefix} สั่งของ" (ดูรายการของใกล้หมด)\n• "${botPrefix} ใกล้หมดอายุ" (เช็ควันหมดอายุ)\n• "${botPrefix} ตัด coke 2" (ตัดสต็อก)\n• "${botPrefix} รับ coke 24" (รับของเข้า)\n• "${botPrefix} วิธีใช้" (ดูคู่มือทั้งหมด)`
+      };
+    }
+
+    const intents = this.parseAllIntents(processedText);
     if (!intents || intents.length === 0) return null;
 
     const webUrl = await lineService.getAppUrl(currentUrl);

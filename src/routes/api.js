@@ -197,7 +197,9 @@ router.post('/settings', async (req, res) => {
       daily_alert_time,
       default_expiry_alert_days,
       app_url,
-      admin_pin
+      admin_pin,
+      bot_prefix,
+      bot_require_group_prefix
     } = req.body;
 
     if (line_channel_access_token !== undefined) await dbClient.saveSetting('line_channel_access_token', line_channel_access_token.trim());
@@ -207,6 +209,8 @@ router.post('/settings', async (req, res) => {
     if (enable_expiry_alert !== undefined) await dbClient.saveSetting('enable_expiry_alert', enable_expiry_alert ? '1' : '0');
     if (default_expiry_alert_days !== undefined) await dbClient.saveSetting('default_expiry_alert_days', default_expiry_alert_days.toString());
     if (admin_pin !== undefined && admin_pin.trim().length >= 4) await dbClient.saveSetting('admin_pin', admin_pin.trim());
+    if (bot_prefix !== undefined) await dbClient.saveSetting('bot_prefix', (bot_prefix || 'DQ').trim());
+    if (bot_require_group_prefix !== undefined) await dbClient.saveSetting('bot_require_group_prefix', bot_require_group_prefix ? '1' : '0');
     
     if (daily_alert_time !== undefined) {
       await dbClient.saveSetting('daily_alert_time', daily_alert_time);

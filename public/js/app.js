@@ -2916,6 +2916,8 @@ function populateSettingsForm() {
   if (document.getElementById('setting-expiry-days')) document.getElementById('setting-expiry-days').value = s.default_expiry_alert_days || '7';
   if (document.getElementById('setting-enable-low-stock')) document.getElementById('setting-enable-low-stock').checked = s.enable_low_stock_alert === '1';
   if (document.getElementById('setting-enable-expiry')) document.getElementById('setting-enable-expiry').checked = s.enable_expiry_alert === '1';
+  if (document.getElementById('setting-bot-prefix')) document.getElementById('setting-bot-prefix').value = s.bot_prefix || 'DQ';
+  if (document.getElementById('setting-require-group-prefix')) document.getElementById('setting-require-group-prefix').checked = (s.bot_require_group_prefix !== '0');
 
   const pin = s.admin_pin || '9191';
   state.adminPin = pin;
@@ -2931,7 +2933,9 @@ async function saveSettings(e) {
     daily_alert_time: document.getElementById('setting-alert-time').value,
     default_expiry_alert_days: parseInt(document.getElementById('setting-expiry-days').value, 10) || 7,
     enable_low_stock_alert: document.getElementById('setting-enable-low-stock').checked,
-    enable_expiry_alert: document.getElementById('setting-enable-expiry').checked
+    enable_expiry_alert: document.getElementById('setting-enable-expiry').checked,
+    bot_prefix: document.getElementById('setting-bot-prefix')?.value.trim() || 'DQ',
+    bot_require_group_prefix: document.getElementById('setting-require-group-prefix')?.checked
   };
 
   try {
@@ -2942,7 +2946,7 @@ async function saveSettings(e) {
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.error);
-    showToast('บันทึกการตั้งค่า Token & Web URL เรียบร้อยแล้ว');
+    showToast('บันทึกการตั้งค่าระบบเรียบร้อยแล้ว');
     await fetchSettings();
   } catch (err) {
     showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');

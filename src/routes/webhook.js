@@ -104,10 +104,14 @@ const handleWebhook = async (req, res) => {
           let senderName = 'พนักงาน';
           if (event.source && event.source.userId && token) {
             senderName = await lineService.getUserDisplayName(event.source, token);
-          } else if (event.source.type === 'group') {
+          } else if (event.source.type === 'group' || event.source.type === 'room') {
             senderName = 'พนักงานในกลุ่ม';
           }
-          let replyMessage = await lineBotService.handleMessage(userText, senderName, currentUrl);
+          const isGroupChat = targetType === 'group' || targetType === 'room';
+          let replyMessage = await lineBotService.handleMessage(userText, senderName, currentUrl, {
+            isGroup: isGroupChat,
+            targetType
+          });
 
           // In 1-on-1 direct chat, if bot doesn't understand command, provide guidance
           if (!replyMessage && event.source.type === 'user') {
