@@ -2099,7 +2099,29 @@ function closeDialog(id) {
 
 // Modal Handlers
 function openQuickGuideModal() {
+  switchQuickGuideTab('line');
   openDialog('modal-quick-guide');
+}
+
+function switchQuickGuideTab(tab) {
+  playTapFeedback('click');
+  const btnLine = document.getElementById('guide-tab-btn-line');
+  const btnWeb = document.getElementById('guide-tab-btn-web');
+  const viewLine = document.getElementById('guide-view-line');
+  const viewWeb = document.getElementById('guide-view-web');
+
+  if (tab === 'line') {
+    if (btnLine) btnLine.className = 'flex-1 py-2 px-3 rounded-xl font-bold text-xs bg-indigo-600 text-white shadow-xs transition flex items-center justify-center space-x-1.5';
+    if (btnWeb) btnWeb.className = 'flex-1 py-2 px-3 rounded-xl font-semibold text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 transition flex items-center justify-center space-x-1.5';
+    if (viewLine) viewLine.classList.remove('hidden');
+    if (viewWeb) viewWeb.classList.add('hidden');
+  } else {
+    if (btnLine) btnLine.className = 'flex-1 py-2 px-3 rounded-xl font-semibold text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 transition flex items-center justify-center space-x-1.5';
+    if (btnWeb) btnWeb.className = 'flex-1 py-2 px-3 rounded-xl font-bold text-xs bg-indigo-600 text-white shadow-xs transition flex items-center justify-center space-x-1.5';
+    if (viewLine) viewLine.classList.add('hidden');
+    if (viewWeb) viewWeb.classList.remove('hidden');
+  }
+  if (window.lucide) lucide.createIcons();
 }
 
 function openAddProductModal() {

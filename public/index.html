@@ -1250,25 +1250,169 @@
 
   <!-- Modal 7: Quick Guide for Beginners (📖 คู่มือเริ่มต้นใช้งาน สำหรับมือใหม่) -->
   <dialog id="modal-quick-guide" class="rounded-3xl p-0 w-full max-w-xl shadow-2xl border border-slate-200 backdrop:bg-slate-900/50 m-auto max-h-[94vh] overflow-y-auto">
-    <div class="p-5 sm:p-6 bg-white space-y-5 text-xs">
+    <div class="p-5 sm:p-6 bg-white space-y-4 text-xs">
+      <!-- Header -->
       <div class="flex justify-between items-start border-b border-slate-100 pb-3">
         <div>
           <div class="flex items-center space-x-2">
-            <span class="px-2.5 py-0.5 rounded-md bg-indigo-100 text-indigo-800 text-[10px] font-extrabold uppercase tracking-wider">User Guide</span>
-            <span class="text-[10px] text-slate-400">สำหรับพนักงานใหม่ & ทุกสาขา</span>
+            <span class="px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-extrabold uppercase tracking-wider">LINE & Web Manual</span>
+            <span class="text-[10px] text-slate-400">สำหรับพนักงาน & ทุกสาขา</span>
           </div>
           <h3 class="text-base sm:text-lg font-bold text-slate-900 mt-1 flex items-center space-x-1.5">
-            <span>📖 คู่มือเริ่มต้นใช้งานระบบตัดสต็อก & วันหมดอายุ</span>
+            <span>📖 คู่มือการใช้งานระบบสต็อก & แจ้งเตือน</span>
           </h3>
-          <p class="text-slate-500 text-[11px] mt-0.5">เข้าใจง่ายใน 5 ขั้นตอน ไม่เคยใช้ระบบสต็อกมาก่อนก็ทำได้ทันที</p>
+          <p class="text-slate-500 text-[11px] mt-0.5">ใช้งานง่ายผ่าน LINE ประจำวัน หรือเปิดดูภาพรวมและจัดการบนหน้าเว็บ</p>
         </div>
         <button onclick="closeDialog('modal-quick-guide')" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
 
-      <!-- 5 Simple Steps -->
-      <div class="space-y-3">
+      <!-- Tab Switcher between LINE and Web -->
+      <div class="flex p-1 bg-slate-100 rounded-2xl gap-1">
+        <button type="button" id="guide-tab-btn-line" onclick="switchQuickGuideTab('line')" class="flex-1 py-2 px-3 rounded-xl font-bold text-xs bg-indigo-600 text-white shadow-xs transition flex items-center justify-center space-x-1.5">
+          <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+          <span>📱 สั่งงานผ่าน LINE (ใช้บ่อยสุด)</span>
+        </button>
+        <button type="button" id="guide-tab-btn-web" onclick="switchQuickGuideTab('web')" class="flex-1 py-2 px-3 rounded-xl font-semibold text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 transition flex items-center justify-center space-x-1.5">
+          <i data-lucide="layout" class="w-3.5 h-3.5"></i>
+          <span>💻 การใช้งานบนหน้าเว็บ</span>
+        </button>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- VIEW 1: LINE USER MANUAL (FOCUS FOR LINE USERS) -->
+      <!-- ============================================== -->
+      <div id="guide-view-line" class="space-y-3">
+        <!-- Benefit Note: Auto User Tracking -->
+        <div class="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 flex items-start space-x-2.5">
+          <span class="text-base">👤</span>
+          <div>
+            <h5 class="font-bold text-emerald-950 text-xs">บันทึกชื่อคนทำรายการให้อัตโนมัติ</h5>
+            <p class="text-emerald-800 text-[11px] leading-relaxed mt-0.5">
+              เมื่อพิมพ์สั่งงานในกลุ่ม LINE บอทจะดึง <b>ชื่อโปรไฟล์ LINE</b> ของคุณไปลงบันทึกในประวัติรับเข้าและประวัติการเบิกใช้ทันที ทำให้รู้ว่าใครเป็นคนทำรายการโดยไม่ต้องพิมพ์ชื่อกำกับ
+            </p>
+          </div>
+        </div>
+
+        <!-- LINE Command Cards (Accordion/Boxes) -->
+        <div class="space-y-2.5">
+          <!-- 1. Cut Stock / Usage -->
+          <div class="p-3 bg-rose-50/70 rounded-2xl border border-rose-100 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-rose-700 text-xs flex items-center space-x-1.5">
+                <span>✂️ 1. ตัดสต็อก / เบิกใช้ (ระบบตัดล็อตหมดอายุก่อน FIFO)</span>
+              </span>
+              <span class="text-[10px] px-2 py-0.5 bg-rose-100 text-rose-800 rounded-md font-semibold">เบิกใช้</span>
+            </div>
+            <p class="text-slate-600 text-[11px] leading-relaxed">
+              พิมพ์คำว่า <code class="bg-rose-100/80 text-rose-900 px-1 py-0.5 rounded font-mono">ตัด</code>, <code class="bg-rose-100/80 text-rose-900 px-1 py-0.5 rounded font-mono">ใช้ไป</code>, <code class="bg-rose-100/80 text-rose-900 px-1 py-0.5 rounded font-mono">เบิก</code> หรือใส่เครื่องหมายลบ <code class="bg-rose-100/80 text-rose-900 px-1 py-0.5 rounded font-mono">-</code>
+            </p>
+            <div class="bg-white/80 p-2 rounded-xl border border-rose-200/60 font-mono text-[11px] text-slate-700 space-y-0.5">
+              <div>• "ตัด coke 5"</div>
+              <div>• "นมจืด ใช้ไป 2 pack"</div>
+              <div>• "ผงโกโก้ -1"</div>
+            </div>
+          </div>
+
+          <!-- 2. Receive Stock -->
+          <div class="p-3 bg-emerald-50/70 rounded-2xl border border-emerald-100 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-emerald-800 text-xs flex items-center space-x-1.5">
+                <span>📦 2. รับของเข้าคลัง / เติมของ</span>
+              </span>
+              <span class="text-[10px] px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md font-semibold">รับเข้า</span>
+            </div>
+            <p class="text-slate-600 text-[11px] leading-relaxed">
+              พิมพ์คำว่า <code class="bg-emerald-100/80 text-emerald-900 px-1 py-0.5 rounded font-mono">รับ</code>, <code class="bg-emerald-100/80 text-emerald-900 px-1 py-0.5 rounded font-mono">เติม</code>, <code class="bg-emerald-100/80 text-emerald-900 px-1 py-0.5 rounded font-mono">เข้า</code> หรือใส่เครื่องหมายบวก <code class="bg-emerald-100/80 text-emerald-900 px-1 py-0.5 rounded font-mono">+</code>
+            </p>
+            <div class="bg-white/80 p-2 rounded-xl border border-emerald-200/60 font-mono text-[11px] text-slate-700 space-y-0.5">
+              <div>• "รับ coke 24"</div>
+              <div>• "เติม ช้อนสั้น 10 pack"</div>
+              <div>• "นมจืด +12"</div>
+            </div>
+          </div>
+
+          <!-- 3. Stock Count -->
+          <div class="p-3 bg-sky-50/70 rounded-2xl border border-sky-100 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-sky-800 text-xs flex items-center space-x-1.5">
+                <span>📊 3. นับสต็อกจริง / ปรับยอดคงเหลือ</span>
+              </span>
+              <span class="text-[10px] px-2 py-0.5 bg-sky-100 text-sky-800 rounded-md font-semibold">นับสต็อก</span>
+            </div>
+            <p class="text-slate-600 text-[11px] leading-relaxed">
+              พิมพ์คำว่า <code class="bg-sky-100/80 text-sky-900 px-1 py-0.5 rounded font-mono">เหลือ</code> หรือ <code class="bg-sky-100/80 text-sky-900 px-1 py-0.5 rounded font-mono">นับได้</code> เพื่อปรับยอดคงเหลือให้ตรงกับของจริงที่หน้าร้านทันที
+            </p>
+            <div class="bg-white/80 p-2 rounded-xl border border-sky-200/60 font-mono text-[11px] text-slate-700 space-y-0.5">
+              <div>• "coke เหลือ 12"</div>
+              <div>• "นับ นมจืด ได้ 8"</div>
+            </div>
+          </div>
+
+          <!-- 4. Multi-Command -->
+          <div class="p-3 bg-amber-50/70 rounded-2xl border border-amber-200 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-amber-900 text-xs flex items-center space-x-1.5">
+                <span>⚡ 4. สั่งหลายคำสั่งพร้อมกันใน 1 ข้อความ!</span>
+              </span>
+              <span class="text-[10px] px-2 py-0.5 bg-amber-200/80 text-amber-900 rounded-md font-bold">ยอดนิยม</span>
+            </div>
+            <p class="text-slate-600 text-[11px] leading-relaxed">
+              สามารถพิมพ์หลายคำสั่งส่งพร้อมกันได้เลย โดยเว้นบรรทัด หรือคั่นด้วยเครื่องหมายจุลภาค (<code class="font-mono text-amber-800">,</code>) บอทจะตัดและรับเข้าให้ครบทุกรายการในการ์ดเดียว
+            </p>
+            <div class="bg-white/90 p-2.5 rounded-xl border border-amber-300/80 font-mono text-[11px] text-slate-800 space-y-1">
+              <div class="text-slate-400 text-[10px] font-sans font-semibold">ตัวอย่างที่ 1 (ขึ้นบรรทัดใหม่):</div>
+              <div class="text-rose-600">ตัด coke 2</div>
+              <div class="text-emerald-700">รับ นมจืด 10</div>
+              <div class="text-sky-700">ส้อม เหลือ 50</div>
+              <div class="text-slate-400 text-[10px] font-sans font-semibold pt-1 border-t border-slate-100">ตัวอย่างที่ 2 (คั่นด้วยลูกน้ำ):</div>
+              <div class="text-indigo-700">"ตัด coke 2, รับ นม 10, ส้อม เหลือ 50"</div>
+            </div>
+          </div>
+
+          <!-- 5. Single Check & Overview -->
+          <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
+            <span class="font-bold text-slate-800 text-xs flex items-center space-x-1.5">
+              <span>🔍 5. เช็คสินค้าเฉพาะตัว & สรุปของที่ต้องสั่ง</span>
+            </span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
+              <div class="bg-white p-2 rounded-xl border border-slate-200">
+                <span class="font-semibold text-slate-800">• เช็คสินค้าตัวเดียว:</span>
+                <div class="text-slate-500 font-mono mt-0.5">พิมพ์ "เช็ค coke" หรือ "? coke"</div>
+              </div>
+              <div class="bg-white p-2 rounded-xl border border-slate-200">
+                <span class="font-semibold text-slate-800">• สรุปของที่ต้องสั่งซื้อ:</span>
+                <div class="text-slate-500 font-mono mt-0.5">พิมพ์ "สั่งของ" หรือ "ของหมด"</div>
+              </div>
+              <div class="bg-white p-2 rounded-xl border border-slate-200">
+                <span class="font-semibold text-slate-800">• ดูภาพรวมทั้งร้าน:</span>
+                <div class="text-slate-500 font-mono mt-0.5">พิมพ์ "ภาพรวม" หรือ "สรุป"</div>
+              </div>
+              <div class="bg-white p-2 rounded-xl border border-slate-200">
+                <span class="font-semibold text-slate-800">• เรียกดูคู่มือใน LINE:</span>
+                <div class="text-slate-500 font-mono mt-0.5">พิมพ์ "วิธีใช้" หรือ "help"</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 6. Smart Deep Linking & Typo Assistant -->
+          <div class="p-3 bg-indigo-50/70 rounded-2xl border border-indigo-100 space-y-1">
+            <span class="font-bold text-indigo-900 text-xs flex items-center space-x-1.5">
+              <span>💡 ทริคลับ: แตะการ์ดใน LINE เพื่อเปิดดูบนเว็บ (Deep Link)</span>
+            </span>
+            <p class="text-slate-600 text-[11px] leading-relaxed">
+              • <b>แตะชื่อสินค้า:</b> ในข้อความแจ้งเตือนตอนเช้า หรือการ์ดสรุปผล สามารถแตะที่แถวสินค้าเพื่อวาร์ปมาเปิดดูรายละเอียดและประวัติย้อนหลังบนเว็บได้ทันที<br>
+              • <b>พิมพ์ผิดไม่ต้องกลัว:</b> หากพิมพ์ชื่อผิด บอทมีระบบ Smart Search ช่วยค้นหาคำใกล้เคียงและส่งปุ่มตัวเลือกมาให้กดทันที
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- VIEW 2: WEB MANUAL (DASHBOARD & INVENTORY)     -->
+      <!-- ============================================== -->
+      <div id="guide-view-web" class="hidden space-y-3">
         <!-- Step 1 -->
         <div class="p-3.5 bg-blue-50/60 rounded-2xl border border-blue-100 flex items-start space-x-3">
           <div class="w-8 h-8 rounded-xl bg-blue-600 text-white font-black flex items-center justify-center shrink-0 text-sm shadow-xs">
@@ -1291,9 +1435,6 @@
             <h4 class="font-bold text-slate-900 text-xs">✂️ เบิกใช้ / ตัดสต็อก (ตามล็อต FIFO)</h4>
             <p class="text-slate-600 text-[11px] leading-relaxed">
               เมื่อหยิบของไปใช้ กดปุ่ม <b>"บันทึกการใช้งาน (ตัดสต็อก)"</b> ระบบจะตัดล็อตที่หมดอายุก่อนให้อัตโนมัติ เพื่อป้องกันของค้างจนหมดอายุ
-            </p>
-            <p class="text-emerald-700 font-semibold text-[11px] pt-0.5">
-              💡 <b>หรือพิมพ์ใน LINE กลุ่มได้เลย!</b> เช่น พิมพ์ว่า <code class="bg-emerald-100 px-1.5 py-0.5 rounded text-emerald-900 font-mono">coke ใช้ไป 5 pcs</code> บอทจะตัดสต็อกให้ทันที ไม่ต้องเปิดเว็บ
             </p>
           </div>
         </div>
@@ -1332,39 +1473,9 @@
           <div class="space-y-1">
             <h4 class="font-bold text-slate-900 text-xs">🔗 ทางลัดแตะแล้วเปิดตรงหน้า (Smart Deep Link)</h4>
             <p class="text-slate-600 text-[11px] leading-relaxed">
-              • <b>กดจากใน LINE:</b> แตะที่ชื่อสินค้าหรือปุ่มในข้อความแจ้งเตือน ระบบจะเปิดเว็บและกระโดดไปยังสินค้านั้น หรือเปิดตารางกรองเฉพาะรายการที่ต้องจัดการให้ทันที<br>
-              • <b>กดจากบนเว็บ:</b> แตะการ์ดสรุปยอด 4 ใบด้านบน หรือปุ่ม <b class="text-indigo-600">"ดูในคลัง ➜"</b> เพื่อกรองรายการสินค้าที่สนใจได้ทันที
+              • แตะการ์ดสรุปยอด 4 ใบด้านบน Dashboard เพื่อสลับไปดูสินค้าตามสถานะนั้นได้ทันที<br>
+              • แตะปุ่ม <b class="text-indigo-600">"ดูในคลัง ➜"</b> ที่กล่องแจ้งเตือนสินค้าใกล้หมด หรือสินค้าใกล้หมดอายุ เพื่อกรองดูเฉพาะรายการที่มีปัญหาได้ทันที
             </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Quick Command Cheatsheet for LINE Chat -->
-      <div class="p-4 bg-slate-900 text-slate-100 rounded-2xl space-y-2.5 shadow-sm">
-        <div class="flex items-center space-x-2 text-emerald-400 font-bold text-xs">
-          <i data-lucide="message-square" class="w-4 h-4"></i>
-          <span>📲 สรุปคำสั่งที่พิมพ์คุยใน LINE ได้ทันที:</span>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-          <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-            <span class="text-rose-400 font-bold">✂️ ตัดสต็อก / เบิกใช้:</span>
-            <div class="text-slate-300 font-mono mt-0.5">• "coke ใช้ไป 5 pcs"</div>
-            <div class="text-slate-300 font-mono">• "ตัด ผงโกโก้ 2"</div>
-          </div>
-          <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-            <span class="text-sky-400 font-bold">📊 นับสต็อก / ปรับยอด:</span>
-            <div class="text-slate-300 font-mono mt-0.5">• "coke เหลือ 10"</div>
-            <div class="text-slate-300 font-mono">• "นับ นมจืด ได้ 8"</div>
-          </div>
-          <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-            <span class="text-emerald-400 font-bold">📦 รับของเข้าสต็อก:</span>
-            <div class="text-slate-300 font-mono mt-0.5">• "รับ coke 24"</div>
-            <div class="text-slate-300 font-mono">• "เติม ช้อนสั้น 10 pack"</div>
-          </div>
-          <div class="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-            <span class="text-amber-400 font-bold">🛒 สั่งของ / เช็คสต็อก:</span>
-            <div class="text-slate-300 font-mono mt-0.5">• "สั่งของ" หรือ "ของหมด"</div>
-            <div class="text-slate-300 font-mono">• "เช็ค coke" หรือ "วิธีใช้"</div>
           </div>
         </div>
       </div>

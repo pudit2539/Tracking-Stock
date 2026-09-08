@@ -1222,7 +1222,7 @@ class LineBotService {
   buildHelpFlex(webUrl) {
     return {
       type: 'flex',
-      altText: '📖 วิธีสั่งงานบอทสต็อกใน LINE',
+      altText: '📖 คู่มือคำสั่งบอทสต็อกใน LINE',
       contents: {
         type: 'bubble',
         size: 'mega',
@@ -1232,27 +1232,61 @@ class LineBotService {
           backgroundColor: '#0F172A',
           paddingAll: '16px',
           contents: [
-            { type: 'text', text: '🤖 วิธีสั่งงานบอทสต็อกในแชต LINE', weight: 'bold', color: '#FFFFFF', size: 'md' },
-            { type: 'text', text: 'พิมพ์คุยภาษาพูดได้ทันที บอทจะตัดและนับสต็อกให้!', color: '#94A3B8', size: 'xs', margin: 'xs' }
+            { type: 'text', text: '🤖 คู่มือสั่งงานบอทสต็อกในแชต LINE', weight: 'bold', color: '#FFFFFF', size: 'md' },
+            { type: 'text', text: 'พิมพ์ภาษาพูดได้เลย บอทบันทึกชื่อคนทำรายการให้อัตโนมัติ!', color: '#94A3B8', size: 'xs', margin: 'xs' }
           ]
         },
         body: {
           type: 'box',
           layout: 'vertical',
           paddingAll: '16px',
-          spacing: 'md',
+          spacing: 'sm',
           contents: [
             {
               type: 'box',
               layout: 'vertical',
-              backgroundColor: '#F8FAFC',
+              backgroundColor: '#FEF2F2',
               paddingAll: '10px',
               cornerRadius: '10px',
               contents: [
-                { type: 'text', text: '✂️ 1. ตัดสต็อกเมื่อหยิบไปใช้:', weight: 'bold', size: 'xs', color: '#DC2626' },
-                { type: 'text', text: '• "coke ใช้ไป 5 pcs"', size: 'xs', color: '#334155', margin: 'xs' },
-                { type: 'text', text: '• "ตัด ผงโกโก้ 2"', size: 'xs', color: '#334155' },
-                { type: 'text', text: '• "โอริโอ้ ใช้ 3"', size: 'xs', color: '#334155' }
+                { type: 'text', text: '✂️ 1. ตัดสต็อก / เบิกใช้:', weight: 'bold', size: 'xs', color: '#DC2626' },
+                { type: 'text', text: '• "coke ใช้ไป 5" หรือ "ตัด ผงโกโก้ 2"', size: 'xs', color: '#334155', margin: 'xs' },
+                { type: 'text', text: '• "โอริโอ้ -3" (ใช้เครื่องหมายลบได้)', size: 'xs', color: '#64748B' }
+              ]
+            },
+            {
+              type: 'box',
+              layout: 'vertical',
+              backgroundColor: '#F0FDF4',
+              paddingAll: '10px',
+              cornerRadius: '10px',
+              contents: [
+                { type: 'text', text: '📦 2. รับของเข้าสต็อก:', weight: 'bold', size: 'xs', color: '#059669' },
+                { type: 'text', text: '• "รับ coke 24" หรือ "เติม ช้อน 10"', size: 'xs', color: '#334155', margin: 'xs' },
+                { type: 'text', text: '• "นมจืด +12" (ใช้เครื่องหมายบวกได้)', size: 'xs', color: '#64748B' }
+              ]
+            },
+            {
+              type: 'box',
+              layout: 'vertical',
+              backgroundColor: '#F0F9FF',
+              paddingAll: '10px',
+              cornerRadius: '10px',
+              contents: [
+                { type: 'text', text: '📊 3. นับสต็อก / ปรับยอดคงเหลือจริง:', weight: 'bold', size: 'xs', color: '#0284C7' },
+                { type: 'text', text: '• "coke เหลือ 12" หรือ "นับ นมจืด ได้ 8"', size: 'xs', color: '#334155', margin: 'xs' }
+              ]
+            },
+            {
+              type: 'box',
+              layout: 'vertical',
+              backgroundColor: '#FFFBEB',
+              paddingAll: '10px',
+              cornerRadius: '10px',
+              contents: [
+                { type: 'text', text: '⚡ 4. สั่งหลายรายการพร้อมกันในข้อความเดียว:', weight: 'bold', size: 'xs', color: '#B45309' },
+                { type: 'text', text: '• พิมพ์ขึ้นบรรทัดใหม่ หรือคั่นด้วยลูกน้ำ (,)', size: 'xs', color: '#334155', margin: 'xs' },
+                { type: 'text', text: '  เช่น "ตัด coke 2, รับ นม 10, ส้อม เหลือ 50"', size: 'xs', color: '#B45309', weight: 'bold' }
               ]
             },
             {
@@ -1262,33 +1296,21 @@ class LineBotService {
               paddingAll: '10px',
               cornerRadius: '10px',
               contents: [
-                { type: 'text', text: '📊 2. นับสต็อก / ปรับยอดคงเหลือ:', weight: 'bold', size: 'xs', color: '#0284C7' },
-                { type: 'text', text: '• "coke เหลือ 12"', size: 'xs', color: '#334155', margin: 'xs' },
-                { type: 'text', text: '• "นับ นมจืด ได้ 8"', size: 'xs', color: '#334155' }
+                { type: 'text', text: '🔍 5. เช็คสต็อก & สรุปรายการสั่งของ:', weight: 'bold', size: 'xs', color: '#475569' },
+                { type: 'text', text: '• "เช็ค coke" หรือ "? coke" (ดูข้อมูลสินค้า)', size: 'xs', color: '#334155', margin: 'xs' },
+                { type: 'text', text: '• "ภาพรวม" หรือ "สรุป" (ดูสรุปยอดทั้งร้าน)', size: 'xs', color: '#334155' },
+                { type: 'text', text: '• "สั่งของ" หรือ "ของหมด" (ดูของที่ต้องสั่งเพิ่ม)', size: 'xs', color: '#334155' }
               ]
             },
             {
               type: 'box',
               layout: 'vertical',
-              backgroundColor: '#F8FAFC',
+              backgroundColor: '#EEF2FF',
               paddingAll: '10px',
               cornerRadius: '10px',
               contents: [
-                { type: 'text', text: '📦 3. รับของเข้าสต็อก:', weight: 'bold', size: 'xs', color: '#059669' },
-                { type: 'text', text: '• "รับ coke 24"', size: 'xs', color: '#334155', margin: 'xs' },
-                { type: 'text', text: '• "เติม ช้อนสั้น 10 pack"', size: 'xs', color: '#334155' }
-              ]
-            },
-            {
-              type: 'box',
-              layout: 'vertical',
-              backgroundColor: '#F8FAFC',
-              paddingAll: '10px',
-              cornerRadius: '10px',
-              contents: [
-                { type: 'text', text: '🛒 4. ดูรายการสั่งของ / เช็คสต็อก:', weight: 'bold', size: 'xs', color: '#D97706' },
-                { type: 'text', text: '• พิมพ์ "สั่งของ" หรือ "ของหมด"', size: 'xs', color: '#334155', margin: 'xs' },
-                { type: 'text', text: '• พิมพ์ "เช็คสต็อก"', size: 'xs', color: '#334155' }
+                { type: 'text', text: '🔗 6. แตะข้อความเพื่อเปิดดูบนเว็บ (Deep Link):', weight: 'bold', size: 'xs', color: '#4F46E5' },
+                { type: 'text', text: '• แตะที่ชื่อสินค้าในข้อความ เพื่อเปิดดูรายละเอียดและประวัติย้อนหลังบนเว็บได้ทันที', size: 'xs', color: '#334155', margin: 'xs' }
               ]
             }
           ]
@@ -1296,13 +1318,21 @@ class LineBotService {
         footer: {
           type: 'box',
           layout: 'vertical',
-          paddingAll: '10px',
+          paddingAll: '12px',
+          spacing: 'xs',
           contents: [
             {
               type: 'button',
-              style: 'link',
+              style: 'primary',
+              color: '#4F46E5',
               height: 'sm',
-              action: { type: 'uri', label: '📱 เปิดเว็บไซต์หลัก', uri: webUrl }
+              action: { type: 'uri', label: '📱 เปิดระบบสต็อกทั้งหมด', uri: webUrl ? `${webUrl}?tab=inventory` : 'https://tracking-stock.vercel.app' }
+            },
+            {
+              type: 'button',
+              style: 'secondary',
+              height: 'sm',
+              action: { type: 'uri', label: '⚠️ ดูเฉพาะสินค้าใกล้หมด', uri: webUrl ? `${webUrl}?tab=inventory&filter=LOW` : 'https://tracking-stock.vercel.app/?tab=inventory&filter=LOW' }
             }
           ]
         }
