@@ -348,135 +348,139 @@ function renderAlertLists() {
 
   // 1. Low stock items
   const lowStockContainer = document.getElementById('low-stock-list');
-  if (state.alerts.low_stock_items.length === 0) {
-    lowStockContainer.innerHTML = `
-      <div class="p-6 text-center text-slate-400 text-xs">
-        <i data-lucide="check-circle" class="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80"></i>
-        <p>สต็อกสินค้าทุกรายการอยู่ในระดับปลอดภัย (ปกติ)</p>
-      </div>
-    `;
-  } else {
-    const lowSort = state.lowStockSort || 'URGENCY_DESC';
-    const lowItems = [...state.alerts.low_stock_items];
-    lowItems.sort((a, b) => {
-      if (lowSort === 'URGENCY_DESC') {
-        const ratioA = Number(a.safety_stock) > 0 ? Number(a.current_stock) / Number(a.safety_stock) : (Number(a.current_stock) === 0 ? 0 : 1);
-        const ratioB = Number(b.safety_stock) > 0 ? Number(b.current_stock) / Number(b.safety_stock) : (Number(b.current_stock) === 0 ? 0 : 1);
-        return ratioA - ratioB;
-      }
-      if (lowSort === 'UPDATED_DESC') {
-        const timeA = new Date(a.last_updated_at || a.updated_at || a.created_at || 0).getTime();
-        const timeB = new Date(b.last_updated_at || b.updated_at || b.created_at || 0).getTime();
-        return timeB - timeA;
-      }
-      if (lowSort === 'NAME_ASC') {
-        return a.name.localeCompare(b.name, 'th');
-      }
-      if (lowSort === 'STOCK_ASC') {
-        return Number(a.current_stock) - Number(b.current_stock);
-      }
-      return 0;
-    });
-
-    lowStockContainer.innerHTML = lowItems.map(item => `
-      <div class="p-3 hover:bg-slate-50 flex items-center justify-between transition">
-        <div class="flex items-center space-x-3">
-          <div class="w-1.5 h-10 bg-rose-600 rounded-full"></div>
-          <div>
-            <div class="flex items-center space-x-2">
-              <button type="button" onclick="openProductDetailModal(${item.id})" class="text-left font-bold text-slate-900 hover:text-rose-600 flex items-center space-x-1 group transition" title="ดูรายละเอียดสินค้า">
-                <span class="group-hover:underline">${item.name}</span>
-                <i data-lucide="info" class="w-3 h-3 text-slate-400 group-hover:text-rose-600 transition"></i>
-              </button>
-              <span class="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded">${item.category}</span>
-            </div>
-            <p class="text-[11px] text-slate-500">
-              Safety: <span class="font-semibold text-slate-700">${item.safety_stock} ${item.unit}</span>
-              <span class="text-slate-300 mx-1">•</span>
-              <span class="text-slate-400" title="แก้ไขล่าสุด: ${formatFullDateTime(item.last_updated_at || item.updated_at || item.created_at)}">🕒 แก้ ${formatRelativeTime(item.last_updated_at || item.updated_at || item.created_at)}</span>
-            </p>
-          </div>
+  if (lowStockContainer) {
+    if (!state.alerts.low_stock_items || state.alerts.low_stock_items.length === 0) {
+      lowStockContainer.innerHTML = `
+        <div class="p-6 text-center text-slate-400 text-xs">
+          <i data-lucide="check-circle" class="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80"></i>
+          <p>สต็อกสินค้าทุกรายการอยู่ในระดับปลอดภัย (ปกติ)</p>
         </div>
-        <div class="text-right flex items-center space-x-3">
-          <div>
-            <div class="text-sm font-bold text-rose-600">เหลือ ${item.current_stock} ${item.unit}</div>
-            <span class="text-[10px] text-rose-500 font-medium">ต่ำกว่าเกณฑ์</span>
-          </div>
-          <button onclick="openAddBatchModalFor(${item.id})" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium rounded-lg border border-rose-200 transition">
-            + เติมของ
-          </button>
-        </div>
-      </div>
-    `).join('');
-  }
+      `;
+    } else {
+      const lowSort = state.lowStockSort || 'URGENCY_DESC';
+      const lowItems = [...state.alerts.low_stock_items];
+      lowItems.sort((a, b) => {
+        if (lowSort === 'URGENCY_DESC') {
+          const ratioA = Number(a.safety_stock) > 0 ? Number(a.current_stock) / Number(a.safety_stock) : (Number(a.current_stock) === 0 ? 0 : 1);
+          const ratioB = Number(b.safety_stock) > 0 ? Number(b.current_stock) / Number(b.safety_stock) : (Number(b.current_stock) === 0 ? 0 : 1);
+          return ratioA - ratioB;
+        }
+        if (lowSort === 'UPDATED_DESC') {
+          const timeA = new Date(a.last_updated_at || a.updated_at || a.created_at || 0).getTime();
+          const timeB = new Date(b.last_updated_at || b.updated_at || b.created_at || 0).getTime();
+          return timeB - timeA;
+        }
+        if (lowSort === 'NAME_ASC') {
+          return a.name.localeCompare(b.name, 'th');
+        }
+        if (lowSort === 'STOCK_ASC') {
+          return Number(a.current_stock) - Number(b.current_stock);
+        }
+        return 0;
+      });
 
-  // 2. Expiring items
-  const expiringContainer = document.getElementById('expiring-batch-list');
-  const allExpiring = [...(state.alerts.expired_batches || []), ...(state.alerts.expiring_soon_batches || [])];
-
-  if (allExpiring.length === 0) {
-    expiringContainer.innerHTML = `
-      <div class="p-6 text-center text-slate-400 text-xs">
-        <i data-lucide="shield-check" class="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80"></i>
-        <p>ไม่มีสินค้าที่หมดอายุหรือใกล้หมดอายุใน 7 วัน</p>
-      </div>
-    `;
-  } else {
-    const expSort = state.expiringSort || 'EXPIRY_ASC';
-    allExpiring.sort((a, b) => {
-      if (expSort === 'EXPIRY_ASC') {
-        return (a.days_until_expiry ?? 999) - (b.days_until_expiry ?? 999);
-      }
-      if (expSort === 'DATE_DESC') {
-        const timeA = new Date(a.received_date || a.created_at || 0).getTime();
-        const timeB = new Date(b.received_date || b.created_at || 0).getTime();
-        return timeB - timeA;
-      }
-      if (expSort === 'NAME_ASC') {
-        const nameA = a.product_name || a.name || '';
-        const nameB = b.product_name || b.name || '';
-        return nameA.localeCompare(nameB, 'th');
-      }
-      if (expSort === 'QTY_DESC') {
-        return Number(b.quantity) - Number(a.quantity);
-      }
-      return 0;
-    });
-
-    expiringContainer.innerHTML = allExpiring.map(b => {
-      const isExpired = b.days_until_expiry < 0;
-      const statusClass = isExpired ? 'bg-rose-500' : (b.days_until_expiry <= 3 ? 'bg-orange-500' : 'bg-amber-500');
-      const badgeText = isExpired ? `หมดอายุแล้ว (${Math.abs(b.days_until_expiry)} วัน)` : (b.days_until_expiry === 0 ? 'หมดอายุวันนี้!' : `อีก ${b.days_until_expiry} วัน`);
-      const textClass = isExpired ? 'text-rose-600 font-bold' : 'text-amber-700 font-semibold';
-
-      return `
+      lowStockContainer.innerHTML = lowItems.map(item => `
         <div class="p-3 hover:bg-slate-50 flex items-center justify-between transition">
           <div class="flex items-center space-x-3">
-            <div class="w-1.5 h-10 ${statusClass} rounded-full"></div>
+            <div class="w-1.5 h-10 bg-rose-600 rounded-full"></div>
             <div>
               <div class="flex items-center space-x-2">
-                <button type="button" onclick="openProductDetailModal(${b.product_id || b.id})" class="text-left font-bold text-slate-900 hover:text-amber-700 flex items-center space-x-1 group transition" title="ดูรายละเอียดสินค้า">
-                  <span class="group-hover:underline">${b.product_name || b.name}</span>
-                  <i data-lucide="info" class="w-3 h-3 text-slate-400 group-hover:text-amber-700 transition"></i>
+                <button type="button" onclick="openProductDetailModal(${item.id})" class="text-left font-bold text-slate-900 hover:text-rose-600 flex items-center space-x-1 group transition" title="ดูรายละเอียดสินค้า">
+                  <span class="group-hover:underline">${item.name}</span>
+                  <i data-lucide="info" class="w-3 h-3 text-slate-400 group-hover:text-rose-600 transition"></i>
                 </button>
-                <span class="text-[10px] text-slate-500 font-mono">ล็อต ${b.lot_number || '-'}</span>
+                <span class="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded">${item.category}</span>
               </div>
               <p class="text-[11px] text-slate-500">
-                หมดอายุ: <span class="font-medium text-slate-700">${b.expiry_date}</span> · เหลือ: ${b.quantity} ${b.unit || ''}
+                Safety: <span class="font-semibold text-slate-700">${item.safety_stock} ${item.unit}</span>
                 <span class="text-slate-300 mx-1">•</span>
-                <span class="text-slate-400" title="รับเข้าเมื่อ: ${formatFullDateTime(b.created_at)}">📅 รับ ${b.received_date || '-'}</span>
+                <span class="text-slate-400" title="แก้ไขล่าสุด: ${formatFullDateTime(item.last_updated_at || item.updated_at || item.created_at)}">🕒 แก้ ${formatRelativeTime(item.last_updated_at || item.updated_at || item.created_at)}</span>
               </p>
             </div>
           </div>
           <div class="text-right flex items-center space-x-3">
-            <span class="text-xs ${textClass}">${badgeText}</span>
-            <button onclick="openUsageForBatch(${b.product_id}, ${b.id})" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-medium rounded-lg border border-amber-200 transition">
-              นำไปใช้
+            <div>
+              <div class="text-sm font-bold text-rose-600">เหลือ ${item.current_stock} ${item.unit}</div>
+              <span class="text-[10px] text-rose-500 font-medium">ต่ำกว่าเกณฑ์</span>
+            </div>
+            <button onclick="openAddBatchModalFor(${item.id})" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium rounded-lg border border-rose-200 transition">
+              + เติมของ
             </button>
           </div>
         </div>
+      `).join('');
+    }
+  }
+
+  // 2. Expiring items
+  const expiringContainer = document.getElementById('expiring-batches-list') || document.getElementById('expiring-batch-list');
+  if (expiringContainer) {
+    const allExpiring = [...(state.alerts.expired_batches || []), ...(state.alerts.expiring_soon_batches || [])];
+
+    if (allExpiring.length === 0) {
+      expiringContainer.innerHTML = `
+        <div class="p-6 text-center text-slate-400 text-xs">
+          <i data-lucide="shield-check" class="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-80"></i>
+          <p>ไม่มีสินค้าที่หมดอายุหรือใกล้หมดอายุใน 7 วัน</p>
+        </div>
       `;
-    }).join('');
+    } else {
+      const expSort = state.expiringSort || 'EXPIRY_ASC';
+      allExpiring.sort((a, b) => {
+        if (expSort === 'EXPIRY_ASC') {
+          return (a.days_until_expiry ?? 999) - (b.days_until_expiry ?? 999);
+        }
+        if (expSort === 'DATE_DESC') {
+          const timeA = new Date(a.received_date || a.created_at || 0).getTime();
+          const timeB = new Date(b.received_date || b.created_at || 0).getTime();
+          return timeB - timeA;
+        }
+        if (expSort === 'NAME_ASC') {
+          const nameA = a.product_name || a.name || '';
+          const nameB = b.product_name || b.name || '';
+          return nameA.localeCompare(nameB, 'th');
+        }
+        if (expSort === 'QTY_DESC') {
+          return Number(b.quantity) - Number(a.quantity);
+        }
+        return 0;
+      });
+
+      expiringContainer.innerHTML = allExpiring.map(b => {
+        const isExpired = b.days_until_expiry < 0;
+        const statusClass = isExpired ? 'bg-rose-500' : (b.days_until_expiry <= 3 ? 'bg-orange-500' : 'bg-amber-500');
+        const badgeText = isExpired ? `หมดอายุแล้ว (${Math.abs(b.days_until_expiry)} วัน)` : (b.days_until_expiry === 0 ? 'หมดอายุวันนี้!' : `อีก ${b.days_until_expiry} วัน`);
+        const textClass = isExpired ? 'text-rose-600 font-bold' : 'text-amber-700 font-semibold';
+
+        return `
+          <div class="p-3 hover:bg-slate-50 flex items-center justify-between transition">
+            <div class="flex items-center space-x-3">
+              <div class="w-1.5 h-10 ${statusClass} rounded-full"></div>
+              <div>
+                <div class="flex items-center space-x-2">
+                  <button type="button" onclick="openProductDetailModal(${b.product_id || b.id})" class="text-left font-bold text-slate-900 hover:text-amber-700 flex items-center space-x-1 group transition" title="ดูรายละเอียดสินค้า">
+                    <span class="group-hover:underline">${b.product_name || b.name}</span>
+                    <i data-lucide="info" class="w-3 h-3 text-slate-400 group-hover:text-amber-700 transition"></i>
+                  </button>
+                  <span class="text-[10px] text-slate-500 font-mono">ล็อต ${b.lot_number || '-'}</span>
+                </div>
+                <p class="text-[11px] text-slate-500">
+                  หมดอายุ: <span class="font-medium text-slate-700">${b.expiry_date}</span> · เหลือ: ${b.quantity} ${b.unit || ''}
+                  <span class="text-slate-300 mx-1">•</span>
+                  <span class="text-slate-400" title="รับเข้าเมื่อ: ${formatFullDateTime(b.created_at)}">📅 รับ ${b.received_date || '-'}</span>
+                </p>
+              </div>
+            </div>
+            <div class="text-right flex items-center space-x-3">
+              <span class="text-xs ${textClass}">${badgeText}</span>
+              <button onclick="openUsageForBatch(${b.product_id}, ${b.id})" class="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-medium rounded-lg border border-amber-200 transition">
+                นำไปใช้
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
   }
   if (window.lucide) lucide.createIcons();
 }
@@ -980,19 +984,31 @@ function renderInventoryTable() {
   });
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="7" class="p-8 text-center text-slate-400">
+    if (tbody) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" class="p-8 text-center text-slate-400">
+            <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+            <p>ไม่พบรายการสินค้าที่ตรงกับเงื่อนไขการค้นหา/ตัวกรอง</p>
+          </td>
+        </tr>
+      `;
+    }
+    const mobileContainer = document.getElementById('inventory-mobile-cards');
+    if (mobileContainer) {
+      mobileContainer.innerHTML = `
+        <div class="p-8 text-center text-slate-400 bg-white rounded-3xl border border-slate-200">
           <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
-          <p>ไม่พบรายการสินค้าที่ตรงกับเงื่อนไขการค้นหา/ตัวกรอง</p>
-        </td>
-      </tr>
-    `;
+          <p>ไม่พบรายการสินค้าที่ค้นหา</p>
+        </div>
+      `;
+    }
     if (window.lucide) lucide.createIcons();
     return;
   }
 
-  tbody.innerHTML = filtered.map(p => {
+  if (tbody) {
+    tbody.innerHTML = filtered.map(p => {
     let statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800">ปกติ</span>`;
     if (p.is_low_stock) {
       statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-800">⚠️ ต่ำกว่าเกณฑ์/หมด</span>`;
@@ -1083,6 +1099,7 @@ function renderInventoryTable() {
       </tr>
     `;
   }).join('');
+  }
 
   // 4.2 Render Mobile Cards View (Optimized for Phones & Thumb Interaction)
   const mobileContainer = document.getElementById('inventory-mobile-cards');
