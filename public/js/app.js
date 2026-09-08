@@ -363,6 +363,11 @@ async function submitPinAuth() {
     updateRoleUI();
     renderAll();
     showToast('ยินดีต้อนรับสู่โหมด Admin 👑 ปลดล็อคสิทธิ์จัดการระบบเรียบร้อยแล้ว');
+    if (state.pendingAdminTab) {
+      const targetTab = state.pendingAdminTab;
+      state.pendingAdminTab = null;
+      switchTab(targetTab);
+    }
   } else {
     playTapFeedback('alert');
     if (errEl) {
@@ -428,6 +433,7 @@ async function handleUpdateAdminPin(e) {
 // Tab Switching
 function switchTab(tabName) {
   if (tabName === 'settings' && state.currentRole !== 'admin') {
+    state.pendingAdminTab = 'settings';
     showToast('แท็บการตั้งค่าสงวนไว้สำหรับ Admin เท่านั้น กรุณาใส่รหัส PIN เพื่อปลดล็อค', 'warning');
     openPinModal();
     return;
@@ -457,17 +463,21 @@ function switchTab(tabName) {
 
 // Render UI Components
 function renderAll() {
-  updateRoleUI();
-  renderStats();
-  renderAlertLists();
-  renderLineFlexPreview();
-  renderInventoryTable();
-  renderPlanningTable();
-  renderReceivingHistoryTable();
-  renderUsageHistoryTable();
-  renderRecipientsTable();
-  populateProductSelects();
-  if (window.lucide) lucide.createIcons();
+  try {
+    updateRoleUI();
+    renderStats();
+    renderAlertLists();
+    renderLineFlexPreview();
+    renderInventoryTable();
+    renderPlanningTable();
+    renderReceivingHistoryTable();
+    renderUsageHistoryTable();
+    renderRecipientsTable();
+    populateProductSelects();
+    if (window.lucide) lucide.createIcons();
+  } catch (err) {
+    console.error('[renderAll Error]:', err);
+  }
 }
 
 // 1. Render Dashboard Top Stats
@@ -1916,9 +1926,12 @@ function openQuickGuideModal() {
 }
 
 function openAddProductModal() {
-  document.getElementById('modal-product-title').textContent = 'เพิ่มสินค้าใหม่';
-  document.getElementById('form-product').reset();
-  document.getElementById('prod-id').value = '';
+  const titleEl = document.getElementById('modal-product-title');
+  if (titleEl) titleEl.textContent = 'เพิ่มสินค้าใหม่';
+  const form = document.getElementById('form-product');
+  if (form) form.reset();
+  const prodId = document.getElementById('prod-id');
+  if (prodId) prodId.value = '';
   openDialog('modal-product');
 }
 
@@ -1926,13 +1939,18 @@ function openEditProductModal(id) {
   const product = state.products.find(p => p.id == id);
   if (!product) return;
 
-  document.getElementById('modal-product-title').textContent = 'แก้ไขข้อมูลสินค้า';
-  document.getElementById('prod-id').value = product.id;
-  document.getElementById('prod-name').value = product.name;
-  document.getElementById('prod-category').value = product.category;
-  document.getElementById('prod-unit').value = product.unit;
-  document.getElementById('prod-safety').value = product.safety_stock;
-  document.getElementById('prod-warn-days').value = product.expiry_warning_days;
+  const titleEl = document.getElementById('modal-product-title');
+  if (titleEl) titleEl.textContent = 'แก้ไขข้อมูลสินค้า';
+  const setVal = (elemId, val) => {
+    const el = document.getElementById(elemId);
+    if (el) el.value = val ?? '';
+  };
+  setVal('prod-id', product.id);
+  setVal('prod-name', product.name);
+  setVal('prod-category', product.category);
+  setVal('prod-unit', product.unit);
+  setVal('prod-safety', product.safety_stock);
+  setVal('prod-warn-days', product.expiry_warning_days);
 
   openDialog('modal-product');
 }
@@ -1971,8 +1989,10 @@ async function openProductDetailModal(productId) {
   if (!product) return;
 
   // Header & Info
-  document.getElementById('product-detail-name').textContent = product.name;
-  document.getElementById('product-detail-category').textContent = product.category || 'ทั่วไป';
+  const nameEl = document.getElementById('product-detail-name');
+  if (nameEl) nameEl.textContent = product.name;
+  const catEl = document.getElementById('product-detail-category');
+  if (catEl) catEl.textContent = product.category || 'ทั่วไป';
 
   // Badges
   const statusEl = document.getElementById('product-detail-status');
@@ -2051,8 +2071,8 @@ async function openProductDetailModal(productId) {
     const res = await fetch(`/api/products/${productId}/batches`);
     const json = await res.json();
     const batches = json.data || [];
-
-    document.getElementById('product-detail-batches-count').textContent = batches.length;
+    const bCountEl = document.getElementById('product-detail-batches-count');
+    if (bCountEl) bCountEl.textContent = batches.length;
 
     if (batches.length === 0) {
       batchesContainer.innerHTML = `
@@ -2118,7 +2138,8 @@ async function openProductDetailModal(productId) {
   // Render Usage Logs for this product
   const usageContainer = document.getElementById('detail-view-usage');
   const productLogs = (state.usageLogs || []).filter(u => u.product_id == productId);
-  document.getElementById('product-detail-usage-count').textContent = productLogs.length;
+  const uCountEl = document.getElementById('product-detail-usage-count');
+  if (uCountEl) uCountEl.textContent = productLogs.length;
 
   if (productLogs.length === 0) {
     usageContainer.innerHTML = `
@@ -2169,10 +2190,14 @@ async function openManageBatchesModal(productId) {
   const product = state.products.find(p => p.id == productId);
   if (!product) return;
 
-  document.getElementById('manage-batches-prod-name').textContent = `📦 จัดการทุกล็อต: ${product.name}`;
-  document.getElementById('manage-batches-prod-category').textContent = product.category || 'หมวดหมู่';
-  document.getElementById('manage-batches-total-stock').textContent = product.current_stock;
-  document.getElementById('manage-batches-prod-unit').textContent = product.unit;
+  const mbName = document.getElementById('manage-batches-prod-name');
+  if (mbName) mbName.textContent = `📦 จัดการทุกล็อต: ${product.name}`;
+  const mbCat = document.getElementById('manage-batches-prod-category');
+  if (mbCat) mbCat.textContent = product.category || 'หมวดหมู่';
+  const mbStock = document.getElementById('manage-batches-total-stock');
+  if (mbStock) mbStock.textContent = product.current_stock;
+  const mbUnit = document.getElementById('manage-batches-prod-unit');
+  if (mbUnit) mbUnit.textContent = product.unit;
 
   const sel = document.getElementById('sort-batch-modal');
   if (sel) sel.value = state.batchModalSort || 'EXPIRY_ASC';
@@ -2861,17 +2886,24 @@ function populateQuickModal() {
   if (currentQuickIndex < 0 || currentQuickIndex >= quickProductList.length) return;
   const prod = quickProductList[currentQuickIndex];
 
-  document.getElementById('quick-prod-id').value = prod.id;
-  document.getElementById('quick-prod-name').textContent = prod.name;
-  document.getElementById('quick-prod-category').textContent = prod.category || 'ของแห้ง';
-  document.getElementById('quick-unit-label-1').textContent = prod.unit || 'ชิ้น';
-  document.getElementById('quick-unit-label-2').textContent = prod.unit || 'ชิ้น';
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val ?? '';
+  };
+  const setText = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
 
-  document.getElementById('quick-safety-stock').value = prod.safety_stock;
-  document.getElementById('quick-quantity').value = prod.current_stock;
-  document.getElementById('quick-current-status').textContent = `คงเหลือเดิม: ${prod.current_stock} ${prod.unit}`;
-
-  document.getElementById('quick-expiry-date').value = prod.nearest_expiry || '';
+  setVal('quick-prod-id', prod.id);
+  setText('quick-prod-name', prod.name);
+  setText('quick-prod-category', prod.category || 'ของแห้ง');
+  setText('quick-unit-label-1', prod.unit || 'ชิ้น');
+  setText('quick-unit-label-2', prod.unit || 'ชิ้น');
+  setVal('quick-safety-stock', prod.safety_stock);
+  setVal('quick-quantity', prod.current_stock);
+  setText('quick-current-status', `คงเหลือเดิม: ${prod.current_stock} ${prod.unit}`);
+  setVal('quick-expiry-date', prod.nearest_expiry || '');
 
   const btnPrev = document.getElementById('btn-quick-prev');
   const btnNext = document.getElementById('btn-quick-next');
