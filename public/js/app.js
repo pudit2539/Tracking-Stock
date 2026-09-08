@@ -10,7 +10,13 @@ let state = {
   recipients: [],
   activeTab: 'dashboard',
   historySubTab: 'inbound',
-  inventorySort: localStorage.getItem('dq_inventory_sort') || 'UPDATED_DESC'
+  inventorySort: localStorage.getItem('dq_inventory_sort') || 'UPDATED_DESC',
+  inboundSort: localStorage.getItem('dq_inbound_sort') || 'DATE_DESC',
+  outboundSort: localStorage.getItem('dq_outbound_sort') || 'DATE_DESC',
+  lowStockSort: localStorage.getItem('dq_lowstock_sort') || 'URGENCY_DESC',
+  expiringSort: localStorage.getItem('dq_expiring_sort') || 'EXPIRY_ASC',
+  planningSort: localStorage.getItem('dq_planning_sort') || 'DAYS_ASC',
+  batchModalSort: 'EXPIRY_ASC'
 };
 
 // =======================================================
@@ -304,9 +310,33 @@ function renderStats() {
   document.getElementById('expiring-badge-count').textContent = `${expiringCount + expiredCount} รายการ`;
 }
 
-// 2. Render Urgent Alert Lists on Dashboard
+// 2. Render Urgent Alert Lists on Dashboard with Sorting & Timestamps
+function changeLowStockSort(sortType) {
+  playTapFeedback('click');
+  state.lowStockSort = sortType;
+  localStorage.setItem('dq_lowstock_sort', sortType);
+  renderAlertLists();
+}
+
+function changeExpiringSort(sortType) {
+  playTapFeedback('click');
+  state.expiringSort = sortType;
+  localStorage.setItem('dq_expiring_sort', sortType);
+  renderAlertLists();
+}
+
 function renderAlertLists() {
-  // Low stock items
+  // Sync dropdowns
+  const selLow = document.getElementById('sort-low-stock');
+  if (selLow && selLow.value !== (state.lowStockSort || 'URGENCY_DESC')) {
+    selLow.value = state.lowStockSort || 'URGENCY_DESC';
+  }
+  const selExp = document.getElementById('sort-expiring');
+  if (selExp && selExp.value !== (state.expiringSort || 'EXPIRY_ASC')) {
+    selExp.value = state.expiringSort || 'EXPIRY_ASC';
+  }
+
+  // 1. Low stock items
   const lowStockContainer = document.getElementById('low-stock-list');
   if (state.alerts.low_stock_items.length === 0) {
     lowStockContainer.innerHTML = `
@@ -316,7 +346,29 @@ function renderAlertLists() {
       </div>
     `;
   } else {
-    lowStockContainer.innerHTML = state.alerts.low_stock_items.map(item => `
+    const lowSort = state.lowStockSort || 'URGENCY_DESC';
+    const lowItems = [...state.alerts.low_stock_items];
+    lowItems.sort((a, b) => {
+      if (lowSort === 'URGENCY_DESC') {
+        const ratioA = Number(a.safety_stock) > 0 ? Number(a.current_stock) / Number(a.safety_stock) : (Number(a.current_stock) === 0 ? 0 : 1);
+        const ratioB = Number(b.safety_stock) > 0 ? Number(b.current_stock) / Number(b.safety_stock) : (Number(b.current_stock) === 0 ? 0 : 1);
+        return ratioA - ratioB;
+      }
+      if (lowSort === 'UPDATED_DESC') {
+        const timeA = new Date(a.last_updated_at || a.updated_at || a.created_at || 0).getTime();
+        const timeB = new Date(b.last_updated_at || b.updated_at || b.created_at || 0).getTime();
+        return timeB - timeA;
+      }
+      if (lowSort === 'NAME_ASC') {
+        return a.name.localeCompare(b.name, 'th');
+      }
+      if (lowSort === 'STOCK_ASC') {
+        return Number(a.current_stock) - Number(b.current_stock);
+      }
+      return 0;
+    });
+
+    lowStockContainer.innerHTML = lowItems.map(item => `
       <div class="p-3 hover:bg-slate-50 flex items-center justify-between transition">
         <div class="flex items-center space-x-3">
           <div class="w-1.5 h-10 bg-rose-600 rounded-full"></div>
@@ -326,7 +378,9 @@ function renderAlertLists() {
               <span class="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded">${item.category}</span>
             </div>
             <p class="text-[11px] text-slate-500">
-              Safety Stock: <span class="font-semibold text-slate-700">${item.safety_stock} ${item.unit}</span>
+              Safety: <span class="font-semibold text-slate-700">${item.safety_stock} ${item.unit}</span>
+              <span class="text-slate-300 mx-1">•</span>
+              <span class="text-slate-400" title="แก้ไขล่าสุด: ${formatFullDateTime(item.last_updated_at || item.updated_at || item.created_at)}">🕒 แก้ ${formatRelativeTime(item.last_updated_at || item.updated_at || item.created_at)}</span>
             </p>
           </div>
         </div>
@@ -343,7 +397,7 @@ function renderAlertLists() {
     `).join('');
   }
 
-  // Expiring items
+  // 2. Expiring items
   const expiringContainer = document.getElementById('expiring-batch-list');
   const allExpiring = [...(state.alerts.expired_batches || []), ...(state.alerts.expiring_soon_batches || [])];
 
@@ -355,6 +409,27 @@ function renderAlertLists() {
       </div>
     `;
   } else {
+    const expSort = state.expiringSort || 'EXPIRY_ASC';
+    allExpiring.sort((a, b) => {
+      if (expSort === 'EXPIRY_ASC') {
+        return (a.days_until_expiry ?? 999) - (b.days_until_expiry ?? 999);
+      }
+      if (expSort === 'DATE_DESC') {
+        const timeA = new Date(a.received_date || a.created_at || 0).getTime();
+        const timeB = new Date(b.received_date || b.created_at || 0).getTime();
+        return timeB - timeA;
+      }
+      if (expSort === 'NAME_ASC') {
+        const nameA = a.product_name || a.name || '';
+        const nameB = b.product_name || b.name || '';
+        return nameA.localeCompare(nameB, 'th');
+      }
+      if (expSort === 'QTY_DESC') {
+        return Number(b.quantity) - Number(a.quantity);
+      }
+      return 0;
+    });
+
     expiringContainer.innerHTML = allExpiring.map(b => {
       const isExpired = b.days_until_expiry < 0;
       const statusClass = isExpired ? 'bg-rose-500' : (b.days_until_expiry <= 3 ? 'bg-orange-500' : 'bg-amber-500');
@@ -371,7 +446,9 @@ function renderAlertLists() {
                 <span class="text-[10px] text-slate-500 font-mono">ล็อต ${b.lot_number || '-'}</span>
               </div>
               <p class="text-[11px] text-slate-500">
-                หมดอายุ: <span class="font-medium text-slate-700">${b.expiry_date}</span> · คงเหลือ: ${b.quantity} ${b.unit || ''}
+                หมดอายุ: <span class="font-medium text-slate-700">${b.expiry_date}</span> · เหลือ: ${b.quantity} ${b.unit || ''}
+                <span class="text-slate-300 mx-1">•</span>
+                <span class="text-slate-400" title="รับเข้าเมื่อ: ${formatFullDateTime(b.created_at)}">📅 รับ ${b.received_date || '-'}</span>
               </p>
             </div>
           </div>
@@ -385,6 +462,7 @@ function renderAlertLists() {
       `;
     }).join('');
   }
+  if (window.lucide) lucide.createIcons();
 }
 
 // 3. Render Live LINE Flex Preview Card (Matches the Reference Photo!)
@@ -616,6 +694,26 @@ function formatRelativeTime(isoString) {
   return d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
 }
 
+function formatDateOnly(isoString) {
+  if (!isoString) return '-';
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' });
+}
+
+function formatFullDateTime(isoString) {
+  if (!isoString) return '-';
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleDateString('th-TH', { 
+    day: '2-digit', 
+    month: 'short', 
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }) + ' น.';
+}
+
 function changeInventorySort(sortType) {
   playTapFeedback('click');
   state.inventorySort = sortType;
@@ -633,7 +731,10 @@ function toggleSortHeader(field) {
   let next = 'UPDATED_DESC';
 
   if (field === 'UPDATED') {
-    next = current === 'UPDATED_DESC' ? 'UPDATED_ASC' : 'UPDATED_DESC';
+    if (current === 'UPDATED_DESC') next = 'CREATED_DESC';
+    else if (current === 'CREATED_DESC') next = 'UPDATED_ASC';
+    else if (current === 'UPDATED_ASC') next = 'CREATED_ASC';
+    else next = 'UPDATED_DESC';
   } else if (field === 'NAME') {
     next = current === 'NAME_ASC' ? 'NAME_DESC' : 'NAME_ASC';
   } else if (field === 'STOCK') {
@@ -642,6 +743,89 @@ function toggleSortHeader(field) {
     next = current === 'EXPIRY_ASC' ? 'UPDATED_DESC' : 'EXPIRY_ASC';
   }
   changeInventorySort(next);
+}
+
+// Inbound History Sorting
+function changeInboundSort(sortType) {
+  playTapFeedback('click');
+  state.inboundSort = sortType;
+  localStorage.setItem('dq_inbound_sort', sortType);
+  const sel = document.getElementById('sort-inbound');
+  if (sel && sel.value !== sortType) sel.value = sortType;
+  renderReceivingHistoryTable();
+}
+
+function toggleInboundSortHeader(field) {
+  playTapFeedback('click');
+  const current = state.inboundSort || 'DATE_DESC';
+  let next = 'DATE_DESC';
+
+  if (field === 'DATE') {
+    next = current === 'DATE_DESC' ? 'DATE_ASC' : 'DATE_DESC';
+  } else if (field === 'NAME') {
+    next = current === 'NAME_ASC' ? 'NAME_DESC' : 'NAME_ASC';
+  } else if (field === 'QTY') {
+    next = current === 'QTY_DESC' ? 'QTY_ASC' : 'QTY_DESC';
+  } else if (field === 'EXPIRY') {
+    next = current === 'EXPIRY_ASC' ? 'EXPIRY_DESC' : 'EXPIRY_ASC';
+  }
+  changeInboundSort(next);
+}
+
+// Outbound History Sorting
+function changeOutboundSort(sortType) {
+  playTapFeedback('click');
+  state.outboundSort = sortType;
+  localStorage.setItem('dq_outbound_sort', sortType);
+  const sel = document.getElementById('sort-outbound');
+  if (sel && sel.value !== sortType) sel.value = sortType;
+  renderUsageHistoryTable();
+}
+
+function toggleOutboundSortHeader(field) {
+  playTapFeedback('click');
+  const current = state.outboundSort || 'DATE_DESC';
+  let next = 'DATE_DESC';
+
+  if (field === 'DATE') {
+    next = current === 'DATE_DESC' ? 'DATE_ASC' : 'DATE_DESC';
+  } else if (field === 'NAME') {
+    next = current === 'NAME_ASC' ? 'NAME_DESC' : 'NAME_ASC';
+  } else if (field === 'QTY') {
+    next = current === 'QTY_DESC' ? 'QTY_ASC' : 'QTY_DESC';
+  } else if (field === 'USER') {
+    next = current === 'USER_ASC' ? 'DATE_DESC' : 'USER_ASC';
+  }
+  changeOutboundSort(next);
+}
+
+// Planning Table Sorting
+function togglePlanningSortHeader(field) {
+  playTapFeedback('click');
+  const current = state.planningSort || 'DAYS_ASC';
+  let next = 'DAYS_ASC';
+
+  if (field === 'DAYS') {
+    next = current === 'DAYS_ASC' ? 'DAYS_DESC' : 'DAYS_ASC';
+  } else if (field === 'NAME') {
+    next = current === 'NAME_ASC' ? 'DAYS_ASC' : 'NAME_ASC';
+  } else if (field === 'STOCK') {
+    next = current === 'STOCK_ASC' ? 'STOCK_DESC' : 'STOCK_ASC';
+  } else if (field === 'USED') {
+    next = current === 'USED_DESC' ? 'DAYS_ASC' : 'USED_DESC';
+  }
+  state.planningSort = next;
+  localStorage.setItem('dq_planning_sort', next);
+  renderPlanningTable();
+}
+
+// Batch Manager Modal Sorting
+function changeBatchModalSort(sortType) {
+  playTapFeedback('click');
+  state.batchModalSort = sortType;
+  const sel = document.getElementById('sort-batch-modal');
+  if (sel && sel.value !== sortType) sel.value = sortType;
+  renderBatchModalItems();
 }
 
 function setInventoryFilter(filter) {
@@ -842,10 +1026,16 @@ function renderInventoryTable() {
         </td>
         <td class="p-3.5">${expiryDisplay}</td>
         <td class="p-3.5 whitespace-nowrap">
-          <span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[11px] font-medium">
-            <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
-            <span>${formatRelativeTime(p.last_updated_at || p.updated_at || p.created_at)}</span>
-          </span>
+          <div class="flex flex-col space-y-0.5">
+            <div class="flex items-center space-x-1.5 text-slate-700 font-semibold text-xs" title="แก้ไขล่าสุด: ${formatFullDateTime(p.last_updated_at || p.updated_at || p.created_at)}">
+              <i data-lucide="clock" class="w-3.5 h-3.5 text-indigo-500"></i>
+              <span>${formatRelativeTime(p.last_updated_at || p.updated_at || p.created_at)}</span>
+            </div>
+            <div class="text-[10px] text-slate-400 flex items-center space-x-1" title="วันที่สร้าง: ${formatFullDateTime(p.created_at)}">
+              <i data-lucide="calendar-plus" class="w-3 h-3 text-slate-400"></i>
+              <span>สร้าง ${formatDateOnly(p.created_at)}</span>
+            </div>
+          </div>
         </td>
         <td class="p-3.5">${statusBadge}</td>
         <td class="p-3.5 text-center">
@@ -901,12 +1091,14 @@ function renderInventoryTable() {
             <div class="flex items-start justify-between gap-2">
               <div>
                 <h4 class="font-extrabold text-slate-900 text-sm leading-snug">${p.name}</h4>
-                <div class="flex items-center space-x-2 mt-0.5">
+                <div class="flex flex-wrap items-center gap-1.5 mt-0.5">
                   <span class="inline-block text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${p.category}</span>
-                  <span class="text-[10px] text-slate-400 flex items-center space-x-1">
-                    <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
-                    <span>${formatRelativeTime(p.last_updated_at || p.updated_at || p.created_at)}</span>
+                  <span class="text-[10px] text-slate-600 font-medium flex items-center space-x-1" title="แก้ไขล่าสุด: ${formatFullDateTime(p.last_updated_at || p.updated_at || p.created_at)}">
+                    <i data-lucide="clock" class="w-3 h-3 text-indigo-500"></i>
+                    <span>แก้ ${formatRelativeTime(p.last_updated_at || p.updated_at || p.created_at)}</span>
                   </span>
+                  <span class="text-slate-300">•</span>
+                  <span class="text-[10px] text-slate-400" title="วันที่สร้าง: ${formatFullDateTime(p.created_at)}">สร้าง ${formatDateOnly(p.created_at)}</span>
                 </div>
               </div>
               <div class="shrink-0">${statusBadge}</div>
@@ -983,7 +1175,26 @@ function renderPlanningTable() {
     return;
   }
 
-  tbody.innerHTML = state.usageSummary.map(item => {
+  const planSort = state.planningSort || 'DAYS_ASC';
+  const list = [...state.usageSummary];
+  list.sort((a, b) => {
+    const prodA = state.products.find(p => p.id === a.product_id);
+    const prodB = state.products.find(p => p.id === b.product_id);
+    const stockA = prodA ? Number(prodA.current_stock) : 0;
+    const stockB = prodB ? Number(prodB.current_stock) : 0;
+    const daysA = (Number(a.avg_daily_use) > 0) ? Math.floor(stockA / Number(a.avg_daily_use)) : 99999;
+    const daysB = (Number(b.avg_daily_use) > 0) ? Math.floor(stockB / Number(b.avg_daily_use)) : 99999;
+
+    if (planSort === 'DAYS_ASC') return daysA - daysB;
+    if (planSort === 'DAYS_DESC') return daysB - daysA;
+    if (planSort === 'NAME_ASC') return (a.product_name || '').localeCompare(b.product_name || '', 'th');
+    if (planSort === 'STOCK_ASC') return stockA - stockB;
+    if (planSort === 'STOCK_DESC') return stockB - stockA;
+    if (planSort === 'USED_DESC') return Number(b.total_used) - Number(a.total_used);
+    return 0;
+  });
+
+  tbody.innerHTML = list.map(item => {
     const product = state.products.find(p => p.id === item.product_id);
     const currentStock = product ? product.current_stock : 0;
     const avgDaily = item.avg_daily_use || 0;
@@ -1045,7 +1256,50 @@ function renderReceivingHistoryTable() {
   const mobileContainer = document.getElementById('receiving-history-mobile-cards');
   const countEl = document.getElementById('inbound-history-count');
 
-  const list = state.receivingHistory || [];
+  // Sync dropdown
+  const selIn = document.getElementById('sort-inbound');
+  if (selIn && selIn.value !== (state.inboundSort || 'DATE_DESC')) {
+    selIn.value = state.inboundSort || 'DATE_DESC';
+  }
+
+  const inboundSort = state.inboundSort || 'DATE_DESC';
+  const list = [...(state.receivingHistory || [])];
+  list.sort((a, b) => {
+    if (inboundSort === 'DATE_DESC') {
+      const timeA = new Date(a.received_date || a.created_at || 0).getTime();
+      const timeB = new Date(b.received_date || b.created_at || 0).getTime();
+      return timeB - timeA;
+    }
+    if (inboundSort === 'DATE_ASC') {
+      const timeA = new Date(a.received_date || a.created_at || 0).getTime();
+      const timeB = new Date(b.received_date || b.created_at || 0).getTime();
+      return timeA - timeB;
+    }
+    if (inboundSort === 'EXPIRY_ASC') {
+      const expA = a.expiry_date ? new Date(a.expiry_date).getTime() : 9999999999999;
+      const expB = b.expiry_date ? new Date(b.expiry_date).getTime() : 9999999999999;
+      return expA - expB;
+    }
+    if (inboundSort === 'EXPIRY_DESC') {
+      const expA = a.expiry_date ? new Date(a.expiry_date).getTime() : 0;
+      const expB = b.expiry_date ? new Date(b.expiry_date).getTime() : 0;
+      return expB - expA;
+    }
+    if (inboundSort === 'NAME_ASC') {
+      return (a.product_name || '').localeCompare(b.product_name || '', 'th');
+    }
+    if (inboundSort === 'NAME_DESC') {
+      return (b.product_name || '').localeCompare(a.product_name || '', 'th');
+    }
+    if (inboundSort === 'QTY_DESC') {
+      return Number(b.initial_quantity || b.quantity) - Number(a.initial_quantity || a.quantity);
+    }
+    if (inboundSort === 'QTY_ASC') {
+      return Number(a.initial_quantity || a.quantity) - Number(b.initial_quantity || b.quantity);
+    }
+    return 0;
+  });
+
   if (countEl) countEl.textContent = list.length;
 
   if (list.length === 0) {
@@ -1089,9 +1343,14 @@ function renderReceivingHistoryTable() {
 
       return `
         <tr class="hover:bg-slate-50/80 border-b border-slate-100 transition">
-          <td class="p-3 text-slate-700 font-mono text-xs">
-            <div class="font-semibold">${b.received_date || '-'}</div>
-            <div class="text-[10px] text-slate-400">${b.created_at ? new Date(b.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
+          <td class="p-3 text-slate-700 text-xs whitespace-nowrap">
+            <div class="font-bold text-slate-900">${b.received_date || '-'}</div>
+            <div class="text-[10px] text-slate-400 flex items-center space-x-1 mt-0.5" title="บันทึกเมื่อ: ${formatFullDateTime(b.created_at)}">
+              <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
+              <span>${formatRelativeTime(b.created_at)}</span>
+              <span class="text-slate-300">•</span>
+              <span>${b.created_at ? new Date(b.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.' : ''}</span>
+            </div>
           </td>
           <td class="p-3">
             <div class="font-bold text-slate-900 text-xs">${b.product_name}</div>
@@ -1143,7 +1402,7 @@ function renderReceivingHistoryTable() {
             <div>
               <h4 class="font-extrabold text-slate-900 text-sm">${b.product_name}</h4>
               <div class="flex items-center space-x-1.5 mt-0.5 text-slate-400 text-[11px]">
-                <span>📅 ${b.received_date || '-'}</span>
+                <span title="บันทึกเมื่อ: ${formatFullDateTime(b.created_at)}">📅 ${b.received_date || '-'} (${formatRelativeTime(b.created_at)})</span>
                 <span>•</span>
                 <span>${sourceBadge}</span>
               </div>
@@ -1230,9 +1489,16 @@ async function handleEditReceivedBatch(batchId, currentQty, currentExp) {
   }
 }
 
-// 6. Render Usage History Table
+// 6. Render Usage History Table with Sorting & Timestamps
 function renderUsageHistoryTable() {
   const tbody = document.getElementById('usage-history-table-body');
+
+  // Sync dropdown
+  const selOut = document.getElementById('sort-outbound');
+  if (selOut && selOut.value !== (state.outboundSort || 'DATE_DESC')) {
+    selOut.value = state.outboundSort || 'DATE_DESC';
+  }
+
   if (state.usageLogs.length === 0) {
     tbody.innerHTML = `
       <tr>
@@ -1242,15 +1508,54 @@ function renderUsageHistoryTable() {
     return;
   }
 
+  const outboundSort = state.outboundSort || 'DATE_DESC';
+  const logs = [...state.usageLogs];
+  logs.sort((a, b) => {
+    if (outboundSort === 'DATE_DESC') {
+      const timeA = new Date(a.used_date || a.created_at || 0).getTime();
+      const timeB = new Date(b.used_date || b.created_at || 0).getTime();
+      return timeB - timeA;
+    }
+    if (outboundSort === 'DATE_ASC') {
+      const timeA = new Date(a.used_date || a.created_at || 0).getTime();
+      const timeB = new Date(b.used_date || b.created_at || 0).getTime();
+      return timeA - timeB;
+    }
+    if (outboundSort === 'NAME_ASC') {
+      return (a.product_name || '').localeCompare(b.product_name || '', 'th');
+    }
+    if (outboundSort === 'NAME_DESC') {
+      return (b.product_name || '').localeCompare(a.product_name || '', 'th');
+    }
+    if (outboundSort === 'QTY_DESC') {
+      return Number(b.quantity) - Number(a.quantity);
+    }
+    if (outboundSort === 'QTY_ASC') {
+      return Number(a.quantity) - Number(b.quantity);
+    }
+    if (outboundSort === 'USER_ASC') {
+      return (a.used_by || '').localeCompare(b.used_by || '', 'th');
+    }
+    return 0;
+  });
+
   const typeLabels = {
     'USE': '<span class="px-2 py-0.5 rounded text-[10px] bg-blue-50 text-blue-700 font-medium">เบิกใช้</span>',
     'WASTE': '<span class="px-2 py-0.5 rounded text-[10px] bg-rose-50 text-rose-700 font-medium">ชำรุด/ทิ้ง</span>',
     'ADJUST': '<span class="px-2 py-0.5 rounded text-[10px] bg-amber-50 text-amber-700 font-medium">ปรับยอด</span>'
   };
 
-  tbody.innerHTML = state.usageLogs.map(log => `
+  tbody.innerHTML = logs.map(log => `
     <tr class="hover:bg-slate-50 border-b border-slate-100">
-      <td class="p-3 text-slate-600 font-mono">${log.used_date}</td>
+      <td class="p-3 text-slate-700 text-xs whitespace-nowrap">
+        <div class="font-bold text-slate-900">${log.used_date}</div>
+        <div class="text-[10px] text-slate-400 flex items-center space-x-1 mt-0.5" title="บันทึกเมื่อ: ${formatFullDateTime(log.created_at)}">
+          <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
+          <span>${formatRelativeTime(log.created_at)}</span>
+          <span class="text-slate-300">•</span>
+          <span>${log.created_at ? new Date(log.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.' : ''}</span>
+        </div>
+      </td>
       <td class="p-3 font-bold text-slate-800">${log.product_name}</td>
       <td class="p-3 font-mono text-slate-500">${log.lot_number || 'FIFO (อัตโนมัติ)'}</td>
       <td class="p-3 font-bold text-amber-700">-${log.quantity} ${log.unit}</td>
@@ -1259,6 +1564,8 @@ function renderUsageHistoryTable() {
       <td class="p-3 text-slate-500">${log.used_by || '-'}</td>
     </tr>
   `).join('');
+
+  if (window.lucide) lucide.createIcons();
 }
 
 // 7. Populate Selects in Modals
@@ -1334,6 +1641,7 @@ function openEditProductModal(id) {
 }
 
 let currentBatchProductId = null;
+let currentLoadedBatches = [];
 
 async function openManageBatchesModal(productId) {
   currentBatchProductId = productId;
@@ -1344,6 +1652,9 @@ async function openManageBatchesModal(productId) {
   document.getElementById('manage-batches-prod-category').textContent = product.category || 'หมวดหมู่';
   document.getElementById('manage-batches-total-stock').textContent = product.current_stock;
   document.getElementById('manage-batches-prod-unit').textContent = product.unit;
+
+  const sel = document.getElementById('sort-batch-modal');
+  if (sel) sel.value = state.batchModalSort || 'EXPIRY_ASC';
 
   const listContainer = document.getElementById('manage-batches-list');
   listContainer.innerHTML = `
@@ -1357,72 +1668,96 @@ async function openManageBatchesModal(productId) {
   try {
     const res = await fetch(`/api/products/${productId}/batches`);
     const json = await res.json();
-    const batches = json.data || [];
+    currentLoadedBatches = json.data || [];
 
-    document.getElementById('manage-batches-count').textContent = batches.length;
-
-    if (batches.length === 0) {
-      listContainer.innerHTML = `
-        <div class="p-8 text-center text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">
-          <i data-lucide="package-x" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
-          <p class="font-medium text-slate-600">สินค้านี้ยังไม่มีล็อตในสต็อก (คงเหลือ 0)</p>
-          <p class="text-[11px] text-slate-400 mt-1">กดปุ่ม "+ รับเข้าล็อตใหม่" ด้านบนเพื่อเพิ่มล็อตแรก</p>
-        </div>
-      `;
-      if (window.lucide) lucide.createIcons();
-      return;
-    }
-
-    listContainer.innerHTML = batches.map((b, idx) => {
-      let statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">ปกติ</span>`;
-      if (b.is_expired) {
-        statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">หมดอายุแล้ว</span>`;
-      } else if (b.is_expiring_soon) {
-        statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">ใกล้หมด (${b.days_until_expiry} วัน)</span>`;
-      }
-
-      return `
-        <div class="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-2.5">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-2">
-              <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-600 font-bold text-[10px] flex items-center justify-center">${idx + 1}</span>
-              <span class="font-mono font-bold text-slate-800 text-xs">${b.lot_number || 'LOT-AUTO'}</span>
-            </div>
-            <div>${statusBadge}</div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2 text-xs">
-            <div>
-              <label class="block text-[10px] text-slate-500 font-medium mb-1">จำนวนคงเหลือ (${product.unit}):</label>
-              <input type="number" step="any" min="0" id="batch-edit-qty-${b.id}" value="${b.quantity}" class="w-full p-2 font-bold text-slate-900 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            </div>
-            <div>
-              <label class="block text-[10px] text-slate-500 font-medium mb-1">วันหมดอายุ (Expiry):</label>
-              <input type="date" id="batch-edit-exp-${b.id}" value="${b.expiry_date || ''}" class="w-full p-2 font-semibold text-slate-900 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            </div>
-          </div>
-
-          <div class="flex items-center justify-between pt-1 border-t border-slate-100">
-            <span class="text-[10px] text-slate-400 truncate max-w-[150px]">${b.notes ? 'หมายเหตุ: ' + b.notes : 'รับเข้า: ' + (b.received_date || '-')}</span>
-            <div class="flex items-center space-x-1.5">
-              <button type="button" onclick="deleteBatchItem('${b.id}')" class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 active:scale-95 rounded-xl font-semibold text-[11px] flex items-center space-x-1 transition">
-                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                <span>ลบล็อตนี้</span>
-              </button>
-              <button type="button" onclick="saveBatchChanges('${b.id}')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white active:scale-95 rounded-xl font-semibold text-[11px] flex items-center space-x-1 transition shadow-2xs">
-                <i data-lucide="save" class="w-3.5 h-3.5"></i>
-                <span>บันทึก</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    if (window.lucide) lucide.createIcons();
+    renderBatchModalItems();
   } catch (err) {
     listContainer.innerHTML = `<p class="text-rose-500 p-4 text-center">เกิดข้อผิดพลาดในการโหลดล็อต: ${err.message}</p>`;
   }
+}
+
+function renderBatchModalItems() {
+  const listContainer = document.getElementById('manage-batches-list');
+  if (!listContainer) return;
+  const product = state.products.find(p => p.id == currentBatchProductId);
+  if (!product) return;
+
+  const countEl = document.getElementById('manage-batches-count');
+  if (countEl) countEl.textContent = currentLoadedBatches.length;
+
+  if (!currentLoadedBatches || currentLoadedBatches.length === 0) {
+    listContainer.innerHTML = `
+      <div class="p-8 text-center text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">
+        <i data-lucide="package-x" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+        <p class="font-medium text-slate-600">สินค้านี้ยังไม่มีล็อตในสต็อก (คงเหลือ 0)</p>
+        <p class="text-[11px] text-slate-400 mt-1">กดปุ่ม "+ รับเข้าล็อตใหม่" ด้านบนเพื่อเพิ่มล็อตแรก</p>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  const sortMode = state.batchModalSort || 'EXPIRY_ASC';
+  const sortedBatches = [...currentLoadedBatches].sort((a, b) => {
+    if (sortMode === 'EXPIRY_ASC') {
+      return (a.expiry_date || '9999-99-99').localeCompare(b.expiry_date || '9999-99-99');
+    } else if (sortMode === 'EXPIRY_DESC') {
+      return (b.expiry_date || '0000-00-00').localeCompare(a.expiry_date || '0000-00-00');
+    } else if (sortMode === 'DATE_DESC') {
+      return (b.received_date || '').localeCompare(a.received_date || '');
+    } else if (sortMode === 'QTY_DESC') {
+      return (Number(b.quantity) || 0) - (Number(a.quantity) || 0);
+    }
+    return 0;
+  });
+
+  listContainer.innerHTML = sortedBatches.map((b, idx) => {
+    let statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">ปกติ</span>`;
+    if (b.is_expired) {
+      statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">หมดอายุแล้ว</span>`;
+    } else if (b.is_expiring_soon) {
+      statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">ใกล้หมด (${b.days_until_expiry} วัน)</span>`;
+    }
+
+    return `
+      <div class="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-2.5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-600 font-bold text-[10px] flex items-center justify-center">${idx + 1}</span>
+            <span class="font-mono font-bold text-slate-800 text-xs">${b.lot_number || 'LOT-AUTO'}</span>
+          </div>
+          <div>${statusBadge}</div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div>
+            <label class="block text-[10px] text-slate-500 font-medium mb-1">จำนวนคงเหลือ (${product.unit}):</label>
+            <input type="number" step="any" min="0" id="batch-edit-qty-${b.id}" value="${b.quantity}" class="w-full p-2 font-bold text-slate-900 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-[10px] text-slate-500 font-medium mb-1">วันหมดอายุ (Expiry):</label>
+            <input type="date" id="batch-edit-exp-${b.id}" value="${b.expiry_date || ''}" class="w-full p-2 font-semibold text-slate-900 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-1 border-t border-slate-100">
+          <span class="text-[10px] text-slate-400 truncate max-w-[150px]">${b.notes ? 'หมายเหตุ: ' + b.notes : 'รับเข้า: ' + (b.received_date || '-')}</span>
+          <div class="flex items-center space-x-1.5">
+            <button type="button" onclick="deleteBatchItem('${b.id}')" class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 active:scale-95 rounded-xl font-semibold text-[11px] flex items-center space-x-1 transition">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              <span>ลบล็อตนี้</span>
+            </button>
+            <button type="button" onclick="saveBatchChanges('${b.id}')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white active:scale-95 rounded-xl font-semibold text-[11px] flex items-center space-x-1 transition shadow-2xs">
+              <i data-lucide="save" class="w-3.5 h-3.5"></i>
+              <span>บันทึก</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (window.lucide) lucide.createIcons();
 }
 
 function handleAddBatchFromManager() {

@@ -167,14 +167,26 @@
                 <h3 class="font-bold text-rose-900 text-sm sm:text-base">⚠️ สินค้าที่ต่ำกว่าเกณฑ์ Safety Stock</h3>
                 <span id="low-stock-badge-count" class="text-xs px-2.5 py-0.5 rounded-full bg-rose-200 text-rose-800 font-semibold">0 รายการ</span>
               </div>
-              <div class="flex items-center space-x-2">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <div class="flex items-center space-x-1 bg-white/80 px-2 py-1 rounded-lg border border-rose-200 text-xs">
+                  <label for="sort-low-stock" class="text-[11px] text-rose-700 font-semibold whitespace-nowrap flex items-center space-x-1">
+                    <i data-lucide="arrow-down-up" class="w-3 h-3 text-rose-500"></i>
+                    <span class="hidden sm:inline">เรียง:</span>
+                  </label>
+                  <select id="sort-low-stock" onchange="changeLowStockSort(this.value)" class="text-xs py-0.5 px-1.5 rounded-md border-0 bg-transparent font-medium text-slate-800 focus:ring-1 focus:ring-rose-400">
+                    <option value="URGENCY_DESC">🚨 ขาดมากสุด (ด่วนสุด)</option>
+                    <option value="UPDATED_DESC">🕒 แก้ไขล่าสุด</option>
+                    <option value="NAME_ASC">🔤 ชื่อสินค้า (ก-ฮ)</option>
+                    <option value="STOCK_ASC">📦 คงเหลือน้อยสุด</option>
+                  </select>
+                </div>
                 <button type="button" onclick="copyOrderListToClipboard()" title="คัดลอกรายการสั่งของนำไปวางใน LINE หรือแชต" class="inline-flex items-center space-x-1 px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border border-slate-300 shadow-2xs transition active:scale-95">
                   <i data-lucide="copy" class="w-3.5 h-3.5 text-slate-600"></i>
-                  <span>📋 คัดลอกรายการ</span>
+                  <span>📋 คัดลอก</span>
                 </button>
                 <button type="button" onclick="triggerSendOrderReport()" title="ส่งใบสรุปสั่งของเข้า LINE กลุ่มทันที" class="inline-flex items-center space-x-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs font-semibold rounded-lg shadow-xs transition">
                   <i data-lucide="send" class="w-3.5 h-3.5"></i>
-                  <span>📲 ส่งเข้า LINE</span>
+                  <span>📲 ส่ง LINE</span>
                 </button>
               </div>
             </div>
@@ -185,12 +197,24 @@
 
           <!-- Expiring Soon Box -->
           <div class="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
-            <div class="p-4 bg-amber-50/70 border-b border-amber-200 flex justify-between items-center">
+            <div class="p-4 bg-amber-50/70 border-b border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               <div class="flex items-center space-x-2">
                 <i data-lucide="clock" class="w-4 h-4 text-amber-600"></i>
                 <h3 class="font-bold text-amber-900 text-sm sm:text-base">⏳ ล็อตสินค้าที่ใกล้หรือหมดอายุแล้ว</h3>
+                <span id="expiring-badge-count" class="text-xs px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-800 font-semibold">0 รายการ</span>
               </div>
-              <span id="expiring-badge-count" class="text-xs px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-800 font-semibold">0 รายการ</span>
+              <div class="flex items-center space-x-1 bg-white/80 px-2 py-1 rounded-lg border border-amber-200 text-xs">
+                <label for="sort-expiring" class="text-[11px] text-amber-800 font-semibold whitespace-nowrap flex items-center space-x-1">
+                  <i data-lucide="arrow-down-up" class="w-3 h-3 text-amber-600"></i>
+                  <span class="hidden sm:inline">เรียง:</span>
+                </label>
+                <select id="sort-expiring" onchange="changeExpiringSort(this.value)" class="text-xs py-0.5 px-1.5 rounded-md border-0 bg-transparent font-medium text-slate-800 focus:ring-1 focus:ring-amber-400">
+                  <option value="EXPIRY_ASC">⏳ หมดอายุเร็วสุด (FIFO)</option>
+                  <option value="DATE_DESC">🕒 วันที่รับเข้าล่าสุด</option>
+                  <option value="NAME_ASC">🔤 ชื่อสินค้า (ก-ฮ)</option>
+                  <option value="QTY_DESC">📦 จำนวนคงเหลือมากสุด</option>
+                </select>
+              </div>
             </div>
             <div id="expiring-batch-list" class="divide-y divide-slate-100 p-2">
               <!-- Rendered via JS -->
@@ -274,11 +298,12 @@
                 <span class="hidden sm:inline">เรียง:</span>
               </label>
               <select id="sort-inventory" onchange="changeInventorySort(this.value)" class="text-xs py-0.5 px-2 rounded-md border border-slate-300 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-2xs">
-                <option value="UPDATED_DESC">🕒 อัปเดตล่าสุด (ค่าเริ่มต้น)</option>
-                <option value="NAME_ASC">🔤 ชื่อสินค้า (ก - ฮ)</option>
-                <option value="NAME_DESC">🔤 ชื่อสินค้า (ฮ - ก)</option>
+                <option value="UPDATED_DESC">🕒 วันที่แก้ไขล่าสุด (ค่าเริ่มต้น)</option>
+                <option value="UPDATED_ASC">🕒 วันที่แก้ไขนานสุด</option>
                 <option value="CREATED_DESC">📅 วันที่สร้าง (ใหม่ล่าสุด)</option>
                 <option value="CREATED_ASC">📅 วันที่สร้าง (เก่าสุด)</option>
+                <option value="NAME_ASC">🔤 ชื่อสินค้า (ก - ฮ)</option>
+                <option value="NAME_DESC">🔤 ชื่อสินค้า (ฮ - ก)</option>
                 <option value="EXPIRY_ASC">⏳ วันหมดอายุ (ใกล้หมดก่อน)</option>
                 <option value="STOCK_ASC">📦 คงเหลือ (น้อย ➔ มาก)</option>
                 <option value="STOCK_DESC">📦 คงเหลือ (มาก ➔ น้อย)</option>
@@ -379,9 +404,9 @@
                     <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
                   </div>
                 </th>
-                <th class="p-3.5 cursor-pointer hover:text-indigo-600 transition" onclick="toggleSortHeader('UPDATED')" title="คลิกเพื่อเรียงตามวันที่อัปเดตล่าสุด">
-                  <div class="flex items-center space-x-1 text-indigo-600">
-                    <span>อัปเดตล่าสุด</span>
+                <th class="p-3.5 cursor-pointer hover:text-indigo-600 transition" onclick="toggleSortHeader('UPDATED')" title="คลิกเพื่อสลับเรียง: วันที่แก้ไขล่าสุด / วันที่สร้าง">
+                  <div class="flex items-center space-x-1 text-indigo-600 font-bold">
+                    <span>เวลาแก้ไข / วันที่สร้าง</span>
                     <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5"></i>
                   </div>
                 </th>
@@ -426,13 +451,33 @@
 
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs">
-            <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+            <thead class="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 select-none">
               <tr>
-                <th class="p-3">สินค้า</th>
-                <th class="p-3">สต็อกคงเหลือปัจจุบัน</th>
-                <th class="p-3">ยอดใช้ 30 วันที่ผ่านมา</th>
+                <th class="p-3 cursor-pointer hover:text-blue-600 transition" onclick="togglePlanningSortHeader('NAME')" title="คลิกเพื่อเรียงตามชื่อสินค้า">
+                  <div class="flex items-center space-x-1">
+                    <span>สินค้า</span>
+                    <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                  </div>
+                </th>
+                <th class="p-3 cursor-pointer hover:text-blue-600 transition" onclick="togglePlanningSortHeader('STOCK')" title="คลิกเพื่อเรียงตามสต็อกคงเหลือ">
+                  <div class="flex items-center space-x-1">
+                    <span>สต็อกคงเหลือปัจจุบัน</span>
+                    <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                  </div>
+                </th>
+                <th class="p-3 cursor-pointer hover:text-blue-600 transition" onclick="togglePlanningSortHeader('USED')" title="คลิกเพื่อเรียงตามยอดใช้ 30 วัน">
+                  <div class="flex items-center space-x-1">
+                    <span>ยอดใช้ 30 วันที่ผ่านมา</span>
+                    <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                  </div>
+                </th>
                 <th class="p-3">ใช้เฉลี่ยต่อวัน</th>
-                <th class="p-3">ประมาณการสต็อกอยู่ได้อีก</th>
+                <th class="p-3 cursor-pointer hover:text-blue-600 transition" onclick="togglePlanningSortHeader('DAYS')" title="คลิกเพื่อเรียงตามประมาณการวันที่อยู่ได้">
+                  <div class="flex items-center space-x-1 text-blue-600 font-bold">
+                    <span>ประมาณการสต็อกอยู่ได้อีก</span>
+                    <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5"></i>
+                  </div>
+                </th>
                 <th class="p-3">คำแนะนำการสั่งซื้อ</th>
               </tr>
             </thead>
@@ -474,21 +519,56 @@
 
         <!-- 1. INBOUND RECEIVING HISTORY VIEW -->
         <div id="history-view-inbound" class="space-y-0">
-          <div class="p-3 bg-emerald-50/50 border-b border-emerald-100 flex justify-between items-center text-xs">
+          <div class="p-3 bg-emerald-50/50 border-b border-emerald-100 flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-xs">
             <span class="text-emerald-800 font-medium">📦 ตรวจสอบรายการที่รับของเข้าสต็อก (ทั้งผ่านหน้าเว็บและผ่าน LINE) หากรับผิดสามารถกดลบหรือแก้ไขได้ทันที</span>
-            <span class="text-slate-400 text-[11px]">100 รายการล่าสุด</span>
+            <div class="flex items-center space-x-2 self-end sm:self-auto">
+              <label for="sort-inbound" class="text-slate-500 font-semibold whitespace-nowrap text-[11px] flex items-center space-x-1">
+                <i data-lucide="arrow-down-up" class="w-3.5 h-3.5 text-emerald-600"></i>
+                <span>เรียงตาม:</span>
+              </label>
+              <select id="sort-inbound" onchange="changeInboundSort(this.value)" class="text-xs bg-white border border-slate-300 text-slate-700 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-emerald-500 shadow-2xs font-medium">
+                <option value="DATE_DESC">🕒 วันที่รับเข้า (ล่าสุดก่อน)</option>
+                <option value="DATE_ASC">🕒 วันที่รับเข้า (เก่าสุดก่อน)</option>
+                <option value="EXPIRY_ASC">⏳ วันหมดอายุ (ใกล้สุดก่อน)</option>
+                <option value="EXPIRY_DESC">⏳ วันหมดอายุ (ไกลสุดก่อน)</option>
+                <option value="NAME_ASC">🔤 ชื่อสินค้า (ก - ฮ)</option>
+                <option value="NAME_DESC">🔤 ชื่อสินค้า (ฮ - ก)</option>
+                <option value="QTY_DESC">📦 จำนวนที่รับ (มาก ➔ น้อย)</option>
+                <option value="QTY_ASC">📦 จำนวนที่รับ (น้อย ➔ มาก)</option>
+              </select>
+            </div>
           </div>
 
           <!-- Desktop Inbound Table -->
           <div class="hidden md:block overflow-x-auto">
             <table class="w-full text-left text-xs">
-              <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+              <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 select-none">
                 <tr>
-                  <th class="p-3">วันที่รับเข้า</th>
-                  <th class="p-3">สินค้า / หมวดหมู่</th>
-                  <th class="p-3">จำนวนที่รับ</th>
+                  <th class="p-3 cursor-pointer hover:text-emerald-700 transition" onclick="toggleInboundSortHeader('DATE')" title="คลิกเพื่อเรียงตามวันที่รับเข้า">
+                    <div class="flex items-center space-x-1 text-emerald-700 font-bold">
+                      <span>วันที่รับเข้า / เวลาบันทึก</span>
+                      <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5"></i>
+                    </div>
+                  </th>
+                  <th class="p-3 cursor-pointer hover:text-emerald-700 transition" onclick="toggleInboundSortHeader('NAME')" title="คลิกเพื่อเรียงตามชื่อสินค้า">
+                    <div class="flex items-center space-x-1">
+                      <span>สินค้า / หมวดหมู่</span>
+                      <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                    </div>
+                  </th>
+                  <th class="p-3 cursor-pointer hover:text-emerald-700 transition" onclick="toggleInboundSortHeader('QTY')" title="คลิกเพื่อเรียงตามจำนวนที่รับ">
+                    <div class="flex items-center space-x-1">
+                      <span>จำนวนที่รับ</span>
+                      <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                    </div>
+                  </th>
                   <th class="p-3">คงเหลือในล็อต</th>
-                  <th class="p-3">วันหมดอายุ</th>
+                  <th class="p-3 cursor-pointer hover:text-emerald-700 transition" onclick="toggleInboundSortHeader('EXPIRY')" title="คลิกเพื่อเรียงตามวันหมดอายุ">
+                    <div class="flex items-center space-x-1">
+                      <span>วันหมดอายุ</span>
+                      <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                    </div>
+                  </th>
                   <th class="p-3">เลขล็อต</th>
                   <th class="p-3">หมายเหตุ / ช่องทาง</th>
                   <th class="p-3 text-center">จัดการ</th>
@@ -508,22 +588,56 @@
 
         <!-- 2. OUTBOUND USAGE HISTORY VIEW -->
         <div id="history-view-outbound" class="hidden space-y-0">
-          <div class="p-3 bg-amber-50/50 border-b border-amber-100 flex justify-between items-center text-xs">
+          <div class="p-3 bg-amber-50/50 border-b border-amber-100 flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-xs">
             <span class="text-amber-800 font-medium">📋 บันทึกประวัติการเบิกใช้ ตัดของเสีย และการปรับยอดสต็อกตามหลัก FIFO</span>
-            <span class="text-slate-400 text-[11px]">100 รายการล่าสุด</span>
+            <div class="flex items-center space-x-2 self-end sm:self-auto">
+              <label for="sort-outbound" class="text-slate-500 font-semibold whitespace-nowrap text-[11px] flex items-center space-x-1">
+                <i data-lucide="arrow-down-up" class="w-3.5 h-3.5 text-amber-600"></i>
+                <span>เรียงตาม:</span>
+              </label>
+              <select id="sort-outbound" onchange="changeOutboundSort(this.value)" class="text-xs bg-white border border-slate-300 text-slate-700 rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-amber-500 shadow-2xs font-medium">
+                <option value="DATE_DESC">🕒 วันที่ตัด (ล่าสุดก่อน)</option>
+                <option value="DATE_ASC">🕒 วันที่ตัด (เก่าสุดก่อน)</option>
+                <option value="NAME_ASC">🔤 ชื่อสินค้า (ก - ฮ)</option>
+                <option value="NAME_DESC">🔤 ชื่อสินค้า (ฮ - ก)</option>
+                <option value="QTY_DESC">📦 จำนวนที่ใช้ (มาก ➔ น้อย)</option>
+                <option value="QTY_ASC">📦 จำนวนที่ใช้ (น้อย ➔ มาก)</option>
+                <option value="USER_ASC">👤 ผู้เบิก (ก - ฮ)</option>
+              </select>
+            </div>
           </div>
 
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
-              <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
+              <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 select-none">
                 <tr>
-                  <th class="p-3">วันที่ใช้</th>
-                  <th class="p-3">สินค้า</th>
+                  <th class="p-3 cursor-pointer hover:text-amber-700 transition" onclick="toggleOutboundSortHeader('DATE')" title="คลิกเพื่อเรียงตามวันที่ใช้">
+                    <div class="flex items-center space-x-1 text-amber-700 font-bold">
+                      <span>วันที่ใช้ / เวลาบันทึก</span>
+                      <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5"></i>
+                    </div>
+                  </th>
+                  <th class="p-3 cursor-pointer hover:text-amber-700 transition" onclick="toggleOutboundSortHeader('NAME')" title="คลิกเพื่อเรียงตามชื่อสินค้า">
+                    <div class="flex items-center space-x-1">
+                      <span>สินค้า</span>
+                      <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                    </div>
+                  </th>
                   <th class="p-3">ล็อตที่ตัด</th>
-                  <th class="p-3">จำนวนที่ใช้</th>
+                  <th class="p-3 cursor-pointer hover:text-amber-700 transition" onclick="toggleOutboundSortHeader('QTY')" title="คลิกเพื่อเรียงตามจำนวนที่ใช้">
+                    <div class="flex items-center space-x-1">
+                      <span>จำนวนที่ใช้</span>
+                      <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                    </div>
+                  </th>
                   <th class="p-3">ประเภท</th>
                   <th class="p-3">วัตถุประสงค์ / หมายเหตุ</th>
-                  <th class="p-3">ผู้เบิก</th>
+                  <th class="p-3 cursor-pointer hover:text-amber-700 transition" onclick="toggleOutboundSortHeader('USER')" title="คลิกเพื่อเรียงตามชื่อผู้เบิก">
+                    <div class="flex items-center space-x-1">
+                      <span>ผู้เบิก</span>
+                      <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody id="usage-history-table-body" class="divide-y divide-slate-100">
@@ -1273,7 +1387,15 @@
       <div class="space-y-2">
         <div class="flex items-center justify-between text-xs font-semibold text-slate-500 px-1">
           <span>รายการล็อตทั้งหมด (<span id="manage-batches-count">0</span> ล็อต)</span>
-          <span class="text-[10px] text-slate-400">เรียงตามวันหมดอายุ (FIFO)</span>
+          <div class="flex items-center space-x-1">
+            <label for="sort-batch-modal" class="text-[10px] text-slate-400 font-semibold">เรียง:</label>
+            <select id="sort-batch-modal" onchange="changeBatchModalSort(this.value)" class="text-[11px] bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-2 py-0.5 font-medium focus:ring-1 focus:ring-indigo-500">
+              <option value="EXPIRY_ASC">⏳ หมดอายุใกล้สุด (FIFO)</option>
+              <option value="EXPIRY_DESC">⏳ หมดอายุไกลสุด</option>
+              <option value="DATE_DESC">🕒 วันที่รับเข้าล่าสุด</option>
+              <option value="QTY_DESC">📦 จำนวนคงเหลือมากสุด</option>
+            </select>
+          </div>
         </div>
         <div id="manage-batches-list" class="space-y-2.5 max-h-80 overflow-y-auto pr-1">
           <!-- Populated by JS -->
