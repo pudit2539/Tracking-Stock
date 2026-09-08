@@ -485,7 +485,7 @@ class LineBotService {
                   type: 'button',
                   style: 'link',
                   height: 'sm',
-                  action: { type: 'uri', label: '📱 ดูภาพรวมบนเว็บ', uri: webUrl }
+                  action: { type: 'uri', label: '📱 ดูข้อมูลสินค้านี้บนเว็บ', uri: `${webUrl}?tab=inventory&product_id=${product.id}` }
                 }
               ]
             }
@@ -549,7 +549,7 @@ class LineBotService {
                   type: 'button',
                   style: 'link',
                   height: 'sm',
-                  action: { type: 'uri', label: '📱 เปิดระบบสต็อก', uri: webUrl }
+                  action: { type: 'uri', label: '📱 ดูประวัติการรับเข้าบนเว็บ', uri: `${webUrl}?tab=usage&subtab=inbound` }
                 }
               ]
             }
@@ -722,6 +722,7 @@ class LineBotService {
         layout: 'vertical',
         spacing: 'xs',
         margin: idx === 0 ? 'none' : 'md',
+        ...(webUrl && r.product ? { action: { type: 'uri', label: r.product.name, uri: `${webUrl}?tab=inventory&product_id=${r.product.id}` } } : {}),
         contents: [
           {
             type: 'box',
@@ -834,7 +835,11 @@ class LineBotService {
               type: 'button',
               style: 'link',
               height: 'sm',
-              action: { type: 'uri', label: '📱 ดูภาพรวมสต็อกบนเว็บ', uri: webUrl }
+              action: { 
+                type: 'uri', 
+                label: isAllAdd ? '📱 ดูประวัติการรับเข้าบนเว็บ' : (isAllUse ? '📱 ดูประวัติการเบิกใช้บนเว็บ' : '📱 ดูภาพรวมสต็อกบนเว็บ'), 
+                uri: isAllAdd ? `${webUrl}?tab=usage&subtab=inbound` : (isAllUse ? `${webUrl}?tab=usage&subtab=outbound` : `${webUrl}?tab=inventory`)
+              }
             }
           ]
         }
@@ -981,7 +986,7 @@ class LineBotService {
               type: 'button',
               style: 'link',
               height: 'sm',
-              action: { type: 'uri', label: '📱 ตรวจสอบรายชื่อสินค้าทั้งหมดบนเว็บ', uri: webUrl }
+              action: { type: 'uri', label: '📱 ตรวจสอบรายชื่อสินค้าทั้งหมดบนเว็บ', uri: `${webUrl}?tab=inventory` }
             }
           ]
         }
@@ -1001,6 +1006,7 @@ class LineBotService {
           layout: 'vertical',
           backgroundColor: isLow ? '#DC2626' : '#1E293B',
           paddingAll: '16px',
+          ...(webUrl ? { action: { type: 'uri', uri: `${webUrl}?tab=inventory&product_id=${product.id}` } } : {}),
           contents: [
             { type: 'text', text: isLow ? '⚠️ ตัดสต็อกสำเร็จ (ของใกล้หมด!)' : '✅ บันทึกตัดสต็อกสำเร็จ', weight: 'bold', color: '#FFFFFF', size: 'sm' },
             { type: 'text', text: product.name, weight: 'bold', color: '#FFFFFF', size: 'lg', margin: 'xs' }
@@ -1058,7 +1064,11 @@ class LineBotService {
               type: 'button',
               style: 'link',
               height: 'sm',
-              action: { type: 'uri', label: '📱 เปิดเช็คสต็อกทั้งหมด', uri: webUrl }
+              action: { 
+                type: 'uri', 
+                label: isLow ? '📱 ดูสินค้าใกล้หมดบนเว็บ' : '📱 ดูประวัติการเบิกใช้บนเว็บ', 
+                uri: isLow ? `${webUrl}?tab=inventory&filter=LOW` : `${webUrl}?tab=usage&subtab=outbound` 
+              }
             }
           ]
         }
@@ -1079,6 +1089,7 @@ class LineBotService {
           layout: 'vertical',
           backgroundColor: '#334155',
           paddingAll: '16px',
+          ...(webUrl ? { action: { type: 'uri', uri: `${webUrl}?tab=inventory&product_id=${product.id}` } } : {}),
           contents: [
             { type: 'text', text: `หมวด: ${product.category || 'ทั่วไป'}`, color: '#94A3B8', size: 'xs' },
             { type: 'text', text: product.name, weight: 'bold', color: '#FFFFFF', size: 'lg', margin: 'xs' }
@@ -1125,7 +1136,7 @@ class LineBotService {
               type: 'button',
               style: 'link',
               height: 'sm',
-              action: { type: 'uri', label: '📱 เปิดดูในระบบ', uri: webUrl }
+              action: { type: 'uri', label: '📱 ดูรายละเอียดสินค้านี้บนเว็บ', uri: `${webUrl}?tab=inventory&product_id=${product.id}` }
             }
           ]
         }
@@ -1163,6 +1174,7 @@ class LineBotService {
             {
               type: 'box',
               layout: 'horizontal',
+              ...(webUrl ? { action: { type: 'uri', uri: `${webUrl}?tab=inventory&filter=ALL` } } : {}),
               contents: [
                 { type: 'text', text: '📦 สินค้าทั้งหมด:', color: '#64748B', size: 'xs', flex: 6 },
                 { type: 'text', text: `${total} รายการ`, weight: 'bold', color: '#1E293B', size: 'xs', flex: 4, align: 'end' }
@@ -1171,6 +1183,7 @@ class LineBotService {
             {
               type: 'box',
               layout: 'horizontal',
+              ...(webUrl ? { action: { type: 'uri', uri: `${webUrl}?tab=inventory&filter=LOW` } } : {}),
               contents: [
                 { type: 'text', text: '⚠️ ต่ำกว่าเกณฑ์/ของหมด:', color: '#64748B', size: 'xs', flex: 6 },
                 { type: 'text', text: `${lowCount} รายการ`, weight: 'bold', color: lowCount > 0 ? '#DC2626' : '#059669', size: 'xs', flex: 4, align: 'end' }
@@ -1179,6 +1192,7 @@ class LineBotService {
             {
               type: 'box',
               layout: 'horizontal',
+              ...(webUrl ? { action: { type: 'uri', uri: `${webUrl}?tab=inventory&filter=EXPIRING` } } : {}),
               contents: [
                 { type: 'text', text: '⏳ ใกล้/หมดอายุใน 7 วัน:', color: '#64748B', size: 'xs', flex: 6 },
                 { type: 'text', text: `${expCount} รายการ`, weight: 'bold', color: expCount > 0 ? '#D97706' : '#059669', size: 'xs', flex: 4, align: 'end' }
@@ -1197,7 +1211,7 @@ class LineBotService {
               style: 'primary',
               color: '#2563EB',
               height: 'sm',
-              action: { type: 'uri', label: '📱 เปิดระบบสต็อกสินค้า', uri: webUrl }
+              action: { type: 'uri', label: '📱 เปิดเช็คสต็อกสินค้าทั้งหมด', uri: `${webUrl}?tab=inventory` }
             }
           ]
         }

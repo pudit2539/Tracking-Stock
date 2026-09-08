@@ -1,4 +1,7 @@
 // State management
+let currentDetailProductId = null;
+let hasHandledInitialUrlModal = false;
+
 let state = {
   products: [],
   batches: [],
@@ -158,9 +161,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 1. Instant 0ms Render from LocalStorage Cache
   const hadCache = loadCachedState();
+  if (hadCache) {
+    handleUrlRouting();
+  }
 
   // 2. Refresh fresh server data in background
   await loadAllData();
+  handleUrlRouting();
 });
 
 // Load all data from API (High speed 1-roundtrip bootstrap)
@@ -429,8 +436,8 @@ async function handleUpdateAdminPin(e) {
   }
 }
 
-// Tab Switching
-function switchTab(tabName) {
+// Tab Switching with URL state sync
+function switchTab(tabName, updateUrl = true) {
   if (tabName === 'settings' && state.currentRole !== 'admin') {
     state.pendingAdminTab = 'settings';
     showToast('แท็บการตั้งค่าสงวนไว้สำหรับ Admin เท่านั้น กรุณาใส่รหัส PIN เพื่อปลดล็อค', 'warning');
@@ -454,11 +461,147 @@ function switchTab(tabName) {
   }
 
   if (tabName === 'usage') {
-    switchUsageSubTab(state.historySubTab || 'inbound');
+    switchUsageSubTab(state.historySubTab || 'inbound', updateUrl);
+  }
+
+  if (updateUrl) {
+    try {
+      const url = new URL(window.location);
+      url.searchParams.set('tab', tabName);
+      if (tabName !== 'inventory') {
+        url.searchParams.delete('filter');
+        url.searchParams.delete('product_id');
+      }
+      if (tabName !== 'usage') {
+        url.searchParams.delete('subtab');
+      }
+      window.history.replaceState({}, '', url);
+    } catch (e) {}
   }
 
   if (window.lucide) lucide.createIcons();
 }
+
+// Navigate to Inventory Tab with a specific filter (from Dashboard Cards or Alert buttons)
+function navigateToInventoryWithFilter(filterType) {
+  playTapFeedback('click');
+  switchTab('inventory', false);
+  setInventoryFilter(filterType, false);
+  try {
+    const url = new URL(window.location);
+    url.searchParams.set('tab', 'inventory');
+    const norm = (filterType === 'LOW_STOCK') ? 'LOW' : filterType;
+    if (norm && norm !== 'ALL') {
+      url.searchParams.set('filter', norm);
+    } else {
+      url.searchParams.delete('filter');
+    }
+    url.searchParams.delete('product_id');
+    window.history.pushState({}, '', url);
+  } catch (e) {}
+}
+
+// Smoothly scroll to and highlight a specific product row or mobile card
+function highlightProductRow(productId) {
+  setTimeout(() => {
+    const row = document.getElementById(`prod-row-${productId}`);
+    const card = document.getElementById(`prod-card-${productId}`);
+    const target = (window.innerWidth < 768 && card) ? card : (row || card);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.add('ring-4', 'ring-indigo-500', 'bg-indigo-50/80', 'transition-all', 'duration-500');
+      setTimeout(() => {
+        target.classList.remove('ring-4', 'ring-indigo-500', 'bg-indigo-50/80');
+      }, 4000);
+    }
+  }, 400);
+}
+
+// Client-Side URL Deep Link & State Router
+function handleUrlRouting() {
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get('tab');
+  const subtab = params.get('subtab');
+  const filter = params.get('filter');
+  const productId = params.get('product_id') || params.get('productId') || params.get('id');
+  const action = params.get('action');
+  const search = params.get('search');
+
+  // 1. Search Query
+  if (search) {
+    const searchInput = document.getElementById('search-inventory');
+    if (searchInput) {
+      searchInput.value = search;
+    }
+  }
+
+  // 2. Tab Navigation
+  let targetTab = tab;
+  if (!targetTab) {
+    if (filter || productId) {
+      targetTab = 'inventory';
+    } else if (subtab) {
+      targetTab = 'usage';
+    }
+  }
+
+  if (targetTab && ['dashboard', 'inventory', 'usage', 'settings'].includes(targetTab)) {
+    switchTab(targetTab, false);
+  }
+
+  // 3. Filter in Inventory
+  if (filter) {
+    const upperFilter = filter.toUpperCase();
+    if (['ALL', 'LOW', 'LOW_STOCK', 'NO_EXPIRY', 'EXPIRING', 'EXPIRED'].includes(upperFilter)) {
+      setInventoryFilter(upperFilter, false);
+    }
+  } else if (productId) {
+    setInventoryFilter('ALL', false);
+  }
+
+  // 4. Usage Sub-Tab
+  if (subtab && ['inbound', 'outbound', 'planning'].includes(subtab.toLowerCase())) {
+    switchUsageSubTab(subtab.toLowerCase(), false);
+  }
+
+  // 5. Actions (Add product / batch / etc.)
+  if (action === 'add' || action === 'new') {
+    setTimeout(() => {
+      openAddProductModal();
+    }, 300);
+  } else if (action === 'add_batch' || action === 'inbound') {
+    setTimeout(() => {
+      if (productId) openAddBatchModalFor(productId);
+      else openAddBatchModal();
+    }, 300);
+  } else if (action === 'quick_update' && productId) {
+    setTimeout(() => {
+      openQuickUpdateModal(productId);
+    }, 300);
+  }
+
+  // 6. Product Detail Modal & Highlighting
+  if (productId) {
+    highlightProductRow(productId);
+    const detailDialog = document.getElementById('modal-product-detail');
+    const isAlreadyOpen = detailDialog && detailDialog.open && currentDetailProductId == productId;
+    if (!isAlreadyOpen && !hasHandledInitialUrlModal) {
+      const prodExists = state.products.some(p => p.id == productId);
+      if (prodExists) {
+        hasHandledInitialUrlModal = true;
+        setTimeout(() => {
+          openProductDetailModal(productId);
+        }, 450);
+      }
+    }
+  }
+}
+
+// Window popstate event listener for browser Back / Forward buttons
+window.addEventListener('popstate', () => {
+  hasHandledInitialUrlModal = false;
+  handleUrlRouting();
+});
 
 // Render UI Components
 function renderAll() {
@@ -1030,10 +1173,22 @@ function changeBatchModalSort(sortType) {
   renderBatchModalItems();
 }
 
-function setInventoryFilter(filter) {
+function setInventoryFilter(filter, updateUrl = true) {
   playTapFeedback('click');
-  state.inventoryFilter = filter;
+  const normFilter = (filter === 'LOW_STOCK') ? 'LOW' : filter;
+  state.inventoryFilter = normFilter;
   renderInventoryTable();
+  if (updateUrl) {
+    try {
+      const url = new URL(window.location);
+      if (normFilter && normFilter !== 'ALL') {
+        url.searchParams.set('filter', normFilter);
+      } else {
+        url.searchParams.delete('filter');
+      }
+      window.history.replaceState({}, '', url);
+    } catch (e) {}
+  }
 }
 
 // 4. Render Inventory Table with Filters & Quick Update
@@ -1060,6 +1215,19 @@ function renderInventoryTable() {
 
   const btnInvOrder = document.getElementById('btn-inventory-order-count');
   if (btnInvOrder) btnInvOrder.textContent = lowCount;
+  const btnOrderCount = document.getElementById('btn-order-count');
+  if (btnOrderCount) btnOrderCount.textContent = lowCount;
+
+  // Update filter pills active styling
+  const pillAll = document.getElementById('filter-pill-all');
+  const pillLow = document.getElementById('filter-pill-low');
+  const pillExp = document.getElementById('filter-pill-exp');
+  const pillExpired = document.getElementById('filter-pill-expired');
+
+  if (pillAll) pillAll.className = 'px-3 py-1 rounded-full font-medium transition ' + (currentFilter === 'ALL' ? 'bg-slate-900 text-white font-bold shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200');
+  if (pillLow) pillLow.className = 'px-3 py-1 rounded-full font-medium transition ' + (currentFilter === 'LOW' || currentFilter === 'LOW_STOCK' ? 'bg-rose-600 text-white font-bold shadow-xs' : 'bg-rose-50 text-rose-700 hover:bg-rose-100');
+  if (pillExp) pillExp.className = 'px-3 py-1 rounded-full font-medium transition ' + (currentFilter === 'EXPIRING' ? 'bg-amber-600 text-white font-bold shadow-xs' : 'bg-amber-50 text-amber-700 hover:bg-amber-100');
+  if (pillExpired) pillExpired.className = 'px-3 py-1 rounded-full font-medium transition ' + (currentFilter === 'EXPIRED' ? 'bg-red-600 text-white font-bold shadow-xs' : 'bg-red-100 text-red-800 hover:bg-red-200');
 
   // Update active chip styles
   document.querySelectorAll('.chip-filter').forEach(btn => {
@@ -1068,17 +1236,21 @@ function renderInventoryTable() {
   const activeChipId = {
     'ALL': 'chip-filter-all',
     'LOW': 'chip-filter-low',
+    'LOW_STOCK': 'chip-filter-low',
     'NO_EXPIRY': 'chip-filter-no-expiry',
-    'EXPIRING': 'chip-filter-expiring'
+    'EXPIRING': 'chip-filter-expiring',
+    'EXPIRED': 'chip-filter-expiring'
   }[currentFilter] || 'chip-filter-all';
   const activeChip = document.getElementById(activeChipId);
   if (activeChip) {
-    if (currentFilter === 'LOW') {
+    if (currentFilter === 'LOW' || currentFilter === 'LOW_STOCK') {
       activeChip.className = 'chip-filter px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-600 text-white transition';
     } else if (currentFilter === 'NO_EXPIRY') {
       activeChip.className = 'chip-filter px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-600 text-white transition';
     } else if (currentFilter === 'EXPIRING') {
       activeChip.className = 'chip-filter px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-600 text-white transition';
+    } else if (currentFilter === 'EXPIRED') {
+      activeChip.className = 'chip-filter px-2.5 py-1 rounded-lg text-xs font-bold bg-red-600 text-white transition';
     } else {
       activeChip.className = 'chip-filter px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-900 text-white transition';
     }
@@ -1107,9 +1279,10 @@ function renderInventoryTable() {
     const matchCat = selectedCat === 'ALL' || p.category === selectedCat;
 
     let matchFilter = true;
-    if (currentFilter === 'LOW') matchFilter = p.is_low_stock;
+    if (currentFilter === 'LOW' || currentFilter === 'LOW_STOCK') matchFilter = p.is_low_stock;
     else if (currentFilter === 'NO_EXPIRY') matchFilter = !p.nearest_expiry;
     else if (currentFilter === 'EXPIRING') matchFilter = p.is_expiring_soon || p.is_expired;
+    else if (currentFilter === 'EXPIRED') matchFilter = p.is_expired;
 
     return matchSearch && matchCat && matchFilter;
   });
@@ -1219,7 +1392,7 @@ function renderInventoryTable() {
       `;
 
     return `
-      <tr class="hover:bg-slate-50/80 transition border-b border-slate-100">
+      <tr id="prod-row-${p.id}" class="hover:bg-slate-50/80 transition border-b border-slate-100">
         <td class="p-3.5">
           <button type="button" onclick="openProductDetailModal('${p.id}')" class="text-left font-bold text-slate-900 hover:text-indigo-600 flex items-center space-x-1.5 group transition" title="คลิกเพื่อดูรายละเอียดสินค้าและประวัติย้อนหลัง">
             <span class="group-hover:underline text-xs">${p.name}</span>
@@ -1310,7 +1483,7 @@ function renderInventoryTable() {
           : `<span class="text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-md">ยังไม่ระบุ</span>`;
 
         return `
-          <div class="bg-white p-4 rounded-3xl border ${p.is_low_stock ? 'border-rose-200 shadow-rose-100/40' : 'border-slate-200'} shadow-sm space-y-3">
+          <div id="prod-card-${p.id}" class="bg-white p-4 rounded-3xl border ${p.is_low_stock ? 'border-rose-200 shadow-rose-100/40' : 'border-slate-200'} shadow-sm space-y-3">
             <!-- Header: Title & Status -->
             <div class="flex items-start justify-between gap-2">
               <div>
@@ -1384,11 +1557,6 @@ function renderInventoryTable() {
 }
 
 function filterInventory() {
-  renderInventoryTable();
-}
-
-function setInventoryFilter(type) {
-  state.inventoryFilter = type;
   renderInventoryTable();
 }
 
@@ -1487,7 +1655,7 @@ function renderPlanningTable() {
 }
 
 // 5.1 Switch Dual History & Planning Sub-Tabs (Inbound vs Outbound vs Planning)
-function switchUsageSubTab(tab) {
+function switchUsageSubTab(tab, updateUrl = true) {
   state.historySubTab = tab;
   const btnInbound = document.getElementById('subtab-main-inbound') || document.getElementById('subtab-inbound');
   const btnOutbound = document.getElementById('subtab-main-outbound') || document.getElementById('subtab-outbound');
@@ -1515,6 +1683,16 @@ function switchUsageSubTab(tab) {
     if (btnPlanning) btnPlanning.className = 'px-4 py-2 rounded-lg bg-blue-600 text-white shadow-xs transition flex items-center space-x-1.5 whitespace-nowrap active:scale-95';
     if (viewPlanning) viewPlanning.classList.remove('hidden');
   }
+
+  if (updateUrl && state.activeTab === 'usage') {
+    try {
+      const url = new URL(window.location);
+      url.searchParams.set('tab', 'usage');
+      url.searchParams.set('subtab', tab);
+      window.history.replaceState({}, '', url);
+    } catch (e) {}
+  }
+
   if (window.lucide) lucide.createIcons();
 }
 
@@ -1957,7 +2135,7 @@ function openEditProductModal(id) {
 // ==============================================================
 // MODAL: PRODUCT FULL DETAILS & HISTORY POPUP (ดูรายละเอียดสินค้า & ประวัติย้อนหลัง)
 // ==============================================================
-let currentDetailProductId = null;
+currentDetailProductId = null;
 let currentDetailTab = 'batches';
 
 function switchProductDetailTab(tab) {

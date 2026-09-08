@@ -206,6 +206,7 @@ class LineService {
         type: 'box',
         layout: 'horizontal',
         alignItems: 'center',
+        ...(webUrl ? { action: { type: 'uri', label: item.name, uri: `${webUrl}?tab=inventory&product_id=${item.id}` } } : {}),
         contents: [
           {
             type: 'box',
@@ -299,7 +300,7 @@ class LineService {
     const bubble = {
       type: 'bubble',
       size: 'mega',
-      ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: webUrl } } : {}),
+      ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: `${webUrl}?tab=inventory&filter=LOW` } } : {}),
       header: {
         type: 'box',
         layout: 'vertical',
@@ -308,7 +309,7 @@ class LineService {
         paddingBottom: '16px',
         paddingStart: '20px',
         paddingEnd: '20px',
-        ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: webUrl } } : {}),
+        ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: `${webUrl}?tab=inventory&filter=LOW` } } : {}),
         contents: [
           {
             type: 'text',
@@ -353,8 +354,8 @@ class LineService {
             height: 'sm',
             action: {
               type: 'uri',
-              label: '📱 เปิดเช็คสต็อกสินค้า',
-              uri: webUrl
+              label: '📱 เปิดเช็คสต็อกสินค้าใกล้หมด',
+              uri: `${webUrl}?tab=inventory&filter=LOW`
             }
           },
           {
@@ -405,6 +406,7 @@ class LineService {
         type: 'box',
         layout: 'horizontal',
         alignItems: 'center',
+        ...(webUrl ? { action: { type: 'uri', label: batch.product_name || 'ดูข้อมูล', uri: `${webUrl}?tab=inventory&product_id=${batch.product_id || batch.id}` } } : {}),
         contents: [
           {
             type: 'box',
@@ -475,7 +477,7 @@ class LineService {
     const bubble = {
       type: 'bubble',
       size: 'mega',
-      ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: webUrl } } : {}),
+      ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: `${webUrl}?tab=inventory&filter=EXPIRING` } } : {}),
       header: {
         type: 'box',
         layout: 'vertical',
@@ -484,7 +486,7 @@ class LineService {
         paddingBottom: '16px',
         paddingStart: '20px',
         paddingEnd: '20px',
-        ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: webUrl } } : {}),
+        ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: `${webUrl}?tab=inventory&filter=EXPIRING` } } : {}),
         contents: [
           {
             type: 'text',
@@ -529,8 +531,8 @@ class LineService {
             height: 'sm',
             action: {
               type: 'uri',
-              label: '📱 เปิดเช็ควันหมดอายุ',
-              uri: webUrl
+              label: '📱 เปิดเช็ควันหมดอายุสินค้า',
+              uri: `${webUrl}?tab=inventory&filter=EXPIRING`
             }
           },
           {
@@ -610,6 +612,7 @@ class LineService {
         type: 'box',
         layout: 'horizontal',
         alignItems: 'center',
+        ...(webUrl ? { action: { type: 'uri', label: item.name, uri: `${webUrl}?tab=inventory&product_id=${item.id}` } } : {}),
         contents: [
           {
             type: 'box',
@@ -703,7 +706,7 @@ class LineService {
     const bubble = {
       type: 'bubble',
       size: 'mega',
-      ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: webUrl } } : {}),
+      ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: `${webUrl}?tab=inventory&filter=LOW` } } : {}),
       header: {
         type: 'box',
         layout: 'vertical',
@@ -712,7 +715,7 @@ class LineService {
         paddingBottom: '16px',
         paddingStart: '20px',
         paddingEnd: '20px',
-        ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: webUrl } } : {}),
+        ...(webUrl ? { action: { type: 'uri', label: 'เปิดระบบสต็อก', uri: `${webUrl}?tab=inventory&filter=LOW` } } : {}),
         contents: [
           {
             type: 'text',
@@ -758,7 +761,7 @@ class LineService {
             action: {
               type: 'uri',
               label: '📱 เปิดตรวจเช็คและรับของเข้าสต็อก',
-              uri: webUrl
+              uri: `${webUrl}?tab=usage&subtab=inbound`
             }
           },
           {

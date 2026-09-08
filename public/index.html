@@ -100,51 +100,63 @@
       <!-- Top Metric Cards -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- Card 1: Total Products -->
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
-          <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-            <i data-lucide="package-check" class="w-6 h-6"></i>
+        <div onclick="navigateToInventoryWithFilter('ALL')" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between cursor-pointer hover:shadow-md hover:border-blue-300 hover:-translate-y-0.5 transition active:scale-98 group" title="คลิกเพื่อดูสินค้าทั้งหมดในคลัง">
+          <div class="flex items-center space-x-3.5">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition shrink-0">
+              <i data-lucide="package-check" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+            </div>
+            <div>
+              <p class="text-xs text-slate-500 font-medium">สินค้าทั้งหมด</p>
+              <h3 id="stat-total-products" class="text-xl sm:text-2xl font-bold text-slate-800">-</h3>
+              <span class="text-[11px] text-slate-400">รายการในระบบ</span>
+            </div>
           </div>
-          <div>
-            <p class="text-xs text-slate-500 font-medium">สินค้าทั้งหมด</p>
-            <h3 id="stat-total-products" class="text-2xl font-bold text-slate-800">-</h3>
-            <span class="text-xs text-slate-400">รายการในระบบ</span>
-          </div>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition hidden sm:block shrink-0"></i>
         </div>
 
         <!-- Card 2: Low Stock (Safety Alert) -->
-        <div class="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm flex items-center space-x-4 bg-rose-50/20">
-          <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
-            <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+        <div onclick="navigateToInventoryWithFilter('LOW')" class="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm flex items-center justify-between bg-rose-50/20 cursor-pointer hover:shadow-md hover:border-rose-400 hover:-translate-y-0.5 transition active:scale-98 group" title="คลิกเพื่อดูสินค้าที่สต็อกต่ำกว่าเกณฑ์ทั้งหมด">
+          <div class="flex items-center space-x-3.5">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center group-hover:scale-110 transition shrink-0">
+              <i data-lucide="alert-triangle" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+            </div>
+            <div>
+              <p class="text-xs text-rose-600 font-medium">ต่ำกว่า Safety Stock</p>
+              <h3 id="stat-low-stock" class="text-xl sm:text-2xl font-bold text-rose-600">-</h3>
+              <span class="text-[11px] text-rose-400">ต้องสั่งซื้อเพิ่มด่วน</span>
+            </div>
           </div>
-          <div>
-            <p class="text-xs text-rose-600 font-medium">ต่ำกว่า Safety Stock</p>
-            <h3 id="stat-low-stock" class="text-2xl font-bold text-rose-600">-</h3>
-            <span class="text-xs text-rose-400">ต้องสั่งซื้อเพิ่มด่วน</span>
-          </div>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-rose-300 group-hover:text-rose-600 group-hover:translate-x-1 transition hidden sm:block shrink-0"></i>
         </div>
 
         <!-- Card 3: Expiring Soon (0-7 Days) -->
-        <div class="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm flex items-center space-x-4 bg-amber-50/20">
-          <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-            <i data-lucide="hourglass" class="w-6 h-6"></i>
+        <div onclick="navigateToInventoryWithFilter('EXPIRING')" class="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm flex items-center justify-between bg-amber-50/20 cursor-pointer hover:shadow-md hover:border-amber-400 hover:-translate-y-0.5 transition active:scale-98 group" title="คลิกเพื่อดูสินค้าที่ใกล้หมดอายุในคลัง">
+          <div class="flex items-center space-x-3.5">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition shrink-0">
+              <i data-lucide="hourglass" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+            </div>
+            <div>
+              <p class="text-xs text-amber-600 font-medium">หมดอายุใน 7 วัน</p>
+              <h3 id="stat-expiring-soon" class="text-xl sm:text-2xl font-bold text-amber-600">-</h3>
+              <span class="text-[11px] text-amber-400">ต้องรีบใช้ก่อนเสีย</span>
+            </div>
           </div>
-          <div>
-            <p class="text-xs text-amber-600 font-medium">หมดอายุใน 7 วัน</p>
-            <h3 id="stat-expiring-soon" class="text-2xl font-bold text-amber-600">-</h3>
-            <span class="text-xs text-amber-400">ต้องรีบใช้ก่อนเสีย</span>
-          </div>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-amber-300 group-hover:text-amber-600 group-hover:translate-x-1 transition hidden sm:block shrink-0"></i>
         </div>
 
         <!-- Card 4: Expired Items -->
-        <div class="bg-white p-5 rounded-2xl border border-red-300 shadow-sm flex items-center space-x-4 bg-red-100/30">
-          <div class="w-12 h-12 rounded-xl bg-red-100 text-red-700 flex items-center justify-center">
-            <i data-lucide="ban" class="w-6 h-6"></i>
+        <div onclick="navigateToInventoryWithFilter('EXPIRING')" class="bg-white p-5 rounded-2xl border border-red-300 shadow-sm flex items-center justify-between bg-red-100/30 cursor-pointer hover:shadow-md hover:border-red-500 hover:-translate-y-0.5 transition active:scale-98 group" title="คลิกเพื่อดูสินค้าที่หมดอายุแล้วในคลัง">
+          <div class="flex items-center space-x-3.5">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-red-100 text-red-700 flex items-center justify-center group-hover:scale-110 transition shrink-0">
+              <i data-lucide="ban" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+            </div>
+            <div>
+              <p class="text-xs text-red-700 font-medium">หมดอายุแล้ว</p>
+              <h3 id="stat-expired" class="text-xl sm:text-2xl font-bold text-red-700">-</h3>
+              <span class="text-[11px] text-red-500">ต้องตัดทิ้งทันที</span>
+            </div>
           </div>
-          <div>
-            <p class="text-xs text-red-700 font-medium">หมดอายุแล้ว</p>
-            <h3 id="stat-expired" class="text-2xl font-bold text-red-700">-</h3>
-            <span class="text-xs text-red-500">ต้องตัดทิ้งทันที</span>
-          </div>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-red-300 group-hover:text-red-700 group-hover:translate-x-1 transition hidden sm:block shrink-0"></i>
         </div>
       </div>
 
@@ -152,22 +164,29 @@
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Box 1: Low Stock Alert List with Sort Dropdown -->
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
             <div class="flex items-center space-x-2">
               <span class="p-1.5 bg-rose-50 text-rose-600 rounded-lg">
                 <i data-lucide="trending-down" class="w-4 h-4"></i>
               </span>
               <h3 class="font-bold text-slate-800 text-sm sm:text-base">สินค้าใกล้หมด (ต่ำกว่า Safety Stock)</h3>
             </div>
-            <!-- Sort dropdown for Low Stock -->
-            <div class="flex items-center space-x-1.5">
-              <label for="sort-low-stock" class="text-[11px] text-slate-400 font-medium hidden sm:inline">เรียง:</label>
-              <select id="sort-low-stock" onchange="changeLowStockSort(this.value)" class="text-[11px] bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-2 py-0.5 font-medium focus:ring-1 focus:ring-rose-500">
-                <option value="URGENCY_DESC">🚨 วิกฤตสุดก่อน</option>
-                <option value="UPDATED_DESC">🕒 อัปเดตล่าสุด</option>
-                <option value="NAME_ASC">🔤 ชื่อสินค้า (ก-ฮ)</option>
-                <option value="STOCK_ASC">📦 สต็อกน้อย ➔ มาก</option>
-              </select>
+            <div class="flex items-center space-x-2 self-end sm:self-auto">
+              <!-- View in Inventory Button -->
+              <button onclick="navigateToInventoryWithFilter('LOW')" class="inline-flex items-center space-x-1 text-[11px] font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg border border-rose-200 transition active:scale-95 shadow-2xs" title="เปิดดูรายการใกล้หมดทั้งหมดในคลังสินค้า">
+                <span>ดูในคลัง</span>
+                <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+              </button>
+              <!-- Sort dropdown for Low Stock -->
+              <div class="flex items-center space-x-1.5">
+                <label for="sort-low-stock" class="text-[11px] text-slate-400 font-medium hidden sm:inline">เรียง:</label>
+                <select id="sort-low-stock" onchange="changeLowStockSort(this.value)" class="text-[11px] bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-2 py-0.5 font-medium focus:ring-1 focus:ring-rose-500">
+                  <option value="URGENCY_DESC">🚨 วิกฤตสุดก่อน</option>
+                  <option value="UPDATED_DESC">🕒 อัปเดตล่าสุด</option>
+                  <option value="NAME_ASC">🔤 ชื่อสินค้า (ก-ฮ)</option>
+                  <option value="STOCK_ASC">📦 สต็อกน้อย ➔ มาก</option>
+                </select>
+              </div>
             </div>
           </div>
           <div id="low-stock-list" class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
@@ -177,22 +196,29 @@
 
         <!-- Box 2: Expiring Batches Alert List with Sort Dropdown -->
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
             <div class="flex items-center space-x-2">
               <span class="p-1.5 bg-amber-50 text-amber-600 rounded-lg">
                 <i data-lucide="clock" class="w-4 h-4"></i>
               </span>
               <h3 class="font-bold text-slate-800 text-sm sm:text-base">สินค้าใกล้หมดอายุ (0-7 วัน)</h3>
             </div>
-            <!-- Sort dropdown for Expiring Soon -->
-            <div class="flex items-center space-x-1.5">
-              <label for="sort-expiring" class="text-[11px] text-slate-400 font-medium hidden sm:inline">เรียง:</label>
-              <select id="sort-expiring" onchange="changeExpiringSort(this.value)" class="text-[11px] bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-2 py-0.5 font-medium focus:ring-1 focus:ring-amber-500">
-                <option value="EXPIRY_ASC">⏳ หมดอายุก่อน (FIFO)</option>
-                <option value="DATE_DESC">🕒 รับเข้าล่าสุด</option>
-                <option value="NAME_ASC">🔤 ชื่อสินค้า (ก-ฮ)</option>
-                <option value="QTY_DESC">📦 จำนวนมาก ➔ น้อย</option>
-              </select>
+            <div class="flex items-center space-x-2 self-end sm:self-auto">
+              <!-- View in Inventory Button -->
+              <button onclick="navigateToInventoryWithFilter('EXPIRING')" class="inline-flex items-center space-x-1 text-[11px] font-semibold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg border border-amber-200 transition active:scale-95 shadow-2xs" title="เปิดดูรายการใกล้หมดอายุทั้งหมดในคลังสินค้า">
+                <span>ดูในคลัง</span>
+                <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+              </button>
+              <!-- Sort dropdown for Expiring Soon -->
+              <div class="flex items-center space-x-1.5">
+                <label for="sort-expiring" class="text-[11px] text-slate-400 font-medium hidden sm:inline">เรียง:</label>
+                <select id="sort-expiring" onchange="changeExpiringSort(this.value)" class="text-[11px] bg-slate-50 border border-slate-200 text-slate-700 rounded-lg px-2 py-0.5 font-medium focus:ring-1 focus:ring-amber-500">
+                  <option value="EXPIRY_ASC">⏳ หมดอายุก่อน (FIFO)</option>
+                  <option value="DATE_DESC">🕒 รับเข้าล่าสุด</option>
+                  <option value="NAME_ASC">🔤 ชื่อสินค้า (ก-ฮ)</option>
+                  <option value="QTY_DESC">📦 จำนวนมาก ➔ น้อย</option>
+                </select>
+              </div>
             </div>
           </div>
           <div id="expiring-batches-list" class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
@@ -321,7 +347,7 @@
         <!-- Filter Pill Tags -->
         <div class="flex flex-wrap gap-1.5 text-xs pt-1 border-t border-slate-100">
           <button onclick="setInventoryFilter('ALL')" id="filter-pill-all" class="px-3 py-1 rounded-full font-medium bg-slate-800 text-white transition">ทั้งหมด</button>
-          <button onclick="setInventoryFilter('LOW_STOCK')" id="filter-pill-low" class="px-3 py-1 rounded-full font-medium bg-rose-50 text-rose-700 hover:bg-rose-100 transition">⚠️ ใกล้หมดสต็อก</button>
+          <button onclick="setInventoryFilter('LOW')" id="filter-pill-low" class="px-3 py-1 rounded-full font-medium bg-rose-50 text-rose-700 hover:bg-rose-100 transition">⚠️ ใกล้หมดสต็อก</button>
           <button onclick="setInventoryFilter('EXPIRING')" id="filter-pill-exp" class="px-3 py-1 rounded-full font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 transition">⏳ ใกล้หมดอายุ</button>
           <button onclick="setInventoryFilter('EXPIRED')" id="filter-pill-expired" class="px-3 py-1 rounded-full font-medium bg-red-100 text-red-800 hover:bg-red-200 transition">⛔ หมดอายุแล้ว</button>
         </div>
