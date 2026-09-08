@@ -749,14 +749,18 @@ function renderInventoryTable() {
         <td class="p-3.5">${statusBadge}</td>
         <td class="p-3.5 text-center">
           <div class="flex items-center justify-center space-x-1">
-            <button onclick="openQuickUpdateModal(${p.id})" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs rounded-lg flex items-center space-x-1 shadow-2xs transition" title="อัปเดตด่วน สต็อก & วันหมดอายุ">
+            <button onclick="openQuickUpdateModal('${p.id}')" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs rounded-lg flex items-center space-x-1 shadow-2xs transition" title="อัปเดตด่วน สต็อก & วันหมดอายุ">
               <i data-lucide="zap" class="w-3.5 h-3.5"></i>
               <span>อัปเดตด่วน</span>
             </button>
-            <button onclick="openEditProductModal(${p.id})" title="แก้ไขข้อมูลสินค้า" class="p-1.5 hover:bg-slate-100 text-slate-500 rounded-md transition">
-              <i data-lucide="more-horizontal" class="w-4 h-4"></i>
+            <button onclick="openManageBatchesModal('${p.id}')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium text-xs rounded-lg flex items-center space-x-1 border border-indigo-200 transition" title="จัดการทุกล็อตของสินค้า">
+              <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+              <span>ล็อต (${p.batch_count || 0})</span>
             </button>
-            <button onclick="handleDeleteProduct(${p.id})" title="ลบสินค้า" class="p-1.5 hover:bg-rose-50 text-rose-500 rounded-md transition">
+            <button onclick="openEditProductModal('${p.id}')" title="แก้ไขข้อมูลสินค้า" class="p-1.5 hover:bg-slate-100 text-slate-500 rounded-md transition">
+              <i data-lucide="edit-3" class="w-4 h-4"></i>
+            </button>
+            <button onclick="handleDeleteProduct('${p.id}')" title="ลบสินค้า" class="p-1.5 hover:bg-rose-50 text-rose-500 rounded-md transition">
               <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
           </div>
@@ -821,11 +825,27 @@ function renderInventoryTable() {
               </div>
             </div>
 
-            <!-- Big Thumb Action Button -->
-            <button onclick="openQuickUpdateModal(${p.id})" class="w-full py-3 px-4 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold text-xs rounded-2xl shadow-xs flex items-center justify-center space-x-2 transition">
+            <!-- Primary Thumb Action Button -->
+            <button onclick="openQuickUpdateModal('${p.id}')" class="w-full py-3 px-4 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold text-xs rounded-2xl shadow-xs flex items-center justify-center space-x-2 transition">
               <i data-lucide="zap" class="w-4 h-4"></i>
               <span>⚡ แตะเพื่อกรอกวันหมดอายุ & สต็อก</span>
             </button>
+
+            <!-- Secondary Actions: Full CRUD on Mobile (Edit / Batches / Delete) -->
+            <div class="grid grid-cols-3 gap-1.5 pt-1 border-t border-slate-100 text-xs">
+              <button onclick="openEditProductModal('${p.id}')" class="py-2 px-1 bg-slate-50 active:bg-slate-100 border border-slate-200 rounded-xl text-slate-700 font-semibold flex items-center justify-center space-x-1 transition shadow-2xs">
+                <i data-lucide="edit-3" class="w-3.5 h-3.5 text-slate-500"></i>
+                <span class="text-[11px]">แก้ไข</span>
+              </button>
+              <button onclick="openManageBatchesModal('${p.id}')" class="py-2 px-1 bg-indigo-50 active:bg-indigo-100 border border-indigo-200 rounded-xl text-indigo-700 font-semibold flex items-center justify-center space-x-1 transition shadow-2xs">
+                <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-600"></i>
+                <span class="text-[11px]">ทุกล็อต (${p.batch_count || 0})</span>
+              </button>
+              <button onclick="handleDeleteProduct('${p.id}')" class="py-2 px-1 bg-rose-50 active:bg-rose-100 border border-rose-200 rounded-xl text-rose-600 font-semibold flex items-center justify-center space-x-1 transition shadow-2xs">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-500"></i>
+                <span class="text-[11px]">ลบสินค้า</span>
+              </button>
+            </div>
           </div>
         `;
       }).join('');
@@ -967,6 +987,10 @@ function closeDialog(id) {
 }
 
 // Modal Handlers
+function openQuickGuideModal() {
+  openDialog('modal-quick-guide');
+}
+
 function openAddProductModal() {
   document.getElementById('modal-product-title').textContent = 'เพิ่มสินค้าใหม่';
   document.getElementById('form-product').reset();
@@ -975,7 +999,7 @@ function openAddProductModal() {
 }
 
 function openEditProductModal(id) {
-  const product = state.products.find(p => p.id === id);
+  const product = state.products.find(p => p.id == id);
   if (!product) return;
 
   document.getElementById('modal-product-title').textContent = 'แก้ไขข้อมูลสินค้า';
@@ -987,6 +1011,154 @@ function openEditProductModal(id) {
   document.getElementById('prod-warn-days').value = product.expiry_warning_days;
 
   openDialog('modal-product');
+}
+
+let currentBatchProductId = null;
+
+async function openManageBatchesModal(productId) {
+  currentBatchProductId = productId;
+  const product = state.products.find(p => p.id == productId);
+  if (!product) return;
+
+  document.getElementById('manage-batches-prod-name').textContent = `📦 จัดการทุกล็อต: ${product.name}`;
+  document.getElementById('manage-batches-prod-category').textContent = product.category || 'หมวดหมู่';
+  document.getElementById('manage-batches-total-stock').textContent = product.current_stock;
+  document.getElementById('manage-batches-prod-unit').textContent = product.unit;
+
+  const listContainer = document.getElementById('manage-batches-list');
+  listContainer.innerHTML = `
+    <div class="p-6 text-center text-slate-400">
+      <div class="animate-spin w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full mx-auto mb-2"></div>
+      <p>กำลังโหลดข้อมูลทุกล็อต...</p>
+    </div>
+  `;
+  openDialog('modal-manage-batches');
+
+  try {
+    const res = await fetch(`/api/products/${productId}/batches`);
+    const json = await res.json();
+    const batches = json.data || [];
+
+    document.getElementById('manage-batches-count').textContent = batches.length;
+
+    if (batches.length === 0) {
+      listContainer.innerHTML = `
+        <div class="p-8 text-center text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">
+          <i data-lucide="package-x" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+          <p class="font-medium text-slate-600">สินค้านี้ยังไม่มีล็อตในสต็อก (คงเหลือ 0)</p>
+          <p class="text-[11px] text-slate-400 mt-1">กดปุ่ม "+ รับเข้าล็อตใหม่" ด้านบนเพื่อเพิ่มล็อตแรก</p>
+        </div>
+      `;
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
+
+    listContainer.innerHTML = batches.map((b, idx) => {
+      let statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">ปกติ</span>`;
+      if (b.is_expired) {
+        statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">หมดอายุแล้ว</span>`;
+      } else if (b.is_expiring_soon) {
+        statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">ใกล้หมด (${b.days_until_expiry} วัน)</span>`;
+      }
+
+      return `
+        <div class="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-2.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-600 font-bold text-[10px] flex items-center justify-center">${idx + 1}</span>
+              <span class="font-mono font-bold text-slate-800 text-xs">${b.lot_number || 'LOT-AUTO'}</span>
+            </div>
+            <div>${statusBadge}</div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <label class="block text-[10px] text-slate-500 font-medium mb-1">จำนวนคงเหลือ (${product.unit}):</label>
+              <input type="number" step="any" min="0" id="batch-edit-qty-${b.id}" value="${b.quantity}" class="w-full p-2 font-bold text-slate-900 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-[10px] text-slate-500 font-medium mb-1">วันหมดอายุ (Expiry):</label>
+              <input type="date" id="batch-edit-exp-${b.id}" value="${b.expiry_date || ''}" class="w-full p-2 font-semibold text-slate-900 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-1 border-t border-slate-100">
+            <span class="text-[10px] text-slate-400 truncate max-w-[150px]">${b.notes ? 'หมายเหตุ: ' + b.notes : 'รับเข้า: ' + (b.received_date || '-')}</span>
+            <div class="flex items-center space-x-1.5">
+              <button type="button" onclick="deleteBatchItem('${b.id}')" class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 active:scale-95 rounded-xl font-semibold text-[11px] flex items-center space-x-1 transition">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                <span>ลบล็อตนี้</span>
+              </button>
+              <button type="button" onclick="saveBatchChanges('${b.id}')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white active:scale-95 rounded-xl font-semibold text-[11px] flex items-center space-x-1 transition shadow-2xs">
+                <i data-lucide="save" class="w-3.5 h-3.5"></i>
+                <span>บันทึก</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    if (window.lucide) lucide.createIcons();
+  } catch (err) {
+    listContainer.innerHTML = `<p class="text-rose-500 p-4 text-center">เกิดข้อผิดพลาดในการโหลดล็อต: ${err.message}</p>`;
+  }
+}
+
+function handleAddBatchFromManager() {
+  closeDialog('modal-manage-batches');
+  if (currentBatchProductId) {
+    openAddBatchModalFor(currentBatchProductId);
+  } else {
+    openAddBatchModal();
+  }
+}
+
+async function saveBatchChanges(batchId) {
+  const qtyInput = document.getElementById(`batch-edit-qty-${batchId}`);
+  const expInput = document.getElementById(`batch-edit-exp-${batchId}`);
+  if (!qtyInput || !expInput) return;
+
+  const qty = Number(qtyInput.value);
+  const expiry = expInput.value;
+
+  try {
+    const res = await fetch(`/api/batches/${batchId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ quantity: qty, expiry_date: expiry })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+
+    playTapFeedback('save');
+    showToast('อัปเดตข้อมูลล็อตเรียบร้อย');
+    await loadAllData();
+    if (currentBatchProductId) {
+      openManageBatchesModal(currentBatchProductId);
+    }
+  } catch (err) {
+    showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+  }
+}
+
+async function deleteBatchItem(batchId) {
+  if (!confirm('ยืนยันการลบล็อตนี้? ยอดสต็อกของสินค้านี้จะลดลงตามจำนวนในล็อต')) return;
+
+  try {
+    const res = await fetch(`/api/batches/${batchId}`, { method: 'DELETE' });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+
+    playTapFeedback('alert');
+    showToast('ลบล็อตเรียบร้อย');
+    await loadAllData();
+    if (currentBatchProductId) {
+      openManageBatchesModal(currentBatchProductId);
+    }
+  } catch (err) {
+    showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+  }
 }
 
 async function handleSaveProduct(e) {

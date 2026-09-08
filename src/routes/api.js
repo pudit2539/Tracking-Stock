@@ -81,6 +81,15 @@ router.post('/products/:id/quick-update', async (req, res) => {
   }
 });
 
+router.get('/products/:id/batches', async (req, res) => {
+  try {
+    const batches = await stockService.getBatchesByProductId(req.params.id);
+    res.json({ success: true, data: batches });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 2. BATCHES
 router.get('/batches', async (req, res) => {
   try {

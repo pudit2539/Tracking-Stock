@@ -314,10 +314,14 @@ const dbClient = {
 
   async deleteProduct(id) {
     if (isSupabase) {
+      await supabase.from('inventory_batches').delete().eq('product_id', id);
+      await supabase.from('usage_logs').delete().eq('product_id', id);
       const { error } = await supabase.from('products').delete().eq('id', id);
       if (error) throw new Error(error.message);
       return true;
     } else {
+      sqliteDb.prepare('DELETE FROM inventory_batches WHERE product_id = ?').run(id);
+      sqliteDb.prepare('DELETE FROM usage_logs WHERE product_id = ?').run(id);
       sqliteDb.prepare('DELETE FROM products WHERE id = ?').run(id);
       return true;
     }
@@ -355,27 +359,32 @@ const dbClient = {
       } else {
         sqliteDb.prepare('UPDATE inventory_batches SET quantity = 0 WHERE product_id = ?').run(id);
       }
-    } else if (qty !== null && qty > 0 && expiryDate) {
-      // Find existing active batch or create new batch
+    } else if (qty !== null && qty > 0) {
+      // Quantity was updated (with or without expiry date)
       const batches = await this.getBatchesByProductId(id);
-      const activeBatches = batches.filter(b => b.quantity > 0);
+      const activeBatches = batches.filter(b => Number(b.quantity) > 0);
 
-      if (activeBatches.length === 1) {
-        // Update the single batch
+      if (activeBatches.length > 0) {
+        // Update the primary active batch
         const b = activeBatches[0];
-        await this.updateBatch(b.id, {
+        const updatePayload = {
           quantity: qty,
-          expiry_date: expiryDate,
-          notes: data.notes || b.notes || 'อัปเดตด่วน'
-        });
+          notes: data.notes || b.notes || 'อัปเดตสต็อก'
+        };
+        if (expiryDate) updatePayload.expiry_date = expiryDate;
+        await this.updateBatch(b.id, updatePayload);
       } else {
-        // Create new batch with this expiry date and quantity
+        // Create new batch (if no expiry date provided, default to +6 months)
+        const d = new Date();
+        d.setMonth(d.getMonth() + 6);
+        const finalExp = expiryDate || d.toISOString().split('T')[0];
+
         await this.createBatch({
           product_id: id,
           lot_number: data.lot_number || `LOT-${Date.now().toString().slice(-4)}`,
           quantity: qty,
           initial_quantity: qty,
-          expiry_date: expiryDate,
+          expiry_date: finalExp,
           received_date: todayStr,
           notes: data.notes || 'รับเข้า/อัปเดตด่วน'
         });
@@ -383,18 +392,17 @@ const dbClient = {
     } else if (expiryDate) {
       // Only expiry date was updated
       const batches = await this.getBatchesByProductId(id);
-      const activeBatches = batches.filter(b => b.quantity > 0);
+      const activeBatches = batches.filter(b => Number(b.quantity) > 0);
       if (activeBatches.length > 0) {
         await this.updateBatch(activeBatches[0].id, {
           expiry_date: expiryDate
         });
       } else {
-        const finalQty = (qty !== null && qty > 0) ? qty : 1;
         await this.createBatch({
           product_id: id,
           lot_number: data.lot_number || `LOT-${Date.now().toString().slice(-4)}`,
-          quantity: finalQty,
-          initial_quantity: finalQty,
+          quantity: 1,
+          initial_quantity: 1,
           expiry_date: expiryDate,
           received_date: todayStr,
           notes: data.notes || 'บันทึกวันหมดอายุ'
@@ -403,6 +411,69 @@ const dbClient = {
     }
 
     return this.getProductById(id);
+  },
+
+  async setProductStockDirect(productId, newQuantity, updatedBy = 'LINE User') {
+    const qty = Math.max(0, Number(newQuantity) || 0);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const batches = await this.getBatchesByProductId(productId);
+    const activeBatches = batches.filter(b => Number(b.quantity) > 0);
+
+    if (qty === 0) {
+      if (isSupabase) {
+        await supabase.from('inventory_batches').update({ quantity: 0 }).eq('product_id', productId);
+      } else {
+        sqliteDb.prepare('UPDATE inventory_batches SET quantity = 0 WHERE product_id = ?').run(productId);
+      }
+    } else if (activeBatches.length > 0) {
+      const b = activeBatches[0];
+      await this.updateBatch(b.id, { quantity: qty, notes: `ปรับยอดโดย ${updatedBy}` });
+      for (let i = 1; i < activeBatches.length; i++) {
+        await this.updateBatch(activeBatches[i].id, { quantity: 0 });
+      }
+    } else {
+      const d = new Date();
+      d.setMonth(d.getMonth() + 6);
+      await this.createBatch({
+        product_id: productId,
+        lot_number: `LOT-${Date.now().toString().slice(-4)}`,
+        quantity: qty,
+        initial_quantity: qty,
+        expiry_date: d.toISOString().split('T')[0],
+        received_date: todayStr,
+        notes: `นับสต็อกโดย ${updatedBy}`
+      });
+    }
+
+    return this.getProductById(productId);
+  },
+
+  async addProductStockDirect(productId, addQuantity, updatedBy = 'LINE User') {
+    const qty = Math.max(1, Number(addQuantity) || 1);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const batches = await this.getBatchesByProductId(productId);
+    const activeBatches = batches.filter(b => Number(b.quantity) > 0);
+
+    if (activeBatches.length > 0) {
+      const b = activeBatches[0];
+      await this.updateBatch(b.id, {
+        quantity: Number(b.quantity) + qty,
+        notes: `เติมสต็อกโดย ${updatedBy}`
+      });
+    } else {
+      const d = new Date();
+      d.setMonth(d.getMonth() + 6);
+      await this.createBatch({
+        product_id: productId,
+        lot_number: `LOT-${Date.now().toString().slice(-4)}`,
+        quantity: qty,
+        initial_quantity: qty,
+        expiry_date: d.toISOString().split('T')[0],
+        received_date: todayStr,
+        notes: `รับเข้าโดย ${updatedBy}`
+      });
+    }
+    return this.getProductById(productId);
   },
 
   // 3. BATCHES
@@ -510,6 +581,32 @@ const dbClient = {
       `);
       const res = stmt.run(payload.product_id, payload.lot_number, payload.quantity, payload.initial_quantity, payload.expiry_date, payload.received_date, payload.cost_per_unit, payload.notes);
       return res.lastInsertRowid;
+    }
+  },
+
+  async updateBatch(id, data) {
+    if (isSupabase) {
+      const updateData = {};
+      if (data.quantity !== undefined) updateData.quantity = Number(data.quantity);
+      if (data.expiry_date !== undefined) updateData.expiry_date = data.expiry_date;
+      if (data.lot_number !== undefined) updateData.lot_number = data.lot_number;
+      if (data.notes !== undefined) updateData.notes = data.notes;
+      if (data.received_date !== undefined) updateData.received_date = data.received_date;
+      const { data: res, error } = await supabase.from('inventory_batches').update(updateData).eq('id', id).select().maybeSingle();
+      if (error) throw new Error(error.message);
+      return res;
+    } else {
+      const fields = [];
+      const values = [];
+      if (data.quantity !== undefined) { fields.push('quantity = ?'); values.push(Number(data.quantity)); }
+      if (data.expiry_date !== undefined) { fields.push('expiry_date = ?'); values.push(data.expiry_date); }
+      if (data.lot_number !== undefined) { fields.push('lot_number = ?'); values.push(data.lot_number); }
+      if (data.notes !== undefined) { fields.push('notes = ?'); values.push(data.notes); }
+      if (data.received_date !== undefined) { fields.push('received_date = ?'); values.push(data.received_date); }
+      if (fields.length === 0) return true;
+      values.push(id);
+      sqliteDb.prepare(`UPDATE inventory_batches SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+      return true;
     }
   },
 

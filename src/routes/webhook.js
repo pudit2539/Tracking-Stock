@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const lineService = require('../services/lineService');
+const lineBotService = require('../services/lineBotService');
 const dbClient = require('../db/dbClient');
 
-// Webhook endpoint to auto-discover and register User ID or Group ID
+// Webhook endpoint to handle LINE events and interactive bot commands
 router.post('/webhook', async (req, res) => {
   const events = req.body.events || [];
   const { token } = await lineService.getCredentials();
@@ -27,9 +28,8 @@ router.post('/webhook', async (req, res) => {
       typeCode = 'USER';
     }
 
-    console.log(`[LINE Webhook] Event from ${targetType}: ID = ${targetId}`);
-
-    // Auto-register to line_recipients table so user doesn't even need to type it!
+    // Auto-register to line_recipients table
+    let isNewRecipient = false;
     if (targetId) {
       try {
         await dbClient.createRecipient({
@@ -38,33 +38,78 @@ router.post('/webhook', async (req, res) => {
           type: typeCode,
           is_active: 1
         });
-        console.log(`[LINE Webhook] ✅ Auto-registered recipient: ${targetId}`);
       } catch (err) {
-        console.log(`[LINE Webhook Recipient Exists or Info]:`, err.message);
+        // Already exists or DB busy
       }
     }
 
     const isJoin = event.type === 'join';
-    const isMessage = event.type === 'message' && event.message.type === 'text';
+    const isTextMessage = event.type === 'message' && event.message.type === 'text';
 
-    if ((isJoin || isMessage) && event.replyToken && token) {
+    if (event.replyToken && token) {
       try {
-        await fetch('https://api.line.me/v2/bot/message/reply', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            replyToken: event.replyToken,
-            messages: [
-              {
-                type: 'text',
-                text: `📌 บันทึก ${targetType} เข้าสู่ระบบแล้ว!\nID: ${targetId}\n\nระบบ Tracking ได้เพิ่มปลายทางนี้เข้าสู่รายชื่อรับแจ้งเตือนอัตโนมัติเรียบร้อยครับ 🎉`
-              }
-            ]
-          })
-        });
+        if (isJoin) {
+          // Welcome greeting when bot joins a group
+          const webUrl = await lineService.getAppUrl(req.protocol + '://' + req.get('host'));
+          await fetch('https://api.line.me/v2/bot/message/reply', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              replyToken: event.replyToken,
+              messages: [
+                {
+                  type: 'text',
+                  text: `👋 สวัสดีครับ! บอท Tracking สต็อก Dairy Queen เข้าร่วมกลุ่มเรียบร้อยแล้วครับ 🎉\n\n📌 Group ID: ${targetId}\n\n💡 สมาชิกในกลุ่มสามารถพิมพ์คำสั่งอัปเดตสต็อกได้ทันที เช่น:\n• "coke ใช้ไป 5"\n• "coke เหลือ 10"\n• "รับ coke 24"\n• "เช็คสต็อก"\n• "สั่งของ"\n• "วิธีใช้"\n\n🔗 ลิงก์ระบบ: ${webUrl}`
+                }
+              ]
+            })
+          });
+        } else if (isTextMessage) {
+          const userText = event.message.text.trim();
+
+          // Special command to check Group/User ID
+          if (/^(ไอดี|id|groupid|myid|เช็คไอดี)$/i.test(userText)) {
+            await fetch('https://api.line.me/v2/bot/message/reply', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                replyToken: event.replyToken,
+                messages: [
+                  {
+                    type: 'text',
+                    text: `📌 ข้อมูลปลายทางของคุณ:\nประเภท: ${targetType}\nID: ${targetId}\n\nสถานะ: ลงทะเบียนรับแจ้งเตือนอัตโนมัติเรียบร้อยแล้วครับ ✅`
+                  }
+                ]
+              })
+            });
+            continue;
+          }
+
+          // Let lineBotService parse and handle conversational stock commands
+          const currentUrl = req.protocol + '://' + req.get('host');
+          const senderName = event.source.type === 'group' ? 'พนักงานในกลุ่ม' : 'ผู้ใช้งาน';
+          const replyMessage = await lineBotService.handleMessage(userText, senderName, currentUrl);
+
+          if (replyMessage) {
+            await fetch('https://api.line.me/v2/bot/message/reply', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                replyToken: event.replyToken,
+                messages: [replyMessage]
+              })
+            });
+          }
+        }
       } catch (e) {
         console.error('[LINE Webhook Reply Error]', e.message);
       }
