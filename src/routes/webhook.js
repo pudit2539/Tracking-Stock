@@ -4,10 +4,12 @@ const lineService = require('../services/lineService');
 const lineBotService = require('../services/lineBotService');
 const dbClient = require('../db/dbClient');
 
-// Webhook endpoint to handle LINE events and interactive bot commands
-router.post('/webhook', async (req, res) => {
+// Webhook handler function
+const handleWebhook = async (req, res) => {
   const events = req.body.events || [];
   const { token } = await lineService.getCredentials();
+
+  console.log(`[LINE Webhook Received] Events count: ${events.length}`);
 
   for (const event of events) {
     let targetId = '';
@@ -29,7 +31,6 @@ router.post('/webhook', async (req, res) => {
     }
 
     // Auto-register to line_recipients table
-    let isNewRecipient = false;
     if (targetId) {
       try {
         await dbClient.createRecipient({
@@ -51,7 +52,7 @@ router.post('/webhook', async (req, res) => {
         if (isJoin) {
           // Welcome greeting when bot joins a group
           const webUrl = await lineService.getAppUrl(req.protocol + '://' + req.get('host'));
-          await fetch('https://api.line.me/v2/bot/message/reply', {
+          const replyRes = await fetch('https://api.line.me/v2/bot/message/reply', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -67,12 +68,16 @@ router.post('/webhook', async (req, res) => {
               ]
             })
           });
+          if (!replyRes.ok) {
+            console.error('[LINE Join Reply Error]', replyRes.status, await replyRes.text());
+          }
         } else if (isTextMessage) {
           const userText = event.message.text.trim();
+          console.log(`[LINE Webhook Message] Text: "${userText}" from ${targetType} (${targetId})`);
 
           // Special command to check Group/User ID
           if (/^(ไอดี|id|groupid|myid|เช็คไอดี)$/i.test(userText)) {
-            await fetch('https://api.line.me/v2/bot/message/reply', {
+            const replyRes = await fetch('https://api.line.me/v2/bot/message/reply', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -88,16 +93,28 @@ router.post('/webhook', async (req, res) => {
                 ]
               })
             });
+            if (!replyRes.ok) {
+              console.error('[LINE ID Reply Error]', replyRes.status, await replyRes.text());
+            }
             continue;
           }
 
           // Let lineBotService parse and handle conversational stock commands
           const currentUrl = req.protocol + '://' + req.get('host');
           const senderName = event.source.type === 'group' ? 'พนักงานในกลุ่ม' : 'ผู้ใช้งาน';
-          const replyMessage = await lineBotService.handleMessage(userText, senderName, currentUrl);
+          let replyMessage = await lineBotService.handleMessage(userText, senderName, currentUrl);
+
+          // In 1-on-1 direct chat, if bot doesn't understand command, provide guidance
+          if (!replyMessage && event.source.type === 'user') {
+            const webUrl = await lineService.getAppUrl(currentUrl);
+            replyMessage = {
+              type: 'text',
+              text: `🤖 ได้ยินแล้วครับ! แต่บอทยังไม่เข้าใจคำสั่ง "${userText}"\n\n💡 ลองพิมพ์คำว่า "วิธีใช้" เพื่อดูตัวอย่างคำสั่ง เช่น:\n• "coke ใช้ไป 5"\n• "รับ coke 24"\n• "coke เหลือ 10"\n• "สั่งของ"\n\n🔗 หรือเปิดเว็บ: ${webUrl}`
+            };
+          }
 
           if (replyMessage) {
-            await fetch('https://api.line.me/v2/bot/message/reply', {
+            const replyRes = await fetch('https://api.line.me/v2/bot/message/reply', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -108,15 +125,31 @@ router.post('/webhook', async (req, res) => {
                 messages: [replyMessage]
               })
             });
+            if (!replyRes.ok) {
+              console.error('[LINE Bot Reply Error]', replyRes.status, await replyRes.text());
+            } else {
+              console.log(`[LINE Bot Reply Success] Replied to "${userText}"`);
+            }
           }
         }
       } catch (e) {
-        console.error('[LINE Webhook Reply Error]', e.message);
+        console.error('[LINE Webhook Processing Error]', e.message);
       }
     }
   }
 
   res.status(200).send('OK');
+};
+
+router.post('/webhook', handleWebhook);
+router.post('/', handleWebhook);
+
+router.get('/webhook', (req, res) => {
+  res.json({ success: true, status: 'active', message: 'LINE Webhook endpoint is active and listening for events!' });
+});
+
+router.get('/', (req, res) => {
+  res.json({ success: true, status: 'active', message: 'LINE Webhook endpoint is active and listening for events!' });
 });
 
 module.exports = router;

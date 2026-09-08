@@ -14,6 +14,8 @@ app.use(express.urlencoded({ extended: true }));
 // API Routes
 app.use('/api', apiRoutes);
 app.use('/api/line', webhookRoutes);
+app.use('/api', webhookRoutes);
+app.use('/', webhookRoutes);
 
 // Export for Vercel Serverless Function
 module.exports = app;

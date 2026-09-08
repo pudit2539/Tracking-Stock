@@ -20,6 +20,8 @@ app.use(express.static(path.join(__dirname, '../public')));
 // API Routes
 app.use('/api', apiRoutes);
 app.use('/api/line', webhookRoutes);
+app.use('/api', webhookRoutes);
+app.use('/', webhookRoutes);
 
 // Fallback to index.html for SPA-like navigation
 app.use((req, res) => {
