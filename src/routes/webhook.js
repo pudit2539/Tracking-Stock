@@ -101,7 +101,12 @@ const handleWebhook = async (req, res) => {
 
           // Let lineBotService parse and handle conversational stock commands
           const currentUrl = req.protocol + '://' + req.get('host');
-          const senderName = event.source.type === 'group' ? 'พนักงานในกลุ่ม' : 'ผู้ใช้งาน';
+          let senderName = 'พนักงาน';
+          if (event.source && event.source.userId && token) {
+            senderName = await lineService.getUserDisplayName(event.source, token);
+          } else if (event.source.type === 'group') {
+            senderName = 'พนักงานในกลุ่ม';
+          }
           let replyMessage = await lineBotService.handleMessage(userText, senderName, currentUrl);
 
           // In 1-on-1 direct chat, if bot doesn't understand command, provide guidance

@@ -16,7 +16,9 @@ let state = {
   lowStockSort: localStorage.getItem('dq_lowstock_sort') || 'URGENCY_DESC',
   expiringSort: localStorage.getItem('dq_expiring_sort') || 'EXPIRY_ASC',
   planningSort: localStorage.getItem('dq_planning_sort') || 'DAYS_ASC',
-  batchModalSort: 'EXPIRY_ASC'
+  batchModalSort: 'EXPIRY_ASC',
+  currentRole: localStorage.getItem('dq_user_role') || 'staff',
+  adminPin: '9191'
 };
 
 // =======================================================
@@ -151,6 +153,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const batchReceivedEl = document.getElementById('batch-received');
   if (batchReceivedEl) batchReceivedEl.value = today;
 
+  // Initialize Staff vs Admin role view
+  updateRoleUI();
+
   // 1. Instant 0ms Render from LocalStorage Cache
   const hadCache = loadCachedState();
 
@@ -260,8 +265,174 @@ async function fetchRecipients() {
   }
 }
 
+// =======================================================
+// STAFF VS ADMIN ROLE SWITCHER & PIN SECURITY
+// =======================================================
+function updateRoleUI() {
+  const isAdm = state.currentRole === 'admin';
+  const staffView = document.getElementById('role-staff-view');
+  const adminView = document.getElementById('role-admin-view');
+  const tabSettings = document.getElementById('tab-settings');
+
+  if (isAdm) {
+    if (staffView) {
+      staffView.classList.add('hidden');
+      staffView.classList.remove('flex');
+    }
+    if (adminView) {
+      adminView.classList.remove('hidden');
+      adminView.classList.add('flex');
+    }
+    if (tabSettings) tabSettings.classList.remove('hidden');
+  } else {
+    if (adminView) {
+      adminView.classList.add('hidden');
+      adminView.classList.remove('flex');
+    }
+    if (staffView) {
+      staffView.classList.remove('hidden');
+      staffView.classList.add('flex');
+    }
+    if (tabSettings) tabSettings.classList.add('hidden');
+    if (state.activeTab === 'settings') {
+      switchTab('dashboard');
+    }
+  }
+
+  // Sync PIN badge in Settings tab
+  const pinBadge = document.getElementById('current-pin-display-badge');
+  if (pinBadge) {
+    const pin = (state.settings && state.settings.admin_pin) || state.adminPin || '9191';
+    pinBadge.textContent = `PIN: ${pin}`;
+  }
+
+  // Toggle all elements marked with admin-only
+  document.querySelectorAll('.admin-only').forEach(el => {
+    if (isAdm) {
+      el.classList.remove('hidden');
+    } else {
+      el.classList.add('hidden');
+    }
+  });
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function openPinModal() {
+  playTapFeedback('click');
+  const input = document.getElementById('input-pin-code');
+  const errEl = document.getElementById('pin-error-msg');
+  if (errEl) errEl.classList.add('hidden');
+  if (input) {
+    input.value = '';
+    input.classList.remove('border-rose-500', 'bg-rose-50');
+  }
+  openDialog('modal-pin-auth');
+  setTimeout(() => {
+    if (input) input.focus();
+  }, 100);
+}
+
+async function submitPinAuth() {
+  const input = document.getElementById('input-pin-code');
+  const errEl = document.getElementById('pin-error-msg');
+  const enteredPin = (input?.value || '').trim();
+
+  const currentPin = (state.settings && state.settings.admin_pin) || state.adminPin || '9191';
+
+  let isValid = (enteredPin === currentPin);
+  if (!isValid) {
+    try {
+      const res = await fetch('/api/settings/verify-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: enteredPin })
+      });
+      const data = await res.json();
+      if (data.success && data.valid) isValid = true;
+    } catch (e) {
+      // fallback to local check
+    }
+  }
+
+  if (isValid) {
+    state.currentRole = 'admin';
+    localStorage.setItem('dq_user_role', 'admin');
+    playTapFeedback('save');
+    closeDialog('modal-pin-auth');
+    updateRoleUI();
+    renderAll();
+    showToast('ยินดีต้อนรับสู่โหมด Admin 👑 ปลดล็อคสิทธิ์จัดการระบบเรียบร้อยแล้ว');
+  } else {
+    playTapFeedback('alert');
+    if (errEl) {
+      errEl.textContent = '❌ รหัส PIN ไม่ถูกต้อง (รหัสเริ่มต้นคือ 9191)';
+      errEl.classList.remove('hidden');
+    }
+    if (input) {
+      input.classList.add('border-rose-500', 'bg-rose-50');
+      setTimeout(() => {
+        input.classList.remove('border-rose-500', 'bg-rose-50');
+      }, 1200);
+      input.value = '';
+      input.focus();
+    }
+  }
+}
+
+function exitAdminMode() {
+  playTapFeedback('click');
+  state.currentRole = 'staff';
+  localStorage.setItem('dq_user_role', 'staff');
+  updateRoleUI();
+  renderAll();
+  showToast('สลับกลับสู่โหมดพนักงานทั่วไป 👤 เรียบร้อยแล้ว');
+}
+
+async function handleUpdateAdminPin(e) {
+  e.preventDefault();
+  const currentPinInput = document.getElementById('setting-current-pin');
+  const newPinInput = document.getElementById('setting-new-pin');
+  const currentPin = (currentPinInput?.value || '').trim();
+  const newPin = (newPinInput?.value || '').trim();
+
+  if (!newPin || newPin.length < 4) {
+    showToast('รหัส PIN ใหม่ต้องมีความยาวอย่างน้อย 4 หลัก', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/settings/change-pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_pin: currentPin, new_pin: newPin })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+
+    state.adminPin = newPin;
+    if (!state.settings) state.settings = {};
+    state.settings.admin_pin = newPin;
+
+    playTapFeedback('save');
+    showToast(`เปลี่ยนรหัส PIN เป็น "${newPin}" เรียบร้อยแล้ว`);
+    if (currentPinInput) currentPinInput.value = '';
+    if (newPinInput) newPinInput.value = '';
+    updateRoleUI();
+  } catch (err) {
+    playTapFeedback('alert');
+    showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+  }
+}
+
 // Tab Switching
 function switchTab(tabName) {
+  if (tabName === 'settings' && state.currentRole !== 'admin') {
+    showToast('แท็บการตั้งค่าสงวนไว้สำหรับ Admin เท่านั้น กรุณาใส่รหัส PIN เพื่อปลดล็อค', 'warning');
+    openPinModal();
+    return;
+  }
+
   state.activeTab = tabName;
   document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -286,6 +457,7 @@ function switchTab(tabName) {
 
 // Render UI Components
 function renderAll() {
+  updateRoleUI();
   renderStats();
   renderAlertLists();
   renderLineFlexPreview();
@@ -1091,9 +1263,11 @@ function renderInventoryTable() {
             <button onclick="openEditProductModal('${p.id}')" title="แก้ไขข้อมูลสินค้า" class="p-1.5 hover:bg-slate-100 text-slate-500 rounded-md transition">
               <i data-lucide="edit-3" class="w-4 h-4"></i>
             </button>
-            <button onclick="handleDeleteProduct('${p.id}')" title="ลบสินค้า" class="p-1.5 hover:bg-rose-50 text-rose-500 rounded-md transition">
-              <i data-lucide="trash-2" class="w-4 h-4"></i>
-            </button>
+            ${state.currentRole === 'admin' ? `
+              <button onclick="handleDeleteProduct('${p.id}')" title="ลบสินค้า" class="admin-only p-1.5 hover:bg-rose-50 text-rose-500 rounded-md transition">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            ` : ''}
           </div>
         </td>
       </tr>
@@ -1174,8 +1348,8 @@ function renderInventoryTable() {
               <span>⚡ แตะเพื่อกรอกวันหมดอายุ & สต็อก</span>
             </button>
 
-            <!-- Secondary Actions: Full CRUD on Mobile (Edit / Batches / Delete) -->
-            <div class="grid grid-cols-3 gap-1.5 pt-1 border-t border-slate-100 text-xs">
+            <!-- Secondary Actions on Mobile -->
+            <div class="grid ${state.currentRole === 'admin' ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5 pt-1 border-t border-slate-100 text-xs">
               <button onclick="openEditProductModal('${p.id}')" class="py-2 px-1 bg-slate-50 active:bg-slate-100 border border-slate-200 rounded-xl text-slate-700 font-semibold flex items-center justify-center space-x-1 transition shadow-2xs">
                 <i data-lucide="edit-3" class="w-3.5 h-3.5 text-slate-500"></i>
                 <span class="text-[11px]">แก้ไข</span>
@@ -1184,10 +1358,12 @@ function renderInventoryTable() {
                 <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-600"></i>
                 <span class="text-[11px]">ทุกล็อต (${p.batch_count || 0})</span>
               </button>
-              <button onclick="handleDeleteProduct('${p.id}')" class="py-2 px-1 bg-rose-50 active:bg-rose-100 border border-rose-200 rounded-xl text-rose-600 font-semibold flex items-center justify-center space-x-1 transition shadow-2xs">
-                <i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-500"></i>
-                <span class="text-[11px]">ลบสินค้า</span>
-              </button>
+              ${state.currentRole === 'admin' ? `
+                <button onclick="handleDeleteProduct('${p.id}')" class="admin-only py-2 px-1 bg-rose-50 active:bg-rose-100 border border-rose-200 rounded-xl text-rose-600 font-semibold flex items-center justify-center space-x-1 transition shadow-2xs">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-500"></i>
+                  <span class="text-[11px]">ลบสินค้า</span>
+                </button>
+              ` : ''}
             </div>
           </div>
         `;
@@ -1416,8 +1592,13 @@ function renderReceivingHistoryTable() {
   if (tbody) {
     tbody.innerHTML = list.map(b => {
       const isLine = (b.notes || '').includes('LINE');
+      let lineUserDisplay = '';
+      if (isLine && b.notes) {
+        const m = b.notes.match(/โดย\s*(.+)$/);
+        if (m && m[1]) lineUserDisplay = ` (${m[1].trim()})`;
+      }
       const sourceBadge = isLine 
-        ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">📲 LINE</span>`
+        ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">📲 LINE${lineUserDisplay}</span>`
         : `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800">💻 Web</span>`;
 
       const expBadge = b.is_expired
@@ -1469,9 +1650,11 @@ function renderReceivingHistoryTable() {
               <button onclick="handleEditReceivedBatch('${b.id}', ${b.quantity}, '${b.expiry_date || ''}')" title="แก้ไขจำนวน/วันหมดอายุ" class="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg transition">
                 <i data-lucide="edit-3" class="w-4 h-4"></i>
               </button>
-              <button onclick="handleDeleteReceivedBatch('${b.id}', '${(b.product_name || '').replace(/'/g, "\\'")}', ${b.quantity}, '${b.unit || 'ชิ้น'}')" title="ลบรายการรับเข้านี้ (ปรับลดยอดสต็อก)" class="p-1.5 hover:bg-rose-50 text-rose-600 rounded-lg transition">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-              </button>
+              ${state.currentRole === 'admin' ? `
+                <button onclick="handleDeleteReceivedBatch('${b.id}', '${(b.product_name || '').replace(/'/g, "\\'")}', ${b.quantity}, '${b.unit || 'ชิ้น'}')" title="ลบรายการรับเข้านี้ (ปรับลดยอดสต็อก)" class="admin-only p-1.5 hover:bg-rose-50 text-rose-600 rounded-lg transition">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              ` : ''}
             </div>
           </td>
         </tr>
@@ -1483,8 +1666,13 @@ function renderReceivingHistoryTable() {
   if (mobileContainer) {
     mobileContainer.innerHTML = list.map(b => {
       const isLine = (b.notes || '').includes('LINE');
+      let lineUserDisplay = '';
+      if (isLine && b.notes) {
+        const m = b.notes.match(/โดย\s*(.+)$/);
+        if (m && m[1]) lineUserDisplay = ` (${m[1].trim()})`;
+      }
       const sourceBadge = isLine 
-        ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">📲 LINE</span>`
+        ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">📲 LINE${lineUserDisplay}</span>`
         : `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-100 text-blue-800">💻 Web</span>`;
 
       const initialQty = b.initial_quantity || b.quantity;
@@ -1528,10 +1716,12 @@ function renderReceivingHistoryTable() {
               <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
               <span>แก้ไข</span>
             </button>
-            <button onclick="handleDeleteReceivedBatch('${b.id}', '${(b.product_name || '').replace(/'/g, "\\'")}', ${b.quantity}, '${b.unit || 'ชิ้น'}')" class="px-3 py-1.5 bg-rose-50 active:bg-rose-100 text-rose-600 rounded-xl font-semibold text-xs flex items-center space-x-1 transition">
-              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-              <span>ลบรายการนี้</span>
-            </button>
+            ${state.currentRole === 'admin' ? `
+              <button onclick="handleDeleteReceivedBatch('${b.id}', '${(b.product_name || '').replace(/'/g, "\\'")}', ${b.quantity}, '${b.unit || 'ชิ้น'}')" class="admin-only px-3 py-1.5 bg-rose-50 active:bg-rose-100 text-rose-600 rounded-xl font-semibold text-xs flex items-center space-x-1 transition">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                <span>ลบรายการนี้</span>
+              </button>
+            ` : ''}
           </div>
         </div>
       `;
@@ -1542,6 +1732,11 @@ function renderReceivingHistoryTable() {
 }
 
 async function handleDeleteReceivedBatch(batchId, prodName, qty, unit) {
+  if (state.currentRole !== 'admin') {
+    showToast('เฉพาะแอดมิน/ผู้จัดการเท่านั้นที่มีสิทธิ์ลบรายการรับเข้า กรุณาสลับเป็นโหมด Admin', 'warning');
+    openPinModal();
+    return;
+  }
   if (!confirm(`ยืนยันการลบรายการรับเข้าของ "${prodName}" จำนวน ${qty} ${unit} หรือไม่?\n\n⚠️ ยอดสต็อกรวมของสินค้านี้จะถูกปรับลดลง ${qty} ${unit} ทันที`)) return;
 
   try {
@@ -2069,10 +2264,12 @@ function renderBatchModalItems() {
         <div class="flex items-center justify-between pt-1 border-t border-slate-100">
           <span class="text-[10px] text-slate-400 truncate max-w-[150px]">${b.notes ? 'หมายเหตุ: ' + b.notes : 'รับเข้า: ' + (b.received_date || '-')}</span>
           <div class="flex items-center space-x-1.5">
-            <button type="button" onclick="deleteBatchItem('${b.id}')" class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 active:scale-95 rounded-xl font-semibold text-[11px] flex items-center space-x-1 transition">
-              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-              <span>ลบล็อตนี้</span>
-            </button>
+            ${state.currentRole === 'admin' ? `
+              <button type="button" onclick="deleteBatchItem('${b.id}')" class="admin-only px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 active:scale-95 rounded-xl font-semibold text-[11px] flex items-center space-x-1 transition">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                <span>ลบล็อตนี้</span>
+              </button>
+            ` : ''}
             <button type="button" onclick="saveBatchChanges('${b.id}')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white active:scale-95 rounded-xl font-semibold text-[11px] flex items-center space-x-1 transition shadow-2xs">
               <i data-lucide="save" class="w-3.5 h-3.5"></i>
               <span>บันทึก</span>
@@ -2124,6 +2321,11 @@ async function saveBatchChanges(batchId) {
 }
 
 async function deleteBatchItem(batchId) {
+  if (state.currentRole !== 'admin') {
+    showToast('เฉพาะแอดมิน/ผู้จัดการเท่านั้นที่มีสิทธิ์ลบล็อต กรุณาสลับเป็นโหมด Admin', 'warning');
+    openPinModal();
+    return;
+  }
   if (!confirm('ยืนยันการลบล็อตนี้? ยอดสต็อกของสินค้านี้จะลดลงตามจำนวนในล็อต')) return;
 
   try {
@@ -2173,6 +2375,11 @@ async function handleSaveProduct(e) {
 }
 
 async function handleDeleteProduct(id) {
+  if (state.currentRole !== 'admin') {
+    showToast('เฉพาะแอดมิน/ผู้จัดการเท่านั้นที่มีสิทธิ์ลบสินค้า กรุณาสลับเป็นโหมด Admin', 'warning');
+    openPinModal();
+    return;
+  }
   if (!confirm('ยืนยันการลบสินค้านี้พร้อมทุกล็อตในระบบ?')) return;
   try {
     const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
@@ -2485,6 +2692,11 @@ function populateSettingsForm() {
   if (document.getElementById('setting-expiry-days')) document.getElementById('setting-expiry-days').value = s.default_expiry_alert_days || '7';
   if (document.getElementById('setting-enable-low-stock')) document.getElementById('setting-enable-low-stock').checked = s.enable_low_stock_alert === '1';
   if (document.getElementById('setting-enable-expiry')) document.getElementById('setting-enable-expiry').checked = s.enable_expiry_alert === '1';
+
+  const pin = s.admin_pin || '9191';
+  state.adminPin = pin;
+  const pinBadge = document.getElementById('current-pin-display-badge');
+  if (pinBadge) pinBadge.textContent = `PIN: ${pin}`;
 }
 
 async function saveSettings(e) {

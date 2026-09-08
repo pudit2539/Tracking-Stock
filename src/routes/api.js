@@ -196,7 +196,8 @@ router.post('/settings', async (req, res) => {
       enable_expiry_alert,
       daily_alert_time,
       default_expiry_alert_days,
-      app_url
+      app_url,
+      admin_pin
     } = req.body;
 
     if (line_channel_access_token !== undefined) await dbClient.saveSetting('line_channel_access_token', line_channel_access_token.trim());
@@ -205,6 +206,7 @@ router.post('/settings', async (req, res) => {
     if (enable_low_stock_alert !== undefined) await dbClient.saveSetting('enable_low_stock_alert', enable_low_stock_alert ? '1' : '0');
     if (enable_expiry_alert !== undefined) await dbClient.saveSetting('enable_expiry_alert', enable_expiry_alert ? '1' : '0');
     if (default_expiry_alert_days !== undefined) await dbClient.saveSetting('default_expiry_alert_days', default_expiry_alert_days.toString());
+    if (admin_pin !== undefined && admin_pin.trim().length >= 4) await dbClient.saveSetting('admin_pin', admin_pin.trim());
     
     if (daily_alert_time !== undefined) {
       await dbClient.saveSetting('daily_alert_time', daily_alert_time);
@@ -216,6 +218,35 @@ router.post('/settings', async (req, res) => {
     res.json({ success: true, message: 'บันทึกการตั้งค่าเรียบร้อยแล้ว' });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// 5.2 PIN AUTHENTICATION & MANAGEMENT
+router.post('/settings/verify-pin', async (req, res) => {
+  try {
+    const { pin } = req.body;
+    const currentPin = await dbClient.getSetting('admin_pin', '9191');
+    const isValid = String(pin || '').trim() === String(currentPin || '9191').trim();
+    res.json({ success: true, valid: isValid });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.post('/settings/change-pin', async (req, res) => {
+  try {
+    const { current_pin, new_pin } = req.body;
+    const dbPin = await dbClient.getSetting('admin_pin', '9191');
+    if (String(current_pin || '').trim() !== String(dbPin || '9191').trim()) {
+      return res.status(400).json({ success: false, error: 'รหัส PIN เดิมไม่ถูกต้อง' });
+    }
+    if (!new_pin || String(new_pin).trim().length < 4) {
+      return res.status(400).json({ success: false, error: 'รหัส PIN ใหม่ต้องมีความยาวอย่างน้อย 4 หลัก' });
+    }
+    await dbClient.saveSetting('admin_pin', String(new_pin).trim());
+    res.json({ success: true, message: 'เปลี่ยนรหัส PIN เรียบร้อยแล้ว' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

@@ -3,6 +3,48 @@ const dbClient = require('../db/dbClient');
 const LINE_PUSH_API = 'https://api.line.me/v2/bot/message/push';
 
 class LineService {
+  constructor() {
+    this.userCache = new Map();
+  }
+
+  async getUserDisplayName(source, token) {
+    if (!source || !source.userId || !token) return 'พนักงาน';
+    const userId = source.userId;
+    const now = Date.now();
+    const cached = this.userCache.get(userId);
+    if (cached && (now - cached.timestamp < 300000)) {
+      return cached.name;
+    }
+
+    try {
+      let endpoint = `https://api.line.me/v2/bot/profile/${userId}`;
+      if (source.type === 'group' && source.groupId) {
+        endpoint = `https://api.line.me/v2/bot/group/${source.groupId}/member/${userId}`;
+      } else if (source.type === 'room' && source.roomId) {
+        endpoint = `https://api.line.me/v2/bot/room/${source.roomId}/member/${userId}`;
+      }
+
+      const res = await fetch(endpoint, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.displayName) {
+          const name = data.displayName.trim();
+          this.userCache.set(userId, { name, timestamp: now });
+          return name;
+        }
+      }
+    } catch (e) {
+      console.warn('[LineService getUserDisplayName Warning]', e.message);
+    }
+
+    return source.type === 'group' ? 'พนักงานในกลุ่ม' : 'ผู้ใช้งาน';
+  }
+
   async getSetting(key, defaultValue = '') {
     return dbClient.getSetting(key, defaultValue);
   }
