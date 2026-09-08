@@ -195,6 +195,14 @@ class LineBotService {
       return { action: 'STOCK_OVERVIEW' };
     }
 
+    // 4. EXPIRING SOON
+    if (/(ใกล้หมดอายุ|ของหมดอายุ|สินค้าหมดอายุ|เช็ควันหมดอายุ|วันหมดอายุ|เช็คหมดอายุ|มีอะไรหมดอายุ|มีอะไรใกล้หมดอายุ)/i.test(raw) || /^(หมดอายุ|expiring|expired)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(raw)) {
+      const pName = this.findProduct(raw);
+      if (!pName) {
+        return { action: 'EXPIRING_SOON' };
+      }
+    }
+
     const prodName = this.findProduct(raw);
     const qty = this.extractQuantity(raw);
 
@@ -221,7 +229,7 @@ class LineBotService {
 
     // 7. SPECIFIC ITEM CHECK (เช็ค coke, coke เหลือเท่าไหร่, ภาพรวม cokeกด, หรือพิมพ์ชื่อสินค้าเดี่ยวๆ)
     if (prodName && qty === null) {
-      const isCheckWord = /(เช็ค|ดู|ตรวจ|ภาพรวม|สต็อก|คงเหลือ|เช็คของ|มีมั้ย|เหลือเท่าไหร่|เท่าไหร่|\?|ค้นหา)/i.test(raw);
+      const isCheckWord = /(เช็ค|ดู|ตรวจ|ภาพรวม|สต็อก|คงเหลือ|เช็คของ|มีมั้ย|เหลือเท่าไหร่|เท่าไหร่|\?|ค้นหา|หมดอายุ)/i.test(raw);
       const isJustProduct = raw.replace(/\s+/g, '') === prodName.toLowerCase().replace(/\s+/g, '') ||
                             PRODUCT_ALIASES.some(p => p.aliases.some(a => a.toLowerCase().replace(/\s+/g, '') === raw.replace(/\s+/g, '')));
 
@@ -281,6 +289,12 @@ class LineBotService {
     }
     if (/^(ภาพรวม|ดูภาพรวม|ขอภาพรวม|ภาพรวมร้าน|ภาพรวมทั้งหมด|สรุป|สรุปสต็อก|สรุปยอด|ดูสต็อก|เช็คสต็อก|สต็อก|คงเหลือ|เช็คของ|stock|overview|status|รายงาน|report)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(singleRaw)) {
       return [{ action: 'STOCK_OVERVIEW' }];
+    }
+    if (/(ใกล้หมดอายุ|ของหมดอายุ|สินค้าหมดอายุ|เช็ควันหมดอายุ|วันหมดอายุ|เช็คหมดอายุ|มีอะไรหมดอายุ|มีอะไรใกล้หมดอายุ)/i.test(singleRaw) || /^(หมดอายุ|expiring|expired)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(singleRaw)) {
+      const p = this.findProduct(singleRaw);
+      if (!p) {
+        return [{ action: 'EXPIRING_SOON' }];
+      }
     }
 
     // Split by newlines first
@@ -349,6 +363,19 @@ class LineBotService {
       const alerts = await dbClient.getAlertsData();
       const prods = await dbClient.getAllProducts();
       return this.buildOverviewFlex(prods, alerts, webUrl);
+    }
+
+    // ACTION: EXPIRING SOON
+    if (intent.action === 'EXPIRING_SOON') {
+      const alerts = await dbClient.getAlertsData();
+      const batches = alerts.expiring_batches;
+      if (!batches || batches.length === 0) {
+        return {
+          type: 'text',
+          text: '🎉 ข่าวดีครับ! ขณะนี้ไม่มีสินค้าที่ใกล้หมดอายุหรือหมดอายุเลย ทุกรายการอยู่ในเกณฑ์ปลอดภัยครับ 👍'
+        };
+      }
+      return lineService.buildExpiringFlex(batches, webUrl);
     }
 
     // ACTION: UNKNOWN PRODUCT (Typo / Did you mean)
@@ -1305,7 +1332,8 @@ class LineBotService {
                 { type: 'text', text: '🔍 5. เช็คสต็อก & สรุปรายการสั่งของ:', weight: 'bold', size: 'xs', color: '#475569' },
                 { type: 'text', text: '• "เช็ค coke" หรือ "? coke" (ดูข้อมูลสินค้า)', size: 'xs', color: '#334155', margin: 'xs' },
                 { type: 'text', text: '• "ภาพรวม" หรือ "สรุป" (ดูสรุปยอดทั้งร้าน)', size: 'xs', color: '#334155' },
-                { type: 'text', text: '• "สั่งของ" หรือ "ของหมด" (ดูของที่ต้องสั่งเพิ่ม)', size: 'xs', color: '#334155' }
+                { type: 'text', text: '• "สั่งของ" หรือ "ของหมด" (ดูของที่ต้องสั่งเพิ่ม)', size: 'xs', color: '#334155' },
+                { type: 'text', text: '• "ใกล้หมดอายุ" หรือ "หมดอายุ" (ดูของใกล้/หมดอายุ)', size: 'xs', color: '#334155' }
               ]
             },
             {
