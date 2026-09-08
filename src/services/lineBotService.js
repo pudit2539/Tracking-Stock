@@ -49,8 +49,8 @@ const PRODUCT_ALIASES = [
   { name: 'ชเวปเขียว', aliases: ['ชเวปเขียว', 'ชเวปส์เขียว', 'schweppes green'] },
   { name: 'ชเวปม่วง', aliases: ['ชเวปม่วง', 'ชเวปส์ม่วง', 'schweppes purple'] },
   { name: 'ชเวปชมพู', aliases: ['ชเวปชมพู', 'ชเวปส์ชมพู', 'schweppes pink'] },
-  { name: 'Perrier', aliases: ['perrier', 'เปอริเอ้', 'เพอริเอ้'] },
-  { name: 'Perrier Lemon', aliases: ['perrier lemon', 'เปอริเอ้มะนาว', 'เพอริเอ้เลมอน', 'perrier มะนาว'] },
+  { name: 'Perrier', aliases: ['perrier', 'เปอริเอ้', 'เพอริเอ้', 'เพอเรีย', 'เปอริเย่'] },
+  { name: 'Perrier Lemon', aliases: ['perrier lemon', 'เปอริเอ้มะนาว', 'เพอริเอ้เลมอน', 'perrier มะนาว', 'เพอเรียมะนาว', 'เปอริเย่มะนาว'] },
   { name: 'Cokeกด', aliases: ['cokeกด', 'โค้กกด', 'coke กด', 'โค้ก กด', 'น้ำโค้ก', 'coke syrup', 'น้ำหวานโค้ก'] },
   { name: 'Cokeขวดฝาแดง', aliases: ['cokeขวดฝาแดง', 'cokeขวด', 'โค้กขวด', 'โค้กฝาแดง', 'coke ฝาแดง', 'coke', 'โค้ก'] },
 
@@ -66,6 +66,45 @@ const PRODUCT_ALIASES = [
   { name: 'ขวดใส่ท็อปปิ้ง', aliases: ['ขวดใส่ท็อปปิ้ง', 'ขวดท็อปปิ้ง', 'topping bottle'] },
   { name: 'มัลติ', aliases: ['มัลติ', 'multi'] }
 ];
+
+function levenshteinDistance(s1, s2) {
+  s1 = s1.toLowerCase();
+  s2 = s2.toLowerCase();
+  const m = s1.length;
+  const n = s2.length;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = s1[i - 1] === s2[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+function stringSimilarity(s1, s2) {
+  s1 = s1.toLowerCase().trim();
+  s2 = s2.toLowerCase().trim();
+  if (s1 === s2) return 1.0;
+  if (!s1 || !s2) return 0.0;
+  if (s1.includes(s2) || s2.includes(s1)) return 0.85;
+  const maxLen = Math.max(s1.length, s2.length);
+  const dist = levenshteinDistance(s1, s2);
+  const levScore = 1 - (dist / maxLen);
+
+  const getBigrams = str => {
+    const s = new Set();
+    for (let i = 0; i < str.length - 1; i++) s.add(str.slice(i, i + 2));
+    return s;
+  };
+  const b1 = getBigrams(s1);
+  const b2 = getBigrams(s2);
+  let inter = 0;
+  b1.forEach(bg => { if (b2.has(bg)) inter++; });
+  const dice = (2 * inter) / (b1.size + b2.size || 1);
+  return Math.max(levScore, dice);
+}
 
 class LineBotService {
   findProduct(text) {
@@ -93,6 +132,48 @@ class LineBotService {
       return parseFloat(match[1]);
     }
     return null;
+  }
+
+  getFuzzyProductSuggestions(candidate, maxSuggestions = 3) {
+    if (!candidate) return [];
+    const cand = candidate.toLowerCase().trim();
+    const scored = [];
+
+    for (const item of PRODUCT_ALIASES) {
+      let maxItemScore = 0;
+      for (const alias of item.aliases) {
+        const score = stringSimilarity(cand, alias.toLowerCase().trim());
+        if (score > maxItemScore) {
+          maxItemScore = score;
+        }
+      }
+      if (maxItemScore >= 0.45) {
+        scored.push({ name: item.name, score: maxItemScore });
+      }
+    }
+
+    scored.sort((a, b) => b.score - a.score);
+    const unique = [];
+    for (const s of scored) {
+      if (!unique.includes(s.name)) {
+        unique.push(s.name);
+      }
+      if (unique.length >= maxSuggestions) break;
+    }
+    return unique;
+  }
+
+  extractCandidateWord(raw) {
+    if (!raw) return '';
+    let clean = raw
+      .replace(/(รับเข้า|รับของ|รับ|เติมสต็อก|เติมของ|เติม|ซื้อมา|add|\+|ใช้ไปแล้ว|ใช้ไป|ใช้|ตัดสต็อก|ตัดของ|ตัด|เบิกใช้|เบิกของ|เบิก|หักสต็อก|หัก|เอาไป|use|minus|-|เหลืออยู่|เหลือ|นับได้|นับสต็อก|นับ|มีอยู่|ปรับเป็น|set|count|เช็คสต็อก|เช็คของ|เช็ค|ตรวจสต็อก|ดูสต็อก|ดู|เหลือเท่าไหร่|มีมั้ย|เท่าไหร่|กี่อัน|กี่ชิ้น)/gi, ' ')
+      .replace(/(\d+(\.\d+)?)/g, ' ')
+      .replace(/\b(pack|cs|bag|box|can|pcs|btl|ชิ้น|แพ็ค|แพค|กล่อง|ถุง|ลัง|ขวด|กระป๋อง|หลอด|ม้วน|อัน)\b/gi, ' ')
+      .replace(/[^\u0E00-\u0E7Fa-zA-Z0-9\s]/g, ' ')
+      .trim();
+
+    const words = clean.split(/\s+/).filter(w => w.length >= 2);
+    return words.join(' ').trim();
   }
 
   parseIntent(text, defaultAction = null) {
@@ -146,6 +227,34 @@ class LineBotService {
     // Fallback if product and number found without explicit verb
     if (prodName && qty !== null) {
       return { action: defaultAction || 'USE', productName: prodName, quantity: qty };
+    }
+
+    // 8. TYPO / DID YOU MEAN DETECTION (When product is misspelled but stock intent is clear)
+    const isAdd = /^(รับเข้า|รับของ|รับ|เติมสต็อก|เติมของ|เติม|ซื้อมา|add|\+)/i.test(raw);
+    const isUse = /^(ใช้ไปแล้ว|ใช้ไป|ใช้|ตัดสต็อก|ตัดของ|ตัด|เบิกใช้|เบิกของ|เบิก|หักสต็อก|หัก|เอาไป|use|minus|-)/i.test(raw);
+    const isSet = /^(เหลืออยู่|นับได้|นับสต็อก|ปรับเป็น|set|count)/i.test(raw);
+    const isCheck = /^(เช็คสต็อก|เช็คของ|เช็ค|ตรวจสต็อก|ดูสต็อก)/i.test(raw);
+    const hasVerb = isAdd || isUse || isSet || isCheck;
+
+    if (hasVerb || (defaultAction && qty !== null) || (qty !== null && /(รับ|เติม|ตัด|ใช้|เบิก)/i.test(raw))) {
+      const candidate = this.extractCandidateWord(raw);
+      if (candidate && candidate.length >= 2) {
+        const suggestions = this.getFuzzyProductSuggestions(candidate);
+        let intendedAction = 'USE';
+        if (isAdd || defaultAction === 'ADD_STOCK') intendedAction = 'ADD_STOCK';
+        else if (isSet || defaultAction === 'SET_STOCK') intendedAction = 'SET_STOCK';
+        else if (isCheck) intendedAction = 'CHECK_ITEM';
+
+        return {
+          action: 'UNKNOWN_PRODUCT',
+          candidate,
+          suggestions,
+          quantity: qty,
+          intendedAction,
+          originalVerb: isAdd ? 'รับ' : (isUse ? 'ตัด' : (isSet ? 'นับ' : (isCheck ? 'เช็ค' : ''))),
+          rawText: text
+        };
+      }
     }
 
     return null;
@@ -236,15 +345,24 @@ class LineBotService {
       return this.buildOverviewFlex(prods, alerts, webUrl);
     }
 
+    // ACTION: UNKNOWN PRODUCT (Typo / Did you mean)
+    if (intent.action === 'UNKNOWN_PRODUCT') {
+      return this.buildUnknownProductFlex(intent, webUrl);
+    }
+
     // PRODUCT ACTIONS
     const allProducts = await dbClient.getAllProducts();
     const product = allProducts.find(p => p.name === intent.productName);
 
     if (!product) {
-      return {
-        type: 'text',
-        text: `⚠️ ไม่พบสินค้า "${intent.productName}" ในระบบ กรุณาพิมพ์ "วิธีใช้" เพื่อดูตัวอย่างคำสั่งครับ`
-      };
+      const candidate = intent.productName || intent.candidate || '';
+      const suggestions = this.getFuzzyProductSuggestions(candidate);
+      return this.buildUnknownProductFlex({
+        candidate,
+        suggestions,
+        quantity: intent.quantity,
+        originalVerb: 'รับ'
+      }, webUrl);
     }
 
     // ACTION: CHECK ITEM
@@ -450,12 +568,31 @@ class LineBotService {
     const results = [];
 
     for (const item of intents) {
-      const product = allProducts.find(p => p.name === item.productName);
-      if (!product) {
+      if (item.action === 'UNKNOWN_PRODUCT') {
+        const sugText = (item.suggestions && item.suggestions.length > 0)
+          ? `(คุณหมายถึง "${item.suggestions.join('" หรือ "')}" ใช่หรือไม่?)`
+          : 'ไม่พบสินค้าในระบบ';
         results.push({
           success: false,
-          name: item.productName || item.rawText,
-          error: 'ไม่พบสินค้าในระบบ'
+          name: item.candidate || item.rawText || 'สินค้าไม่ระบุ',
+          suggestions: item.suggestions || [],
+          error: sugText
+        });
+        continue;
+      }
+
+      const product = allProducts.find(p => p.name === item.productName);
+      if (!product) {
+        const candidate = item.productName || item.candidate || item.rawText;
+        const suggestions = this.getFuzzyProductSuggestions(candidate);
+        const sugText = (suggestions && suggestions.length > 0)
+          ? `(คุณหมายถึง "${suggestions.join('" หรือ "')}" ใช่หรือไม่?)`
+          : 'ไม่พบสินค้าในระบบ';
+        results.push({
+          success: false,
+          name: candidate,
+          suggestions,
+          error: sugText
         });
         continue;
       }
@@ -647,8 +784,8 @@ class LineBotService {
           layout: 'horizontal',
           margin: 'sm',
           contents: [
-            { type: 'text', text: `⚠️ ${f.name}:`, size: 'xs', color: '#EF4444', weight: 'bold', flex: 4 },
-            { type: 'text', text: f.error || 'ผิดพลาด', size: 'xs', color: '#64748B', flex: 6 }
+            { type: 'text', text: `⚠️ ${f.name}:`, size: 'xs', color: '#EF4444', weight: 'bold', flex: 4, wrap: true },
+            { type: 'text', text: f.error || 'ผิดพลาด', size: 'xs', color: '#64748B', flex: 6, wrap: true }
           ]
         });
       });
@@ -698,6 +835,153 @@ class LineBotService {
               style: 'link',
               height: 'sm',
               action: { type: 'uri', label: '📱 ดูภาพรวมสต็อกบนเว็บ', uri: webUrl }
+            }
+          ]
+        }
+      }
+    };
+  }
+
+  buildUnknownProductFlex(intent, webUrl) {
+    const candidate = intent.candidate || 'ไม่ทราบชื่อ';
+    const suggestions = intent.suggestions || [];
+    const verb = intent.originalVerb || (intent.intendedAction === 'ADD_STOCK' ? 'รับ' : (intent.intendedAction === 'SET_STOCK' ? 'นับ' : (intent.intendedAction === 'CHECK_ITEM' ? 'เช็ค' : 'ตัด')));
+    const qtyStr = intent.quantity ? ` ${intent.quantity}` : '';
+
+    const suggestionBoxes = suggestions.slice(0, 3).map(sug => ({
+      type: 'box',
+      layout: 'horizontal',
+      backgroundColor: '#FEF3C7',
+      cornerRadius: '8px',
+      paddingAll: '10px',
+      margin: 'sm',
+      borderWidth: '1px',
+      borderColor: '#FDE68A',
+      action: {
+        type: 'message',
+        label: sug.slice(0, 20),
+        text: `${verb} ${sug}${qtyStr}`.trim()
+      },
+      contents: [
+        { type: 'text', text: `👉  ${sug}`, size: 'sm', color: '#92400E', weight: 'bold', flex: 8 },
+        { type: 'text', text: 'แตะเพื่อเลือก 👆', size: 'xxs', color: '#B45309', align: 'end', flex: 4 }
+      ]
+    }));
+
+    const contents = [
+      {
+        type: 'box',
+        layout: 'vertical',
+        margin: 'none',
+        contents: [
+          {
+            type: 'text',
+            text: `คำที่คุณพิมพ์: "${candidate}"`,
+            size: 'sm',
+            color: '#64748B',
+            weight: 'bold'
+          }
+        ]
+      },
+      { type: 'separator', margin: 'md', color: '#E2E8F0' }
+    ];
+
+    if (suggestions.length > 0) {
+      contents.push(
+        {
+          type: 'text',
+          text: 'คุณหมายถึงสินค้าด้านล่างนี้ใช่หรือไม่? (แตะที่ชื่อเพื่อส่งคำสั่งทันที)',
+          size: 'xs',
+          color: '#475569',
+          wrap: true,
+          margin: 'md'
+        },
+        ...suggestionBoxes,
+        {
+          type: 'box',
+          layout: 'vertical',
+          margin: 'lg',
+          paddingAll: '10px',
+          backgroundColor: '#F8FAFC',
+          cornerRadius: '8px',
+          contents: [
+            {
+              type: 'text',
+              text: '💡 หรือลองพิมพ์คำสั่งใหม่ เช่น:',
+              size: 'xxs',
+              color: '#64748B',
+              weight: 'bold'
+            },
+            {
+              type: 'text',
+              text: `"${verb} ${suggestions[0]}${qtyStr || ' 1'}"`,
+              size: 'xs',
+              color: '#0284C7',
+              weight: 'bold',
+              margin: 'xs'
+            }
+          ]
+        }
+      );
+    } else {
+      contents.push(
+        {
+          type: 'text',
+          text: `ไม่พบสินค้า "${candidate}" ในรายการสินค้าของ Dairy Queen`,
+          size: 'xs',
+          color: '#EF4444',
+          wrap: true,
+          margin: 'md'
+        },
+        {
+          type: 'text',
+          text: 'กรุณาตรวจสอบการสะกดชื่อ หรือพิมพ์ "วิธีใช้" เพื่อดูรายชื่อสินค้าและตัวอย่างคำสั่ง',
+          size: 'xs',
+          color: '#64748B',
+          wrap: true,
+          margin: 'sm'
+        }
+      );
+    }
+
+    return {
+      type: 'flex',
+      altText: `⚠️ ไม่พบสินค้า "${candidate}" ${suggestions.length > 0 ? `(คุณหมายถึง ${suggestions.join(', ')} ใช่หรือไม่?)` : ''}`,
+      contents: {
+        type: 'bubble',
+        size: 'mega',
+        header: {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: '#D97706',
+          paddingAll: '16px',
+          contents: [
+            { type: 'text', text: '⚠️ ไม่พบชื่อสินค้านี้ในระบบ', weight: 'bold', color: '#FFFFFF', size: 'sm' },
+            {
+              type: 'text',
+              text: suggestions.length > 0 ? 'ระบบค้นหาชื่อสินค้าใกล้เคียงมาให้ครับ' : 'โปรดตรวจสอบชื่อสินค้าอีกครั้ง',
+              color: '#FEF3C7',
+              size: 'xs',
+              margin: 'xs'
+            }
+          ]
+        },
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          paddingAll: '16px',
+          contents
+        },
+        footer: {
+          type: 'box',
+          layout: 'vertical',
+          paddingAll: '10px',
+          contents: [
+            {
+              type: 'button',
+              style: 'link',
+              height: 'sm',
+              action: { type: 'uri', label: '📱 ตรวจสอบรายชื่อสินค้าทั้งหมดบนเว็บ', uri: webUrl }
             }
           ]
         }
