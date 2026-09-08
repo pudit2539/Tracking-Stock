@@ -305,13 +305,19 @@ function renderStats() {
   const expiringCount = state.alerts.expiring_soon_batches ? state.alerts.expiring_soon_batches.length : 0;
   const expiredCount = state.alerts.expired_batches ? state.alerts.expired_batches.length : 0;
 
-  document.getElementById('stat-total-products').textContent = totalProds;
-  document.getElementById('stat-low-stock').textContent = lowStockCount;
-  document.getElementById('stat-expiring-soon').textContent = expiringCount;
-  document.getElementById('stat-expired').textContent = expiredCount;
+  const totalEl = document.getElementById('stat-total-products');
+  if (totalEl) totalEl.textContent = totalProds;
+  const lowEl = document.getElementById('stat-low-stock');
+  if (lowEl) lowEl.textContent = lowStockCount;
+  const expEl = document.getElementById('stat-expiring-soon');
+  if (expEl) expEl.textContent = expiringCount;
+  const expdEl = document.getElementById('stat-expired');
+  if (expdEl) expdEl.textContent = expiredCount;
 
-  document.getElementById('low-stock-badge-count').textContent = `${lowStockCount} รายการ`;
-  document.getElementById('expiring-badge-count').textContent = `${expiringCount + expiredCount} รายการ`;
+  const lowBadge = document.getElementById('low-stock-badge-count');
+  if (lowBadge) lowBadge.textContent = `${lowStockCount} รายการ`;
+  const expBadge = document.getElementById('expiring-badge-count');
+  if (expBadge) expBadge.textContent = `${expiringCount + expiredCount} รายการ`;
 }
 
 // 2. Render Urgent Alert Lists on Dashboard with Sorting & Timestamps
@@ -479,9 +485,10 @@ function renderAlertLists() {
 function renderLineFlexPreview() {
   const itemsContainer = document.getElementById('preview-flex-items');
   const subtitleEl = document.getElementById('preview-flex-subtitle');
-  const items = state.alerts.low_stock_items;
+  if (!itemsContainer) return;
+  const items = (state.alerts && state.alerts.low_stock_items) ? state.alerts.low_stock_items : [];
 
-  subtitleEl.textContent = `พบ ${items.length} รายการที่ต่ำกว่า Safety Stock`;
+  if (subtitleEl) subtitleEl.textContent = `พบ ${items.length} รายการที่ต่ำกว่า Safety Stock`;
 
   if (items.length === 0) {
     itemsContainer.innerHTML = `
@@ -1564,6 +1571,7 @@ async function handleEditReceivedBatch(batchId, currentQty, currentExp) {
 // 6. Render Usage History Table with Sorting & Timestamps
 function renderUsageHistoryTable() {
   const tbody = document.getElementById('usage-history-table-body');
+  if (!tbody) return;
 
   // Sync dropdown
   const selOut = document.getElementById('sort-outbound');
