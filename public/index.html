@@ -8,7 +8,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
-  <link rel="stylesheet" href="/css/style.css?v=20260908_admin_fix">
+  <link rel="stylesheet" href="/css/style.css?v=20260908_pin_hidden">
 </head>
 <body class="min-h-screen bg-slate-50 flex flex-col">
 
@@ -695,7 +695,7 @@
                 </h3>
                 <p class="text-xs text-slate-500 mt-0.5">ใช้สำหรับสลับเข้าสู่โหมดผู้จัดการเพื่อจัดการระบบและลบข้อมูล</p>
               </div>
-              <span id="current-pin-display-badge" class="px-2.5 py-1 bg-amber-100 text-amber-800 text-[11px] font-bold rounded-lg border border-amber-300 self-start sm:self-auto">PIN: 9191</span>
+              <span id="current-pin-display-badge" class="px-2.5 py-1 bg-amber-100 text-amber-800 text-[11px] font-bold rounded-lg border border-amber-300 self-start sm:self-auto">สถานะ: มีการตั้งรหัสผ่านแล้ว</span>
             </div>
 
             <form id="form-change-pin" onsubmit="handleUpdateAdminPin(event)" class="space-y-4 text-xs max-w-md">
@@ -1522,9 +1522,6 @@
           >
         </div>
         <p id="pin-error-msg" class="text-rose-600 text-xs text-center font-medium mt-2 hidden"></p>
-        <p class="text-[11px] text-slate-400 text-center mt-2.5">
-          💡 รหัสเริ่มต้นจากระบบคือ: <strong class="text-amber-700 font-mono font-bold bg-amber-50 px-1.5 py-0.5 rounded">9191</strong>
-        </p>
       </div>
 
       <div class="grid grid-cols-2 gap-3 pt-2">
@@ -1548,7 +1545,7 @@
     </button>
   </div>
 
-  <script src="/js/app.js?v=20260908_admin_fix"></script>
+  <script src="/js/app.js?v=20260908_pin_hidden"></script>
 </body>
 </html>
 

@@ -302,8 +302,7 @@ function updateRoleUI() {
   // Sync PIN badge in Settings tab
   const pinBadge = document.getElementById('current-pin-display-badge');
   if (pinBadge) {
-    const pin = (state.settings && state.settings.admin_pin) || state.adminPin || '9191';
-    pinBadge.textContent = `PIN: ${pin}`;
+    pinBadge.textContent = 'สถานะ: มีการตั้งรหัสผ่านแล้ว';
   }
 
   // Toggle all elements marked with admin-only
@@ -371,7 +370,7 @@ async function submitPinAuth() {
   } else {
     playTapFeedback('alert');
     if (errEl) {
-      errEl.textContent = '❌ รหัส PIN ไม่ถูกต้อง (รหัสเริ่มต้นคือ 9191)';
+      errEl.textContent = '❌ รหัส PIN ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง';
       errEl.classList.remove('hidden');
     }
     if (input) {
@@ -2721,7 +2720,7 @@ function populateSettingsForm() {
   const pin = s.admin_pin || '9191';
   state.adminPin = pin;
   const pinBadge = document.getElementById('current-pin-display-badge');
-  if (pinBadge) pinBadge.textContent = `PIN: ${pin}`;
+  if (pinBadge) pinBadge.textContent = 'สถานะ: มีการตั้งรหัสผ่านแล้ว';
 }
 
 async function saveSettings(e) {
