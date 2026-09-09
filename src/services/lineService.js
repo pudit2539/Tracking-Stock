@@ -832,7 +832,7 @@ class LineService {
       size: { width: 1200, height: 810 },
       selected: true,
       name: 'DQ Stock Menu',
-      chatBarText: '📊 เมนูลัดสต็อก (DQ)',
+      chatBarText: 'เมนูสต็อก DQ',
       areas: [
         {
           bounds: { x: 0, y: 0, width: 400, height: 405 },
@@ -873,7 +873,10 @@ class LineService {
 
     const createData = await createRes.json();
     if (!createRes.ok) {
-      throw new Error(`สร้าง Rich Menu ไม่สำเร็จ: ${createData.message || JSON.stringify(createData)}`);
+      const detailMsg = (createData.details && Array.isArray(createData.details))
+        ? createData.details.map(d => `${d.property || ''}: ${d.message || ''}`).join(', ')
+        : '';
+      throw new Error(`สร้าง Rich Menu ไม่สำเร็จ: ${createData.message || ''} ${detailMsg}`.trim());
     }
 
     const richMenuId = createData.richMenuId;
