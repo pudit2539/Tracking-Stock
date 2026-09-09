@@ -835,28 +835,20 @@ class LineService {
       chatBarText: 'เมนูสต็อก DQ',
       areas: [
         {
-          bounds: { x: 0, y: 0, width: 400, height: 405 },
-          action: { type: 'message', text: 'DQ ภาพรวม' }
-        },
-        {
-          bounds: { x: 400, y: 0, width: 400, height: 405 },
+          bounds: { x: 0, y: 0, width: 600, height: 405 },
           action: { type: 'message', text: 'DQ สั่งของ' }
         },
         {
-          bounds: { x: 800, y: 0, width: 400, height: 405 },
+          bounds: { x: 600, y: 0, width: 600, height: 405 },
           action: { type: 'message', text: 'DQ ใกล้หมดอายุ' }
         },
         {
-          bounds: { x: 0, y: 405, width: 400, height: 405 },
-          action: { type: 'message', text: 'DQ วิธีใช้' }
-        },
-        {
-          bounds: { x: 400, y: 405, width: 400, height: 405 },
-          action: { type: 'uri', uri: webUrl }
-        },
-        {
-          bounds: { x: 800, y: 405, width: 400, height: 405 },
+          bounds: { x: 0, y: 405, width: 600, height: 405 },
           action: { type: 'message', text: 'DQ ยกเลิก' }
+        },
+        {
+          bounds: { x: 600, y: 405, width: 600, height: 405 },
+          action: { type: 'uri', uri: webUrl }
         }
       ]
     };

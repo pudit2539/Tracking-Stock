@@ -385,14 +385,13 @@ class LineBotService {
     if (!processedText) {
       return {
         type: 'text',
-        text: `🍦 สวัสดีครับ! บอท ${botPrefix} พร้อมทำงานครับ\n\n💡 แตะปุ่มลัดด้านล่าง หรือพิมพ์คำสั่งได้เลย:\n• "${botPrefix} ภาพรวม" (ดูสต็อกทั้งหมด)\n• "${botPrefix} สั่งของ" (ดูรายการของใกล้หมด)\n• "${botPrefix} ใกล้หมดอายุ" (เช็ควันหมดอายุ)\n• "${botPrefix} ตัด coke 2" (ตัดสต็อก)\n• "${botPrefix} รับ coke 24" (รับของเข้า)\n• "${botPrefix} ยกเลิก" (ยกเลิกรายการล่าสุด)\n• "${botPrefix} วิธีใช้" (ดูคู่มือทั้งหมด)`,
+        text: `🍦 สวัสดีครับ! บอท ${botPrefix} พร้อมทำงานครับ\n\n💡 แตะ 4 ปุ่มลัดด้านล่าง หรือพิมพ์สั่งงานได้ทันที:\n• "${botPrefix} สั่งของ" (ดูรายการของใกล้หมด)\n• "${botPrefix} ใกล้หมดอายุ" (เช็ควันหมดอายุ)\n• "${botPrefix} ตัด coke 2" (ตัดสต็อก)\n• "${botPrefix} รับ coke 24" (รับของเข้า)\n• "${botPrefix} ทิ้ง coke 1" (บันทึกของเสีย)\n• "${botPrefix} ยกเลิก" (ยกเลิกรายการล่าสุด)\n• "${botPrefix} วิธีใช้" (ดูคู่มือทั้งหมด)`,
         quickReply: {
           items: [
-            { type: 'action', action: { type: 'message', label: '📊 ภาพรวม', text: `${botPrefix} ภาพรวม` } },
-            { type: 'action', action: { type: 'message', label: '🛒 สั่งของ', text: `${botPrefix} สั่งของ` } },
+            { type: 'action', action: { type: 'message', label: '🛒 สรุปสั่งของ', text: `${botPrefix} สั่งของ` } },
             { type: 'action', action: { type: 'message', label: '⏳ ใกล้หมดอายุ', text: `${botPrefix} ใกล้หมดอายุ` } },
-            { type: 'action', action: { type: 'message', label: '↩️ ยกเลิก', text: `${botPrefix} ยกเลิก` } },
-            { type: 'action', action: { type: 'message', label: '📖 วิธีใช้', text: `${botPrefix} วิธีใช้` } }
+            { type: 'action', action: { type: 'message', label: '↩️ ยกเลิก (Undo)', text: `${botPrefix} ยกเลิก` } },
+            { type: 'action', action: { type: 'message', label: '📊 ภาพรวมร้าน', text: `${botPrefix} ภาพรวม` } }
           ]
         }
       };

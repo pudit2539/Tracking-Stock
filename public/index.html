@@ -329,10 +329,6 @@
               <i data-lucide="plus" class="w-3.5 h-3.5"></i>
               <span>+ เพิ่มสินค้าใหม่</span>
             </button>
-            <button onclick="switchTab('usage'); switchUsageSubTab('inbound');" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition shadow-2xs active:scale-95">
-              <i data-lucide="history" class="w-3.5 h-3.5 text-emerald-600"></i>
-              <span>📥 ประวัติรับเข้า</span>
-            </button>
           </div>
 
           <!-- Quick Stock Order Summary & Export Buttons -->
@@ -788,25 +784,23 @@
               <div>
                 <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
                   <i data-lucide="layout-grid" class="w-5 h-5 text-indigo-600"></i>
-                  <span>LINE Rich Menu (เมนูลัด 6 ช่องบนห้องแชท LINE)</span>
+                  <span>LINE Rich Menu (4 เมนูลัดปุ่มใหญ่ 2x2 บนห้องแชท LINE)</span>
                 </h3>
-                <p class="text-xs text-slate-500 mt-0.5">ติดตั้งปุ่มลัด 6 ช่องที่ด้านล่างห้องแชท LINE ให้พนักงานกดสั่งงาน ดูสต็อก และสรุปของได้ใน 1 สัมผัส</p>
+                <p class="text-xs text-slate-500 mt-0.5">ดีไซน์ 4 ปุ่มใหญ่พิเศษ กดง่ายเต็มตา สำหรับแชตส่วนตัว 1-on-1 ระหว่างพนักงานกับบอท</p>
               </div>
-              <span class="px-2.5 py-1 bg-indigo-100 text-indigo-800 text-[11px] font-bold rounded-lg border border-indigo-200 self-start sm:self-auto">6 เมนูลัด</span>
+              <span class="px-2.5 py-1 bg-indigo-100 text-indigo-800 text-[11px] font-bold rounded-lg border border-indigo-200 self-start sm:self-auto">4 เมนูลัด (ปุ่มใหญ่)</span>
             </div>
 
             <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 bg-white rounded-xl border border-indigo-100">
               <div class="space-y-1.5">
                 <p class="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
-                  <span>📱 เมนูลัดทั้ง 6 ช่องประกอบด้วย:</span>
+                  <span>📱 4 ปุ่มใหญ่ประกอบด้วย:</span>
                 </p>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px] text-slate-600 font-medium">
-                  <div class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>1. ภาพรวมสต็อก</span></div>
-                  <div class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span><span>2. ใกล้หมดอายุ</span></div>
-                  <div class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span>3. สรุปของต้องสั่ง</span></div>
-                  <div class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-blue-500"></span><span>4. เช็คสต็อกสินค้า</span></div>
-                  <div class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-indigo-500"></span><span>5. เปิดดูบนเว็บ</span></div>
-                  <div class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-slate-500"></span><span>6. คู่มือ & คำสั่ง</span></div>
+                <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-700 font-medium">
+                  <div class="flex items-center space-x-2 bg-rose-50 px-2.5 py-1.5 rounded-lg border border-rose-100"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span><span>1. 🛒 สรุปของต้องสั่ง</span></div>
+                  <div class="flex items-center space-x-2 bg-amber-50 px-2.5 py-1.5 rounded-lg border border-amber-100"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span><span>2. ⏳ ของใกล้หมดอายุ</span></div>
+                  <div class="flex items-center space-x-2 bg-purple-50 px-2.5 py-1.5 rounded-lg border border-purple-100"><span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span><span>3. ↩️ ยกเลิกคำสั่ง (Undo)</span></div>
+                  <div class="flex items-center space-x-2 bg-blue-50 px-2.5 py-1.5 rounded-lg border border-blue-100"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span><span>4. 🌐 เปิดระบบบนเว็บ</span></div>
                 </div>
               </div>
 
@@ -815,7 +809,7 @@
                 <span>⚡ ติดตั้ง Rich Menu ให้ LINE ทันที</span>
               </button>
             </div>
-            <p class="text-[11px] text-slate-400">💡 ต้องบันทึก Token ในการตั้งค่าด้านบนก่อน จึงจะสามารถเชื่อมต่อ LINE API เพื่อติดตั้ง Rich Menu ได้</p>
+            <p class="text-[11px] text-slate-400">💡 ตามข้อกำหนดของ LINE แถบ Rich Menu จะแสดงในแชตเดี่ยว 1-on-1 (หากในไลน์กลุ่ม สามารถพิมพ์ <code>DQ</code> เพื่อเรียก 4 ปุ่มลัดได้เช่นกัน)</p>
           </div>
 
           <!-- Card 2: Multiple Recipients (Personal & Groups) -->
@@ -1539,11 +1533,12 @@
           <!-- 9. Rich Menu & Critical Stock Alert -->
           <div class="p-3 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-2xl border border-indigo-200 space-y-1">
             <span class="font-bold text-indigo-900 text-xs flex items-center space-x-1.5">
-              <span>🔘 9. เมนูลัด Rich Menu 6 ช่อง & เตือนสต็อกวิกฤตทันที</span>
+              <span>🔘 9. เมนูลัด Rich Menu 4 ปุ่มใหญ่ & เตือนสต็อกวิกฤตทันที</span>
             </span>
             <p class="text-slate-600 text-[11px] leading-relaxed">
-              • <b>Rich Menu:</b> แตะปุ่ม 6 ช่องด้านล่างห้องแชตเพื่อดูสรุปสต็อก หรือของใกล้หมดอายุได้ทันทีโดยไม่ต้องพิมพ์<br>
-              • <b>Critical Alert:</b> เมื่อใดก็ตามที่ตัดสต็อกแล้วสินค้าลดต่ำกว่า Safety Stock บอทจะแจ้งเตือนแถบสีแดงฉุกเฉินพร้อมปุ่มสั่งของทันทีในแชต
+              • <b>Rich Menu 4 ปุ่มใหญ่ (2x2):</b> แตะปุ่มใหญ่เต็มตาทั้ง 4 ปุ่มด้านล่าง (สรุปของต้องสั่ง, ของใกล้หมดอายุ, ยกเลิกคำสั่ง, เปิดเว็บ) ใช้งานง่าย ไม่กดพลาด<br>
+              • <b>ในไลน์กลุ่ม:</b> พิมพ์ <code>DQ</code> บอทจะเด้ง 4 ปุ่มลัดขึ้นมาเหนือแป้นพิมพ์ให้แตะทันทีโดยไม่ต้องจำคำสั่ง<br>
+              • <b>Critical Alert:</b> เมื่อตัดสต็อกจนต่ำกว่า Safety Stock บอทจะส่งแถบสีแดงแจ้งเตือนฉุกเฉินพร้อมปุ่มสั่งของทันที
             </p>
           </div>
         </div>
