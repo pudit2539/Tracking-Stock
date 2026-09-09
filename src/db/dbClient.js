@@ -821,6 +821,26 @@ const dbClient = {
     }
   },
 
+  async deleteLatestUsageLog(productId) {
+    if (isSupabase) {
+      const { data } = await supabase.from('usage_logs')
+        .select('id')
+        .eq('product_id', productId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (data && data.id) {
+        await supabase.from('usage_logs').delete().eq('id', data.id);
+      }
+    } else {
+      const row = sqliteDb.prepare('SELECT id FROM usage_logs WHERE product_id = ? ORDER BY id DESC LIMIT 1').get(productId);
+      if (row) {
+        sqliteDb.prepare('DELETE FROM usage_logs WHERE id = ?').run(row.id);
+      }
+    }
+    return true;
+  },
+
   async getUsageLogs(limit = 100) {
     if (isSupabase) {
       const { data, error } = await supabase.from('usage_logs')

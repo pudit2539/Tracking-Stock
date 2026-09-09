@@ -3250,3 +3250,241 @@ async function inlineEditSafetyStock(productId, currentVal, name) {
   }
 }
 
+// =======================================================
+// EXCEL / CSV EXPORT UTILITY (UTF-8 BOM Thai Compatible)
+// =======================================================
+function downloadCSV(filename, rows) {
+  const processRow = (row) => {
+    return row.map(val => {
+      if (val === null || val === undefined) return '""';
+      let str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    }).join(',');
+  };
+
+  const csvContent = rows.map(processRow).join('\r\n');
+  // UTF-8 BOM (\uFEFF) ensures Thai characters render properly without garbled text in Excel
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function exportInventoryToExcel() {
+  playTapFeedback('click');
+  const products = state.products || [];
+  if (products.length === 0) {
+    showToast('ไม่มีข้อมูลสินค้าให้ส่งออก', 'error');
+    return;
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const headers = [
+    'ชื่อสินค้า',
+    'หมวดหมู่',
+    'จำนวนคงเหลือรวม',
+    'หน่วยนับ',
+    'จุดสั่งซื้อ (Safety Stock)',
+    'สถานะสต็อก',
+    'วันหมดอายุล็อตแรก',
+    'วันที่สร้าง',
+    'อัปเดตล่าสุด'
+  ];
+
+  const rows = [headers];
+  products.forEach(p => {
+    let status = 'ปกติ';
+    if (Number(p.current_stock) <= 0) {
+      status = 'หมดสต็อก';
+    } else if (p.is_low_stock) {
+      status = 'ใกล้หมดสต็อก';
+    }
+
+    rows.push([
+      p.name || '',
+      p.category || '',
+      p.current_stock ?? 0,
+      p.unit || '',
+      p.safety_stock ?? 0,
+      status,
+      p.earliest_expiry || '-',
+      p.created_at ? new Date(p.created_at).toLocaleDateString('th-TH') : '-',
+      p.updated_at ? new Date(p.updated_at).toLocaleString('th-TH') : '-'
+    ]);
+  });
+
+  downloadCSV(`DQ_Stock_Inventory_${today}.csv`, rows);
+  playTapFeedback('save');
+  showToast(`📥 ส่งออกสต็อกสินค้า ${products.length} รายการเป็น Excel สำเร็จ`);
+}
+
+function exportInboundToExcel() {
+  playTapFeedback('click');
+  const list = state.receivingHistory || [];
+  if (list.length === 0) {
+    showToast('ไม่มีประวัติรับเข้าให้ส่งออก', 'error');
+    return;
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const headers = [
+    'วันที่รับเข้า',
+    'ชื่อสินค้า',
+    'หมวดหมู่',
+    'จำนวนที่รับ',
+    'คงเหลือในล็อต',
+    'หน่วยนับ',
+    'วันหมดอายุ',
+    'เลขล็อต',
+    'หมายเหตุ / ช่องทาง',
+    'เวลาที่บันทึก'
+  ];
+
+  const rows = [headers];
+  list.forEach(b => {
+    rows.push([
+      b.received_date || '',
+      b.product_name || '',
+      b.category || '',
+      b.initial_quantity ?? b.quantity ?? 0,
+      b.quantity ?? 0,
+      b.unit || '',
+      b.expiry_date || '',
+      b.lot_number || '',
+      b.notes || '',
+      b.created_at ? new Date(b.created_at).toLocaleString('th-TH') : '-'
+    ]);
+  });
+
+  downloadCSV(`DQ_Inbound_History_${today}.csv`, rows);
+  playTapFeedback('save');
+  showToast(`📥 ส่งออกประวัติรับเข้า ${list.length} รายการเป็น Excel สำเร็จ`);
+}
+
+function exportUsageToExcel() {
+  playTapFeedback('click');
+  const logs = state.usageLogs || [];
+  if (logs.length === 0) {
+    showToast('ไม่มีประวัติการเบิกใช้ให้ส่งออก', 'error');
+    return;
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const typeMap = {
+    'USE': 'เบิกใช้ปกติ',
+    'WASTE': 'ของเสีย / ชำรุด / ทิ้ง',
+    'ADJUST': 'ปรับยอดสต็อก'
+  };
+
+  const headers = [
+    'วันที่ใช้',
+    'เวลาที่บันทึก',
+    'ชื่อสินค้า',
+    'เลขล็อต',
+    'จำนวนที่ใช้',
+    'หน่วยนับ',
+    'ประเภทรายการ',
+    'วัตถุประสงค์ / หมายเหตุ',
+    'ผู้ทำรายการ'
+  ];
+
+  const rows = [headers];
+  logs.forEach(u => {
+    rows.push([
+      u.used_date || '',
+      u.created_at ? new Date(u.created_at).toLocaleString('th-TH') : '-',
+      u.product_name || '',
+      u.lot_number || 'FIFO (ออโต้)',
+      u.quantity ?? 0,
+      u.unit || '',
+      typeMap[u.type] || u.type || 'เบิกใช้ปกติ',
+      u.purpose || '',
+      u.used_by || '-'
+    ]);
+  });
+
+  downloadCSV(`DQ_Usage_Outbound_History_${today}.csv`, rows);
+  playTapFeedback('save');
+  showToast(`📥 ส่งออกประวัติการเบิกใช้ ${logs.length} รายการเป็น Excel สำเร็จ`);
+}
+
+function exportOrdersToExcel() {
+  playTapFeedback('click');
+  const items = getOrderItems();
+  if (items.length === 0) {
+    showToast('ไม่มีรายการสั่งของให้ส่งออก');
+    return;
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const headers = [
+    'ลำดับ',
+    'ชื่อสินค้า',
+    'หมวดหมู่',
+    'จำนวนคงเหลือปัจจุบัน',
+    'จุดสั่งซื้อ (Safety Stock)',
+    'จำนวนที่แนะนำให้สั่งซื้อ',
+    'หน่วยนับ'
+  ];
+
+  const rows = [headers];
+  items.forEach((it, idx) => {
+    rows.push([
+      idx + 1,
+      it.name || '',
+      it.category || '',
+      it.current_stock ?? 0,
+      it.safety_stock ?? 0,
+      it.order_qty ?? 0,
+      it.unit || ''
+    ]);
+  });
+
+  downloadCSV(`DQ_Order_List_${today}.csv`, rows);
+  playTapFeedback('save');
+  showToast(`📥 ส่งออกใบสั่งของ ${items.length} รายการเป็น Excel สำเร็จ`);
+}
+
+// =======================================================
+// LINE RICH MENU ONE-CLICK SETUP
+// =======================================================
+async function triggerSetupRichMenu() {
+  playTapFeedback('click');
+  const btn = document.getElementById('btn-setup-richmenu');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>กำลังติดตั้ง Rich Menu...</span>`;
+    lucide.createIcons();
+  }
+
+  try {
+    showToast('⏳ กำลังเชื่อมต่อ LINE API เพื่อสร้างและติดตั้ง Rich Menu 6 เมนูลัด...');
+    const res = await fetch('/api/line/setup-rich-menu', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        app_url: window.location.origin
+      })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'ไม่สามารถติดตั้งได้');
+
+    playTapFeedback('save');
+    showToast('🎉 ติดตั้ง LINE Rich Menu (6 เมนูลัด) เรียบร้อยแล้ว! เมนูจะแสดงบน LINE ทันที');
+  } catch (err) {
+    playTapFeedback('alert');
+    showToast('เกิดข้อผิดพลาดในการติดตั้ง Rich Menu: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<i data-lucide="sparkles" class="w-4 h-4 text-indigo-200"></i><span>⚡ ติดตั้ง Rich Menu ให้ LINE ทันที</span>`;
+      lucide.createIcons();
+    }
+  }
+}

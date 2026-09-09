@@ -353,4 +353,18 @@ router.post('/line/order-report', async (req, res) => {
   }
 });
 
+router.post('/line/setup-rich-menu', async (req, res) => {
+  try {
+    const { token, app_url } = req.body || {};
+    const host = req.get('host');
+    const protocol = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const detectedUrl = app_url || (host ? `${protocol}://${host}` : null);
+    const result = await lineService.setupDefaultRichMenu(token, detectedUrl);
+    res.json({ success: true, message: 'ติดตั้ง LINE Rich Menu เรียบร้อยแล้ว!', data: result });
+  } catch (err) {
+    console.error('[Setup Rich Menu Error]:', err.message);
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

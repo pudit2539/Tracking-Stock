@@ -335,8 +335,12 @@
             </button>
           </div>
 
-          <!-- Quick Stock Order Summary Button -->
+          <!-- Quick Stock Order Summary & Export Buttons -->
           <div class="flex items-center space-x-2 self-end sm:self-auto">
+            <button onclick="exportInventoryToExcel()" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition shadow-2xs active:scale-95" title="ดาวน์โหลดข้อมูลสต็อกสินค้าทั้งหมดเป็น Excel (.csv UTF-8)">
+              <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-emerald-600"></i>
+              <span>📥 ส่งออก Excel</span>
+            </button>
             <button onclick="openQuickOrderSummaryModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition shadow-xs active:scale-95">
               <i data-lucide="shopping-cart" class="w-4 h-4"></i>
               <span>🛒 สรุปสั่งของ (<span id="btn-order-count">0</span>)</span>
@@ -445,6 +449,10 @@
             <span class="text-emerald-900 font-semibold">📦 ตรวจสอบรายการรับของเข้าสต็อก (ทั้งผ่านหน้าเว็บและผ่าน LINE) สามารถกดดูรายละเอียด, แก้ไข หรือลบรายการได้ทันที</span>
           </div>
           <div class="flex items-center space-x-2 self-end sm:self-auto">
+            <button type="button" onclick="exportInboundToExcel()" class="px-2.5 py-1 bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold rounded-lg flex items-center space-x-1 transition shadow-2xs active:scale-95" title="ดาวน์โหลดประวัติรับเข้าเป็น Excel (.csv UTF-8)">
+              <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-emerald-600"></i>
+              <span>ส่งออก Excel</span>
+            </button>
             <label for="sort-inbound" class="text-slate-500 font-semibold whitespace-nowrap text-[11px] flex items-center space-x-1">
               <i data-lucide="arrow-down-up" class="w-3.5 h-3.5 text-emerald-600"></i>
               <span>เรียงตาม:</span>
@@ -517,6 +525,10 @@
             <span class="text-amber-900 font-semibold">📋 บันทึกประวัติการเบิกใช้ ตัดของเสีย และการปรับยอดสต็อกตามหลัก FIFO</span>
           </div>
           <div class="flex items-center space-x-2 self-end sm:self-auto">
+            <button type="button" onclick="exportUsageToExcel()" class="px-2.5 py-1 bg-white hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-semibold rounded-lg flex items-center space-x-1 transition shadow-2xs active:scale-95" title="ดาวน์โหลดประวัติการเบิกใช้/ตัดของเสียเป็น Excel (.csv UTF-8)">
+              <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-amber-600"></i>
+              <span>ส่งออก Excel</span>
+            </button>
             <label for="sort-outbound" class="text-slate-500 font-semibold whitespace-nowrap text-[11px] flex items-center space-x-1">
               <i data-lucide="arrow-down-up" class="w-3.5 h-3.5 text-amber-600"></i>
               <span>เรียงตาม:</span>
@@ -768,6 +780,42 @@
                 <span>เปลี่ยนรหัส PIN ใหม่</span>
               </button>
             </form>
+          </div>
+
+          <!-- Card 1.6: LINE Rich Menu One-Click Setup -->
+          <div class="bg-white p-6 rounded-2xl border border-indigo-200 shadow-sm space-y-4 bg-indigo-50/20">
+            <div class="border-b border-indigo-100 pb-3 flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+              <div>
+                <h3 class="font-bold text-slate-900 text-base flex items-center space-x-2">
+                  <i data-lucide="layout-grid" class="w-5 h-5 text-indigo-600"></i>
+                  <span>LINE Rich Menu (เมนูลัด 6 ช่องบนห้องแชท LINE)</span>
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">ติดตั้งปุ่มลัด 6 ช่องที่ด้านล่างห้องแชท LINE ให้พนักงานกดสั่งงาน ดูสต็อก และสรุปของได้ใน 1 สัมผัส</p>
+              </div>
+              <span class="px-2.5 py-1 bg-indigo-100 text-indigo-800 text-[11px] font-bold rounded-lg border border-indigo-200 self-start sm:self-auto">6 เมนูลัด</span>
+            </div>
+
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 bg-white rounded-xl border border-indigo-100">
+              <div class="space-y-1.5">
+                <p class="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                  <span>📱 เมนูลัดทั้ง 6 ช่องประกอบด้วย:</span>
+                </p>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px] text-slate-600 font-medium">
+                  <div class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>1. ภาพรวมสต็อก</span></div>
+                  <div class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span><span>2. ใกล้หมดอายุ</span></div>
+                  <div class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span><span>3. สรุปของต้องสั่ง</span></div>
+                  <div class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-blue-500"></span><span>4. เช็คสต็อกสินค้า</span></div>
+                  <div class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-indigo-500"></span><span>5. เปิดดูบนเว็บ</span></div>
+                  <div class="flex items-center space-x-1.5"><span class="w-2 h-2 rounded-full bg-slate-500"></span><span>6. คู่มือ & คำสั่ง</span></div>
+                </div>
+              </div>
+
+              <button type="button" onclick="triggerSetupRichMenu()" id="btn-setup-richmenu" class="w-full md:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center justify-center space-x-2 shrink-0">
+                <i data-lucide="sparkles" class="w-4 h-4 text-indigo-200"></i>
+                <span>⚡ ติดตั้ง Rich Menu ให้ LINE ทันที</span>
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-400">💡 ต้องบันทึก Token ในการตั้งค่าด้านบนก่อน จึงจะสามารถเชื่อมต่อ LINE API เพื่อติดตั้ง Rich Menu ได้</p>
           </div>
 
           <!-- Card 2: Multiple Recipients (Personal & Groups) -->
@@ -1131,14 +1179,18 @@
 
       <!-- Action Buttons -->
       <div class="pt-3 border-t border-slate-100 space-y-2">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <button type="button" onclick="copyOrderListToClipboard()" class="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center space-x-2 transition">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <button type="button" onclick="copyOrderListToClipboard()" class="w-full py-2.5 px-3 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center space-x-1.5 transition">
             <i data-lucide="copy" class="w-4 h-4 text-slate-300"></i>
-            <span>📋 คัดลอกรายการ (Copy แชต)</span>
+            <span>📋 คัดลอกแชต</span>
           </button>
-          <button type="button" onclick="triggerSendOrderReport()" class="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center space-x-2 transition">
+          <button type="button" onclick="exportOrdersToExcel()" class="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center space-x-1.5 transition">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-200"></i>
+            <span>📥 โหลด Excel</span>
+          </button>
+          <button type="button" onclick="triggerSendOrderReport()" class="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-sm flex items-center justify-center space-x-1.5 transition">
             <i data-lucide="send" class="w-4 h-4 text-blue-200"></i>
-            <span>📲 ส่งเข้า LINE กลุ่มทันที</span>
+            <span>📲 ส่งเข้า LINE</span>
           </button>
         </div>
         <button type="button" onclick="closeDialog('modal-order-summary')" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold rounded-xl text-xs transition">
@@ -1449,6 +1501,51 @@
               • <b>พิมพ์ผิดไม่ต้องกลัว:</b> หากพิมพ์ชื่อผิด บอทมีระบบ Smart Search ช่วยค้นหาคำใกล้เคียงและส่งปุ่มตัวเลือกมาให้กดทันที
             </p>
           </div>
+
+          <!-- 7. Undo Recent Mistake -->
+          <div class="p-3 bg-purple-50/80 rounded-2xl border border-purple-200 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-purple-900 text-xs flex items-center space-x-1.5">
+                <span>↩️ 7. ยกเลิกคำสั่งล่าสุด (Undo ภายใน 5 นาที)</span>
+              </span>
+              <span class="text-[10px] px-2 py-0.5 bg-purple-200/80 text-purple-900 rounded-md font-bold">ใหม่!</span>
+            </div>
+            <p class="text-slate-600 text-[11px] leading-relaxed">
+              ถ้าเผลอพิมพ์ตัดสต็อกผิด, ใส่จำนวนผิด หรือรับเข้าผิด สามารถสั่งยกเลิกได้ทันทีภายใน 5 นาที ระบบจะคืนค่าสต็อกเดิมและลบประวัติให้แบบสมบูรณ์
+            </p>
+            <div class="bg-white/90 p-2 rounded-xl border border-purple-200 font-mono text-[11px] text-purple-900 space-y-0.5">
+              <div>• "DQ ยกเลิก" หรือ "DQ undo"</div>
+            </div>
+          </div>
+
+          <!-- 8. Waste Tracking -->
+          <div class="p-3 bg-rose-50/80 rounded-2xl border border-rose-200 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-rose-900 text-xs flex items-center space-x-1.5">
+                <span>🗑️ 8. บันทึกของเสีย / ชำรุด / ทิ้ง (Waste Tracking)</span>
+              </span>
+              <span class="text-[10px] px-2 py-0.5 bg-rose-200/80 text-rose-900 rounded-md font-bold">ใหม่!</span>
+            </div>
+            <p class="text-slate-600 text-[11px] leading-relaxed">
+              พิมพ์คำว่า <code class="bg-rose-100 text-rose-900 px-1 py-0.5 rounded font-mono">ทิ้ง</code>, <code class="bg-rose-100 text-rose-900 px-1 py-0.5 rounded font-mono">เสีย</code> หรือ <code class="bg-rose-100 text-rose-900 px-1 py-0.5 rounded font-mono">waste</code> เพื่อหักสต็อกและบันทึกประเภทเป็น "ของเสีย" แยกจากการเบิกใช้ปกติ
+            </p>
+            <div class="bg-white/90 p-2 rounded-xl border border-rose-200 font-mono text-[11px] text-rose-900 space-y-0.5">
+              <div>• "DQ ทิ้ง coke 2"</div>
+              <div>• "DQ เสีย นมสด 1 pack"</div>
+              <div>• "DQ waste ช้อน 5"</div>
+            </div>
+          </div>
+
+          <!-- 9. Rich Menu & Critical Stock Alert -->
+          <div class="p-3 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-2xl border border-indigo-200 space-y-1">
+            <span class="font-bold text-indigo-900 text-xs flex items-center space-x-1.5">
+              <span>🔘 9. เมนูลัด Rich Menu 6 ช่อง & เตือนสต็อกวิกฤตทันที</span>
+            </span>
+            <p class="text-slate-600 text-[11px] leading-relaxed">
+              • <b>Rich Menu:</b> แตะปุ่ม 6 ช่องด้านล่างห้องแชตเพื่อดูสรุปสต็อก หรือของใกล้หมดอายุได้ทันทีโดยไม่ต้องพิมพ์<br>
+              • <b>Critical Alert:</b> เมื่อใดก็ตามที่ตัดสต็อกแล้วสินค้าลดต่ำกว่า Safety Stock บอทจะแจ้งเตือนแถบสีแดงฉุกเฉินพร้อมปุ่มสั่งของทันทีในแชต
+            </p>
+          </div>
         </div>
       </div>
 
@@ -1530,6 +1627,19 @@
             <h4 class="font-bold text-slate-900 text-xs">🛡️ ระบบความปลอดภัย & สลับโหมด Admin (PIN)</h4>
             <p class="text-slate-600 text-[11px] leading-relaxed">
               หน้าเว็บแบ่งสิทธิ์ใช้งาน: พนักงานทั่วไปสามารถดูสต็อกและประวัติได้อย่างสะดวก ส่วนการลบ/แก้ไขสินค้าหรือตั้งค่าระบบ ต้องกดปุ่ม <b>"โหมดพนักงาน"</b> ด้านบนเพื่อใส่รหัส PIN เข้าสู่โหมด Admin (สามารถเปลี่ยน PIN ได้ในหน้าตั้งค่า)
+            </p>
+          </div>
+        </div>
+
+        <!-- Step 7 -->
+        <div class="p-3.5 bg-emerald-50/60 rounded-2xl border border-emerald-100 flex items-start space-x-3">
+          <div class="w-8 h-8 rounded-xl bg-emerald-600 text-white font-black flex items-center justify-center shrink-0 text-sm shadow-xs">
+            7
+          </div>
+          <div class="space-y-1">
+            <h4 class="font-bold text-slate-900 text-xs">📥 ส่งออก Excel ภาษาไทย 100% (Export CSV)</h4>
+            <p class="text-slate-600 text-[11px] leading-relaxed">
+              สามารถกดปุ่ม <b class="text-emerald-700">"📥 ส่งออก Excel"</b> เพื่อดาวน์โหลดข้อมูลทั้ง สต็อกสินค้า, ประวัติรับเข้า, ประวัติการเบิกใช้ และใบสั่งของ โดยระบบใส่รหัส UTF-8 BOM ทำให้เปิดใน Microsoft Excel แล้วภาษาไทยไม่เพี้ยน ไม่เป็นภาษาต่างดาว
             </p>
           </div>
         </div>

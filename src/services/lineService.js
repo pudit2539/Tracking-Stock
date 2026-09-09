@@ -804,6 +804,101 @@ class LineService {
     const orderFlex = this.buildOrderListFlex(orderItems, webUrl);
     return this.sendPushMessage(orderFlex, targetId, token);
   }
+
+  // 7. Setup Default Rich Menu via LINE Messaging API
+  async setupDefaultRichMenu(token = null, appUrl = null) {
+    const accessToken = token || (await this.getChannelAccessToken());
+    if (!accessToken) throw new Error('ไม่พบ LINE Channel Access Token ในระบบ');
+
+    const webUrl = appUrl || (await this.getAppUrl());
+    const fs = require('fs');
+    const path = require('path');
+    const imagePath = path.join(__dirname, '../../public/img/richmenu.png');
+    if (!fs.existsSync(imagePath)) {
+      throw new Error('ไม่พบไฟล์ภาพ richmenu.png ในโฟลเดอร์ public/img');
+    }
+
+    const richMenuPayload = {
+      size: { width: 1200, height: 810 },
+      selected: true,
+      name: 'DQ Stock Menu',
+      chatBarText: '📊 เมนูลัดสต็อก (DQ)',
+      areas: [
+        {
+          bounds: { x: 0, y: 0, width: 400, height: 405 },
+          action: { type: 'message', text: 'DQ ภาพรวม' }
+        },
+        {
+          bounds: { x: 400, y: 0, width: 400, height: 405 },
+          action: { type: 'message', text: 'DQ สั่งของ' }
+        },
+        {
+          bounds: { x: 800, y: 0, width: 400, height: 405 },
+          action: { type: 'message', text: 'DQ ใกล้หมดอายุ' }
+        },
+        {
+          bounds: { x: 0, y: 405, width: 400, height: 405 },
+          action: { type: 'message', text: 'DQ วิธีใช้' }
+        },
+        {
+          bounds: { x: 400, y: 405, width: 400, height: 405 },
+          action: { type: 'uri', uri: webUrl || 'https://tracking-stock.vercel.app' }
+        },
+        {
+          bounds: { x: 800, y: 405, width: 400, height: 405 },
+          action: { type: 'message', text: 'DQ ยกเลิก' }
+        }
+      ]
+    };
+
+    // 1. Create Rich Menu
+    const createRes = await fetch('https://api.line.me/v2/bot/richmenu', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(richMenuPayload)
+    });
+
+    const createData = await createRes.json();
+    if (!createRes.ok) {
+      throw new Error(`สร้าง Rich Menu ไม่สำเร็จ: ${createData.message || JSON.stringify(createData)}`);
+    }
+
+    const richMenuId = createData.richMenuId;
+
+    // 2. Upload Image
+    const imageBuffer = fs.readFileSync(imagePath);
+    const uploadRes = await fetch(`https://api-data.line.me/v2/bot/richmenu/${richMenuId}/content`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'image/png',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: imageBuffer
+    });
+
+    if (!uploadRes.ok) {
+      const uploadErr = await uploadRes.text();
+      throw new Error(`อัปโหลดภาพ Rich Menu ไม่สำเร็จ: ${uploadErr}`);
+    }
+
+    // 3. Set as Default for all users
+    const defaultRes = await fetch(`https://api.line.me/v2/bot/user/all/richmenu/${richMenuId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+
+    if (!defaultRes.ok) {
+      const defaultErr = await defaultRes.text();
+      throw new Error(`ตั้งค่า Rich Menu เริ่มต้นไม่สำเร็จ: ${defaultErr}`);
+    }
+
+    return { success: true, richMenuId };
+  }
 }
 
 module.exports = new LineService();

@@ -106,7 +106,21 @@ function stringSimilarity(s1, s2) {
   return Math.max(levScore, dice);
 }
 
+// Memory buffer for recent stock transactions (Reversible within 5 minutes)
+const recentTransactions = [];
+const UNDO_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+
 class LineBotService {
+  pushRecentTransaction(data) {
+    recentTransactions.unshift({
+      ...data,
+      timestamp: Date.now()
+    });
+    if (recentTransactions.length > 30) {
+      recentTransactions.pop();
+    }
+  }
+
   findProduct(text) {
     const clean = text.toLowerCase().trim();
     let bestMatch = null;
@@ -203,8 +217,20 @@ class LineBotService {
       }
     }
 
+    // 4.5 UNDO LAST ACTION
+    if (/^(ยกเลิก|กดยกเลิก|undo|revert)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(raw)) {
+      return { action: 'UNDO' };
+    }
+
     const prodName = this.findProduct(raw);
     const qty = this.extractQuantity(raw);
+
+    // 4.6 WASTE / SPOILED (ของเสีย, ทิ้ง, เสีย, ชำรุด, waste, damaged)
+    if (/(ของเสีย|ทิ้ง|เสีย|ชำรุด|waste|damaged|หมดอายุแล้วทิ้ง)/i.test(raw)) {
+      if (prodName && qty !== null) {
+        return { action: 'WASTE', productName: prodName, quantity: qty };
+      }
+    }
 
     // 4. DEDUCT / USE (ใช้ไปแล้ว, ใช้, ตัด, เบิก, -)
     if (/(ใช้ไปแล้ว|ใช้ไป|ใช้|ตัด|เบิก|หัก|เอาไป|use|minus|-)/i.test(raw)) {
@@ -295,6 +321,9 @@ class LineBotService {
       if (!p) {
         return [{ action: 'EXPIRING_SOON' }];
       }
+    }
+    if (/^(ยกเลิก|กดยกเลิก|undo|revert)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(singleRaw)) {
+      return [{ action: 'UNDO' }];
     }
 
     // Split by newlines first
@@ -411,6 +440,11 @@ class LineBotService {
       return lineService.buildExpiringFlex(batches, webUrl);
     }
 
+    // ACTION: UNDO
+    if (intent.action === 'UNDO') {
+      return this.executeUndo(senderName, webUrl);
+    }
+
     // ACTION: UNKNOWN PRODUCT (Typo / Did you mean)
     if (intent.action === 'UNKNOWN_PRODUCT') {
       return this.buildUnknownProductFlex(intent, webUrl);
@@ -436,10 +470,12 @@ class LineBotService {
       return this.buildItemDetailFlex(product, webUrl);
     }
 
-    // ACTION: USE (ตัดสต็อก)
-    if (intent.action === 'USE') {
+    // ACTION: USE (ตัดสต็อก) หรือ WASTE (ของเสีย/หมดอายุ)
+    if (intent.action === 'USE' || intent.action === 'WASTE') {
+      const isWaste = intent.action === 'WASTE';
       try {
         const qty = intent.quantity;
+        const oldStock = Number(product.current_stock);
         const batches = await dbClient.getBatchesByProductId(product.id);
         const totalAvailable = batches.reduce((sum, b) => sum + Number(b.quantity), 0);
 
@@ -447,27 +483,49 @@ class LineBotService {
           await dbClient.recordUsage({
             product_id: product.id,
             quantity: qty,
-            type: 'USE',
+            type: isWaste ? 'WASTE' : 'USE',
             used_by: senderName,
-            notes: 'ตัดผ่านแชต LINE (สต็อกเดิมเป็น 0)'
+            notes: isWaste ? 'ตัดของเสียผ่าน LINE (สต็อกเดิมเป็น 0)' : 'ตัดผ่านแชต LINE (สต็อกเดิมเป็น 0)'
           }).catch(() => {});
           
-          return this.buildDeductionResultFlex(product, qty, 0, true, webUrl);
+          this.pushRecentTransaction({
+            action: isWaste ? 'WASTE' : 'USE',
+            productId: product.id,
+            productName: product.name,
+            unit: product.unit,
+            quantity: qty,
+            oldStock: oldStock,
+            newStock: 0,
+            senderName
+          });
+
+          return this.buildDeductionResultFlex(product, qty, 0, true, webUrl, isWaste);
         }
 
         await dbClient.recordUsage({
           product_id: product.id,
           quantity: Math.min(qty, totalAvailable),
-          type: 'USE',
+          type: isWaste ? 'WASTE' : 'USE',
           used_by: senderName,
-          notes: 'ตัดผ่านแชต LINE'
+          notes: isWaste ? 'บันทึกของเสียผ่าน LINE' : 'ตัดผ่านแชต LINE'
         });
 
         const updated = await dbClient.getProductById(product.id);
         const newStock = updated.current_stock;
         const isLow = newStock <= Number(updated.safety_stock);
 
-        return this.buildDeductionResultFlex(updated, qty, newStock, isLow, webUrl);
+        this.pushRecentTransaction({
+          action: isWaste ? 'WASTE' : 'USE',
+          productId: product.id,
+          productName: product.name,
+          unit: product.unit,
+          quantity: qty,
+          oldStock: oldStock,
+          newStock: newStock,
+          senderName
+        });
+
+        return this.buildDeductionResultFlex(updated, qty, newStock, isLow, webUrl, isWaste);
       } catch (err) {
         return {
           type: 'text',
@@ -479,9 +537,21 @@ class LineBotService {
     // ACTION: SET STOCK (นับสต็อก / ปรับยอด)
     if (intent.action === 'SET_STOCK') {
       try {
+        const oldStock = Number(product.current_stock);
         const updated = await dbClient.setProductStockDirect(product.id, intent.quantity, senderName);
         const newStock = updated.current_stock;
         const isLow = newStock <= Number(updated.safety_stock);
+
+        this.pushRecentTransaction({
+          action: 'SET_STOCK',
+          productId: product.id,
+          productName: product.name,
+          unit: product.unit,
+          quantity: intent.quantity,
+          oldStock: oldStock,
+          newStock: newStock,
+          senderName
+        });
 
         return {
           type: 'flex',
@@ -565,7 +635,21 @@ class LineBotService {
     // ACTION: ADD STOCK (รับเข้า / เติม)
     if (intent.action === 'ADD_STOCK') {
       try {
+        const oldStock = Number(product.current_stock);
         const updated = await dbClient.addProductStockDirect(product.id, intent.quantity, senderName);
+        const newStock = updated.current_stock;
+
+        this.pushRecentTransaction({
+          action: 'ADD_STOCK',
+          productId: product.id,
+          productName: product.name,
+          unit: product.unit,
+          quantity: intent.quantity,
+          oldStock: oldStock,
+          newStock: newStock,
+          senderName
+        });
+
         return {
           type: 'flex',
           altText: `📦 เติมสต็อก ${product.name} +${intent.quantity} ${product.unit}`,
@@ -1060,21 +1144,121 @@ class LineBotService {
     };
   }
 
-  buildDeductionResultFlex(product, deductedQty, newStock, isLow, webUrl) {
+  async executeUndo(senderName, webUrl) {
+    const now = Date.now();
+    const validIndex = recentTransactions.findIndex(t => (now - t.timestamp) <= UNDO_EXPIRY_MS);
+    if (validIndex === -1) {
+      return {
+        type: 'text',
+        text: '⚠️ ไม่พบรายการล่าสุดที่สามารถยกเลิกได้ครับ\n\n💡 ระบบอนุญาตให้ยกเลิกรายการ (ตัดสต็อก, ของเสีย, รับเข้า) ได้ภายใน 5 นาทีหลังจากทำรายการเท่านั้นครับ'
+      };
+    }
+
+    const t = recentTransactions.splice(validIndex, 1)[0];
+    try {
+      await dbClient.setProductStockDirect(t.productId, t.oldStock, `ยกเลิกโดย ${senderName}`);
+
+      if (t.action === 'USE' || t.action === 'WASTE') {
+        await dbClient.deleteLatestUsageLog(t.productId);
+      }
+
+      const actionText = t.action === 'ADD_STOCK' ? 'รับเข้า' : (t.action === 'WASTE' ? 'บันทึกของเสีย' : 'ตัดสต็อก');
+
+      return {
+        type: 'flex',
+        altText: `↩️ ยกเลิกรายการสำเร็จ: คืนสต็อก ${t.productName} เรียบร้อยแล้ว`,
+        contents: {
+          type: 'bubble',
+          size: 'kilo',
+          header: {
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: '#0F172A',
+            paddingAll: '16px',
+            contents: [
+              { type: 'text', text: '↩️ ยกเลิกรายการล่าสุดสำเร็จ', weight: 'bold', color: '#FFFFFF', size: 'sm' },
+              { type: 'text', text: t.productName, weight: 'bold', color: '#38BDF8', size: 'lg', margin: 'xs' }
+            ]
+          },
+          body: {
+            type: 'box',
+            layout: 'vertical',
+            paddingAll: '16px',
+            spacing: 'sm',
+            contents: [
+              {
+                type: 'box',
+                layout: 'horizontal',
+                contents: [
+                  { type: 'text', text: 'รายการที่ยกเลิก:', color: '#64748B', size: 'xs', flex: 5 },
+                  { type: 'text', text: `${actionText} ${t.quantity} ${t.unit}`, weight: 'bold', color: '#EF4444', size: 'xs', flex: 5, align: 'end' }
+                ]
+              },
+              {
+                type: 'box',
+                layout: 'horizontal',
+                contents: [
+                  { type: 'text', text: 'ยอดคงเหลือที่กู้คืน:', color: '#64748B', size: 'xs', flex: 5 },
+                  { type: 'text', text: `${t.oldStock} ${t.unit}`, weight: 'bold', color: '#059669', size: 'sm', flex: 5, align: 'end' }
+                ]
+              },
+              {
+                type: 'box',
+                layout: 'horizontal',
+                contents: [
+                  { type: 'text', text: 'ผู้ทำรายการยกเลิก:', color: '#64748B', size: 'xs', flex: 5 },
+                  { type: 'text', text: senderName, size: 'xs', color: '#334155', flex: 5, align: 'end' }
+                ]
+              }
+            ]
+          },
+          footer: {
+            type: 'box',
+            layout: 'vertical',
+            paddingAll: '10px',
+            contents: [
+              {
+                type: 'button',
+                style: 'link',
+                height: 'sm',
+                action: { type: 'uri', label: '📱 ตรวจสอบสต็อกบนเว็บ', uri: `${webUrl}?tab=inventory&product_id=${t.productId}` }
+              }
+            ]
+          }
+        }
+      };
+    } catch (err) {
+      return {
+        type: 'text',
+        text: `❌ ไม่สามารถยกเลิกรายการได้: ${err.message}`
+      };
+    }
+  }
+
+  buildDeductionResultFlex(product, deductedQty, newStock, isLow, webUrl, isWaste = false) {
+    let headerColor = isWaste ? '#7C3AED' : (isLow ? '#DC2626' : '#1E293B');
+    let headerTitle = isWaste 
+      ? (isLow ? '🗑️ บันทึกของเสีย (สต็อกวิกฤต!)' : '🗑️ บันทึกของเสีย / ชำรุดสำเร็จ')
+      : (isLow ? '🚨 สต็อกเข้าขั้นวิกฤต (ต่ำกว่าจุดสั่งซื้อ!)' : '✅ บันทึกตัดสต็อกสำเร็จ');
+
+    const alt = isWaste
+      ? `🗑️ บันทึกของเสีย ${product.name} ${deductedQty} ${product.unit} (คงเหลือ ${newStock})`
+      : `✅ ตัดสต็อก ${product.name} ${deductedQty} ${product.unit} (คงเหลือ ${newStock})`;
+
     return {
       type: 'flex',
-      altText: `✅ ตัดสต็อก ${product.name} ${deductedQty} ${product.unit} (คงเหลือ ${newStock})`,
+      altText: alt,
       contents: {
         type: 'bubble',
         size: 'kilo',
         header: {
           type: 'box',
           layout: 'vertical',
-          backgroundColor: isLow ? '#DC2626' : '#1E293B',
+          backgroundColor: headerColor,
           paddingAll: '16px',
           ...(webUrl ? { action: { type: 'uri', uri: `${webUrl}?tab=inventory&product_id=${product.id}` } } : {}),
           contents: [
-            { type: 'text', text: isLow ? '⚠️ ตัดสต็อกสำเร็จ (ของใกล้หมด!)' : '✅ บันทึกตัดสต็อกสำเร็จ', weight: 'bold', color: '#FFFFFF', size: 'sm' },
+            { type: 'text', text: headerTitle, weight: 'bold', color: '#FFFFFF', size: 'sm' },
             { type: 'text', text: product.name, weight: 'bold', color: '#FFFFFF', size: 'lg', margin: 'xs' }
           ]
         },
@@ -1088,8 +1272,8 @@ class LineBotService {
               type: 'box',
               layout: 'horizontal',
               contents: [
-                { type: 'text', text: 'ใช้ไป:', color: '#64748B', size: 'xs', flex: 5 },
-                { type: 'text', text: `-${deductedQty} ${product.unit}`, weight: 'bold', color: '#DC2626', size: 'sm', flex: 5, align: 'end' }
+                { type: 'text', text: isWaste ? 'ของเสีย/ทิ้ง:' : 'ใช้ไป:', color: '#64748B', size: 'xs', flex: 5 },
+                { type: 'text', text: `-${deductedQty} ${product.unit}`, weight: 'bold', color: isWaste ? '#7C3AED' : '#DC2626', size: 'sm', flex: 5, align: 'end' }
               ]
             },
             {
@@ -1114,9 +1298,12 @@ class LineBotService {
               margin: 'md',
               paddingAll: '8px',
               backgroundColor: '#FEF2F2',
+              borderColor: '#EF4444',
+              borderWidth: '1px',
               cornerRadius: '8px',
               contents: [
-                { type: 'text', text: '🛒 แนะนำสั่งซื้อเพิ่ม: พิมพ์ "สั่งของ" เพื่อดูใบสั่ง', color: '#DC2626', size: 'xxs', weight: 'bold', align: 'center' }
+                { type: 'text', text: '🚨 สต็อกวิกฤต! แนะนำสั่งซื้อเพิ่มด่วน', color: '#B91C1C', size: 'xs', weight: 'bold', align: 'center' },
+                { type: 'text', text: 'พิมพ์ "DQ สั่งของ" หรือกดปุ่มด้านล่างเพื่อดูใบสั่ง', color: '#DC2626', size: 'xxs', align: 'center', margin: 'xs' }
               ]
             }] : [])
           ]
@@ -1128,12 +1315,13 @@ class LineBotService {
           contents: [
             {
               type: 'button',
-              style: 'link',
+              style: isLow ? 'primary' : 'link',
+              color: isLow ? '#DC2626' : undefined,
               height: 'sm',
               action: { 
                 type: 'uri', 
-                label: isLow ? '📱 ดูสินค้าใกล้หมดบนเว็บ' : '📱 ดูประวัติการเบิกใช้บนเว็บ', 
-                uri: isLow ? `${webUrl}?tab=inventory&filter=LOW` : `${webUrl}?tab=usage&subtab=outbound` 
+                label: isLow ? '🛒 เปิดดูรายการที่ต้องสั่งซื้อ' : (isWaste ? '📱 ดูประวัติของเสียบนเว็บ' : '📱 ดูประวัติการเบิกใช้บนเว็บ'), 
+                uri: isLow ? `${webUrl}?tab=orders` : `${webUrl}?tab=usage&subtab=outbound` 
               }
             }
           ]
@@ -1372,11 +1560,33 @@ class LineBotService {
             {
               type: 'box',
               layout: 'vertical',
+              backgroundColor: '#FAF5FF',
+              paddingAll: '10px',
+              cornerRadius: '10px',
+              contents: [
+                { type: 'text', text: '↩️ 6. ยกเลิกรายการผิดพลาด (Undo ภายใน 5 นาที):', weight: 'bold', size: 'xs', color: '#7E22CE' },
+                { type: 'text', text: '• พิมพ์ "ยกเลิก" หรือ "undo" คืนค่าสต็อกทันที', size: 'xs', color: '#334155', margin: 'xs' }
+              ]
+            },
+            {
+              type: 'box',
+              layout: 'vertical',
+              backgroundColor: '#FFF1F2',
+              paddingAll: '10px',
+              cornerRadius: '10px',
+              contents: [
+                { type: 'text', text: '🗑️ 7. บันทึกของเสีย / ชำรุด / ทิ้ง (Waste):', weight: 'bold', size: 'xs', color: '#BE123C' },
+                { type: 'text', text: '• "ทิ้ง coke 2" หรือ "เสีย นม 1" หรือ "waste"', size: 'xs', color: '#334155', margin: 'xs' }
+              ]
+            },
+            {
+              type: 'box',
+              layout: 'vertical',
               backgroundColor: '#EEF2FF',
               paddingAll: '10px',
               cornerRadius: '10px',
               contents: [
-                { type: 'text', text: '🔗 6. แตะข้อความเพื่อเปิดดูบนเว็บ (Deep Link):', weight: 'bold', size: 'xs', color: '#4F46E5' },
+                { type: 'text', text: '🔗 8. แตะข้อความเพื่อเปิดดูบนเว็บ (Deep Link):', weight: 'bold', size: 'xs', color: '#4F46E5' },
                 { type: 'text', text: '• แตะที่ชื่อสินค้าในข้อความ เพื่อเปิดดูรายละเอียดและประวัติย้อนหลังบนเว็บได้ทันที', size: 'xs', color: '#334155', margin: 'xs' }
               ]
             }
