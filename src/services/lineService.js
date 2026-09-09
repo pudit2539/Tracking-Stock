@@ -805,12 +805,22 @@ class LineService {
     return this.sendPushMessage(orderFlex, targetId, token);
   }
 
+  async getChannelAccessToken() {
+    const fromDb = await this.getSetting('line_channel_access_token', '');
+    if (fromDb && fromDb.trim()) return fromDb.trim();
+    return (process.env.LINE_CHANNEL_ACCESS_TOKEN || '').trim();
+  }
+
   // 7. Setup Default Rich Menu via LINE Messaging API
   async setupDefaultRichMenu(token = null, appUrl = null) {
-    const accessToken = token || (await this.getChannelAccessToken());
-    if (!accessToken) throw new Error('ไม่พบ LINE Channel Access Token ในระบบ');
+    const accessToken = (token && token.trim()) || (await this.getChannelAccessToken());
+    if (!accessToken) throw new Error('ไม่พบ LINE Channel Access Token ในระบบ กรุณาบันทึก Token ในแท็บการตั้งค่าก่อน');
 
-    const webUrl = appUrl || (await this.getAppUrl());
+    let webUrl = appUrl || (await this.getAppUrl());
+    if (!webUrl || !webUrl.startsWith('https://')) {
+      webUrl = 'https://tracking-stock.vercel.app';
+    }
+
     const fs = require('fs');
     const path = require('path');
     const imagePath = path.join(__dirname, '../../public/img/richmenu.png');
@@ -842,7 +852,7 @@ class LineService {
         },
         {
           bounds: { x: 400, y: 405, width: 400, height: 405 },
-          action: { type: 'uri', uri: webUrl || 'https://tracking-stock.vercel.app' }
+          action: { type: 'uri', uri: webUrl }
         },
         {
           bounds: { x: 800, y: 405, width: 400, height: 405 },
