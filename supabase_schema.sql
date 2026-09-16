@@ -61,13 +61,25 @@ CREATE TABLE IF NOT EXISTS line_recipients (
 );
 
 -- =======================================================
--- 6. PERMISSIONS & DISABLE RLS (Allow Web App & Serverless to Read/Write)
+-- 6. PERMISSIONS & ROW LEVEL SECURITY (RLS)
 -- =======================================================
-ALTER TABLE products DISABLE ROW LEVEL SECURITY;
-ALTER TABLE inventory_batches DISABLE ROW LEVEL SECURITY;
-ALTER TABLE usage_logs DISABLE ROW LEVEL SECURITY;
-ALTER TABLE settings DISABLE ROW LEVEL SECURITY;
-ALTER TABLE line_recipients DISABLE ROW LEVEL SECURITY;
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE inventory_batches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE usage_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE line_recipients ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow app access to products" ON products;
+DROP POLICY IF EXISTS "Allow app access to inventory_batches" ON inventory_batches;
+DROP POLICY IF EXISTS "Allow app access to usage_logs" ON usage_logs;
+DROP POLICY IF EXISTS "Allow app access to settings" ON settings;
+DROP POLICY IF EXISTS "Allow app access to line_recipients" ON line_recipients;
+
+CREATE POLICY "Allow app access to products" ON products FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow app access to inventory_batches" ON inventory_batches FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow app access to usage_logs" ON usage_logs FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow app access to settings" ON settings FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow app access to line_recipients" ON line_recipients FOR ALL TO public USING (true) WITH CHECK (true);
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;

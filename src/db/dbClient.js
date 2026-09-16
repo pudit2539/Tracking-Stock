@@ -2,13 +2,13 @@ const { createClient } = require('@supabase/supabase-js');
 
 const rawSupabaseUrl = (process.env.SUPABASE_URL || '').trim();
 const supabaseUrl = rawSupabaseUrl.replace(/\/rest\/v1\/?$/i, '').replace(/\/+$/, '');
-const isSupabase = Boolean(supabaseUrl && (process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY));
+const isSupabase = Boolean(supabaseUrl && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY));
 
 let supabase = null;
 let sqliteDb = null;
 
 if (isSupabase) {
-  const key = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
   supabase = createClient(supabaseUrl, key);
   console.log('✅ Connected to Cloud Database (Supabase PostgreSQL):', supabaseUrl);
 } else {
