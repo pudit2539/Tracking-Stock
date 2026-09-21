@@ -237,7 +237,7 @@
             </h3>
             <p class="text-xs text-slate-500 mt-0.5">จำลองการแสดงผลจริงบนโทรศัพท์มือถือ อิงตามสต็อกปัจจุบัน</p>
           </div>
-          <button onclick="sendLineAlertNow()" class="px-4 py-2 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-xl text-xs font-semibold flex items-center space-x-2 transition shadow-xs self-start sm:self-auto active:scale-95">
+          <button onclick="triggerSendLiveReport()" class="px-4 py-2 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-xl text-xs font-semibold flex items-center space-x-2 transition shadow-xs self-start sm:self-auto active:scale-95">
             <i data-lucide="send" class="w-4 h-4"></i>
             <span>ส่งทดสอบเข้า LINE ทันที</span>
           </button>
@@ -325,9 +325,9 @@
                 <option value="STOCK_DESC">📦 คงเหลือ (มาก ➔ น้อย)</option>
               </select>
             </div>
-            <button onclick="openProductModal()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition shadow-2xs">
+            <button onclick="openAddProductModal()" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium rounded-lg flex items-center space-x-1.5 transition shadow-2xs active:scale-95">
               <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-              <span>+ เพิ่มสินค้าใหม่</span>
+              <span>เพิ่มสินค้าใหม่</span>
             </button>
           </div>
 
@@ -337,7 +337,7 @@
               <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-emerald-600"></i>
               <span>📥 ส่งออก Excel</span>
             </button>
-            <button onclick="openQuickOrderSummaryModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition shadow-xs active:scale-95">
+            <button onclick="openOrderModal()" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition shadow-xs active:scale-95">
               <i data-lucide="shopping-cart" class="w-4 h-4"></i>
               <span>🛒 สรุปสั่งของ (<span id="btn-order-count">0</span>)</span>
             </button>

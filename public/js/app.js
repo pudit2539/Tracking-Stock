@@ -2521,6 +2521,18 @@ function openAddProductModal() {
   openDialog('modal-product');
 }
 
+function openProductModal() {
+  openAddProductModal();
+}
+
+function openQuickOrderSummaryModal() {
+  if (typeof openOrderModal === 'function') openOrderModal();
+}
+
+function sendLineAlertNow() {
+  if (typeof triggerSendLiveReport === 'function') triggerSendLiveReport();
+}
+
 function openEditProductModal(id) {
   const product = state.products.find(p => p.id == id);
   if (!product) return;
