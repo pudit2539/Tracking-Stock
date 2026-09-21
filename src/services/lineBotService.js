@@ -228,17 +228,23 @@ class LineBotService {
     }
 
     // 2. ORDER LIST
-    if (/^(สั่งของ|ของหมด|ของใกล้หมด|order|สรุปสั่งของ)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(raw) || raw.includes('สรุปของหมด') || raw.includes('ต้องสั่งอะไร')) {
-      return { action: 'ORDER_LIST' };
+    if (/^(สั่งของ|ของหมด|ของใกล้หมด|order|สรุปสั่งของ|รายการสั่งของ)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(raw) || /(สรุปของหมด|ต้องสั่งอะไร|ของต้องสั่ง|รายการสั่งของ|รายการของหมด)/i.test(raw)) {
+      const pName = this.findProduct(raw);
+      if (!pName) {
+        return { action: 'ORDER_LIST' };
+      }
     }
 
     // 3. OVERVIEW CHECK STOCK
-    if (/^(ภาพรวม|ดูภาพรวม|ขอภาพรวม|ภาพรวมร้าน|ภาพรวมทั้งหมด|สรุป|สรุปสต็อก|สรุปยอด|ดูสต็อก|เช็คสต็อก|สต็อก|คงเหลือ|เช็คของ|stock|overview|status|รายงาน|report)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(raw)) {
-      return { action: 'STOCK_OVERVIEW' };
+    if (/^(ภาพรวม|ดูภาพรวม|ขอภาพรวม|ภาพรวมร้าน|ภาพรวมทั้งหมด|สรุป|สรุปสต็อก|สรุปยอด|ดูสต็อก|เช็คสต็อก|สต็อก|คงเหลือ|เช็คของ|stock|overview|status|รายงาน|report)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(raw) || /(ภาพรวมร้าน|ภาพรวมสต็อก|สรุปสต็อกทั้งหมด|เช็คสต็อกทั้งหมด)/i.test(raw)) {
+      const pName = this.findProduct(raw);
+      if (!pName) {
+        return { action: 'STOCK_OVERVIEW' };
+      }
     }
 
     // 4. EXPIRING SOON
-    if (/(ใกล้หมดอายุ|ของหมดอายุ|สินค้าหมดอายุ|เช็ควันหมดอายุ|วันหมดอายุ|เช็คหมดอายุ|มีอะไรหมดอายุ|มีอะไรใกล้หมดอายุ)/i.test(raw) || /^(หมดอายุ|expiring|expired)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(raw)) {
+    if (/(หมดอายุ|ใกล้หมดอายุ|วันหมดอายุ|expir)/i.test(raw)) {
       const pName = this.findProduct(raw);
       if (!pName) {
         return { action: 'EXPIRING_SOON' };
@@ -404,13 +410,19 @@ class LineBotService {
     if (/^(วิธีใช้|คำสั่ง|คู่มือ|help|เมนู|\?)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(singleRaw)) {
       return [{ action: 'HELP' }];
     }
-    if (/^(สั่งของ|ของหมด|ของใกล้หมด|order|สรุปสั่งของ)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(singleRaw) || singleRaw.includes('สรุปของหมด') || singleRaw.includes('ต้องสั่งอะไร')) {
-      return [{ action: 'ORDER_LIST' }];
+    if (/^(สั่งของ|ของหมด|ของใกล้หมด|order|สรุปสั่งของ|รายการสั่งของ)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(singleRaw) || /(สรุปของหมด|ต้องสั่งอะไร|ของต้องสั่ง|รายการสั่งของ|รายการของหมด)/i.test(singleRaw)) {
+      const p = this.findProduct(singleRaw);
+      if (!p) {
+        return [{ action: 'ORDER_LIST' }];
+      }
     }
-    if (/^(ภาพรวม|ดูภาพรวม|ขอภาพรวม|ภาพรวมร้าน|ภาพรวมทั้งหมด|สรุป|สรุปสต็อก|สรุปยอด|ดูสต็อก|เช็คสต็อก|สต็อก|คงเหลือ|เช็คของ|stock|overview|status|รายงาน|report)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(singleRaw)) {
-      return [{ action: 'STOCK_OVERVIEW' }];
+    if (/^(ภาพรวม|ดูภาพรวม|ขอภาพรวม|ภาพรวมร้าน|ภาพรวมทั้งหมด|สรุป|สรุปสต็อก|สรุปยอด|ดูสต็อก|เช็คสต็อก|สต็อก|คงเหลือ|เช็คของ|stock|overview|status|รายงาน|report)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(singleRaw) || /(ภาพรวมร้าน|ภาพรวมสต็อก|สรุปสต็อกทั้งหมด|เช็คสต็อกทั้งหมด)/i.test(singleRaw)) {
+      const p = this.findProduct(singleRaw);
+      if (!p) {
+        return [{ action: 'STOCK_OVERVIEW' }];
+      }
     }
-    if (/(ใกล้หมดอายุ|ของหมดอายุ|สินค้าหมดอายุ|เช็ควันหมดอายุ|วันหมดอายุ|เช็คหมดอายุ|มีอะไรหมดอายุ|มีอะไรใกล้หมดอายุ)/i.test(singleRaw) || /^(หมดอายุ|expiring|expired)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(singleRaw)) {
+    if (/(หมดอายุ|ใกล้หมดอายุ|วันหมดอายุ|expir)/i.test(singleRaw)) {
       const p = this.findProduct(singleRaw);
       if (!p) {
         return [{ action: 'EXPIRING_SOON' }];
@@ -498,7 +510,23 @@ class LineBotService {
     }
 
     const intents = this.parseAllIntents(processedText);
-    if (!intents || intents.length === 0) return null;
+    if (!intents || intents.length === 0) {
+      if (hasPrefix || !prefixRegex) {
+        return {
+          type: 'text',
+          text: `🤖 ขออภัยครับ ไม่เข้าใจคำสั่ง "${processedText}"\n\n💡 คำสั่งที่ใช้บ่อย:\n• "${botPrefix} รายการหมดอายุ" หรือ "${botPrefix} ใกล้หมดอายุ"\n• "${botPrefix} สั่งของ" (ดูของใกล้หมด)\n• "${botPrefix} ภาพรวม" (ดูสต็อกทั้งหมด)\n• "${botPrefix} ตัด coke 2" (ตัดสต็อก)\n• "${botPrefix} รับ coke 10" (รับของเข้า)\n• "${botPrefix} วิธีใช้" (ดูคู่มือทั้งหมด)`,
+          quickReply: {
+            items: [
+              { type: 'action', action: { type: 'message', label: '🛒 สรุปสั่งของ', text: `${botPrefix} สั่งของ` } },
+              { type: 'action', action: { type: 'message', label: '⏳ รายการหมดอายุ', text: `${botPrefix} รายการหมดอายุ` } },
+              { type: 'action', action: { type: 'message', label: '📊 ภาพรวมร้าน', text: `${botPrefix} ภาพรวม` } },
+              { type: 'action', action: { type: 'message', label: '📖 วิธีใช้', text: `${botPrefix} วิธีใช้` } }
+            ]
+          }
+        };
+      }
+      return null;
+    }
 
     const webUrl = await lineService.getAppUrl(currentUrl);
 
