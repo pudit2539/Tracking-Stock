@@ -281,18 +281,38 @@ const dbClient = {
       expiry_warning_days: Number(data.expiry_warning_days) || 7
     };
 
+    let newProduct = null;
     if (isSupabase) {
       const { data: res, error } = await supabase.from('products').insert(payload).select().single();
       if (error) throw new Error(error.message);
-      return res;
+      newProduct = res;
     } else {
       const stmt = sqliteDb.prepare(`
         INSERT INTO products (name, category, unit, safety_stock, expiry_warning_days)
         VALUES (?, ?, ?, ?, ?)
       `);
       const res = stmt.run(payload.name, payload.category, payload.unit, payload.safety_stock, payload.expiry_warning_days);
-      return this.getProductById(res.lastInsertRowid);
+      newProduct = await this.getProductById(res.lastInsertRowid);
     }
+
+    const initialQty = Number(data.initial_quantity ?? data.quantity) || 0;
+    if (initialQty > 0 && newProduct && newProduct.id) {
+      const d = new Date();
+      d.setMonth(d.getMonth() + 6);
+      const expiryDate = data.expiry_date || data.expiryDate || d.toISOString().split('T')[0];
+
+      await this.createBatch({
+        product_id: newProduct.id,
+        lot_number: data.lot_number?.trim() || `LOT-INIT-${Date.now().toString().slice(-4)}`,
+        quantity: initialQty,
+        initial_quantity: initialQty,
+        expiry_date: expiryDate,
+        cost_per_unit: Number(data.cost_per_unit) || 0,
+        notes: data.notes?.trim() || 'รับเข้าสต็อกเริ่มต้นพร้อมการสร้างสินค้า'
+      });
+    }
+
+    return await this.getProductById(newProduct.id);
   },
 
   async updateProduct(id, data) {

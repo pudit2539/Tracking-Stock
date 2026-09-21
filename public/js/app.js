@@ -2518,7 +2518,24 @@ function openAddProductModal() {
   if (form) form.reset();
   const prodId = document.getElementById('prod-id');
   if (prodId) prodId.value = '';
+
+  // Show initial stock & expiry section for new product
+  const initSection = document.getElementById('prod-initial-stock-section');
+  if (initSection) initSection.classList.remove('hidden');
+  const initQty = document.getElementById('prod-initial-qty');
+  if (initQty) initQty.value = '';
+  const initExp = document.getElementById('prod-initial-expiry');
+  if (initExp) initExp.value = '';
+
   openDialog('modal-product');
+}
+
+function setProductInitialExpiryMonths(months) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + months);
+  const el = document.getElementById('prod-initial-expiry');
+  if (el) el.value = d.toISOString().split('T')[0];
+  if (typeof playTapFeedback === 'function') playTapFeedback('filter');
 }
 
 function openProductModal() {
@@ -2549,6 +2566,10 @@ function openEditProductModal(id) {
   setVal('prod-unit', product.unit);
   setVal('prod-safety', product.safety_stock);
   setVal('prod-warn-days', product.expiry_warning_days);
+
+  // Hide initial stock section when editing existing product
+  const initSection = document.getElementById('prod-initial-stock-section');
+  if (initSection) initSection.classList.add('hidden');
 
   openDialog('modal-product');
 }
@@ -2977,6 +2998,15 @@ async function handleSaveProduct(e) {
     safety_stock: document.getElementById('prod-safety').value,
     expiry_warning_days: document.getElementById('prod-warn-days').value
   };
+
+  if (!id) {
+    const initQty = document.getElementById('prod-initial-qty')?.value;
+    const initExp = document.getElementById('prod-initial-expiry')?.value;
+    if (initQty && Number(initQty) > 0) {
+      data.initial_quantity = Number(initQty);
+      if (initExp) data.expiry_date = initExp;
+    }
+  }
 
   try {
     const url = id ? `/api/products/${id}` : '/api/products';

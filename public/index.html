@@ -1018,6 +1018,36 @@
           </div>
         </div>
 
+        <!-- Initial Stock & Expiry Date (Optional, shown when creating new product) -->
+        <div id="prod-initial-stock-section" class="p-3 bg-emerald-50/70 rounded-xl border border-emerald-100 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-emerald-900 text-xs flex items-center space-x-1.5">
+              <span>📦 รับเข้าสต็อก & วันหมดอายุเริ่มต้น (ไม่บังคับ)</span>
+            </span>
+            <span class="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded font-medium">เพิ่มพร้อมกันทีเดียวได้เลย</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">จำนวนเริ่มต้น</label>
+              <input type="number" step="any" min="0" id="prod-initial-qty" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white font-bold" placeholder="เช่น 10 (เว้นว่าง = 0)">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">วันหมดอายุล็อตนี้</label>
+              <input type="date" id="prod-initial-expiry" class="w-full p-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white text-xs">
+            </div>
+          </div>
+
+          <!-- Quick Expiry Buttons -->
+          <div class="flex flex-wrap items-center gap-1 pt-0.5">
+            <span class="text-[10px] text-slate-400 mr-1">วันหมดอายุด่วน:</span>
+            <button type="button" onclick="setProductInitialExpiryMonths(1)" class="px-2 py-0.5 bg-white hover:bg-emerald-100 border border-slate-200 text-[10px] font-medium rounded text-slate-700 transition active:scale-95">+1 เดือน</button>
+            <button type="button" onclick="setProductInitialExpiryMonths(3)" class="px-2 py-0.5 bg-white hover:bg-emerald-100 border border-slate-200 text-[10px] font-medium rounded text-slate-700 transition active:scale-95">+3 เดือน</button>
+            <button type="button" onclick="setProductInitialExpiryMonths(6)" class="px-2 py-0.5 bg-white hover:bg-emerald-100 border border-slate-200 text-[10px] font-medium rounded text-slate-700 transition active:scale-95">+6 เดือน</button>
+            <button type="button" onclick="setProductInitialExpiryMonths(12)" class="px-2 py-0.5 bg-white hover:bg-emerald-100 border border-slate-200 text-[10px] font-medium rounded text-slate-700 transition active:scale-95">+1 ปี</button>
+          </div>
+        </div>
+
         <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
           <button type="button" onclick="closeDialog('modal-product')" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg">ยกเลิก</button>
           <button type="submit" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded-lg">บันทึก</button>
