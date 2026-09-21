@@ -359,6 +359,9 @@
           <table class="w-full text-left text-xs">
             <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 select-none">
               <tr>
+                <th class="p-3 w-10 text-center">
+                  <input type="checkbox" id="select-all-products" onchange="toggleSelectAllProducts(this.checked)" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer transition" title="เลือกทั้งหมด">
+                </th>
                 <th class="p-3 cursor-pointer hover:text-slate-800 transition" onclick="toggleSortHeader('NAME')" title="คลิกเพื่อเรียงตามชื่อสินค้า">
                   <div class="flex items-center space-x-1">
                     <span>สินค้า</span>
@@ -399,6 +402,50 @@
       <!-- Mobile Inventory Cards (Optimized for Thumb-first Tap & Swipe) -->
       <div id="inventory-mobile-cards" class="md:hidden space-y-3">
         <!-- Rendered via JS for easy thumb tapping -->
+      </div>
+
+      <!-- Floating Bulk Actions Bar (Sticky bottom) -->
+      <div id="bulk-action-bar" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 hidden max-w-2xl w-[94%] sm:w-auto bg-slate-900/95 backdrop-blur-md text-white px-4 sm:px-5 py-3 rounded-2xl shadow-2xl border border-slate-700/80 flex flex-col sm:flex-row items-center justify-between gap-3 transition-all duration-300">
+        <div class="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-start">
+          <div class="flex items-center space-x-2">
+            <span class="w-7 h-7 rounded-xl bg-indigo-500/20 text-indigo-400 font-bold text-xs flex items-center justify-center border border-indigo-500/30">
+              <i data-lucide="check-square" class="w-4 h-4"></i>
+            </span>
+            <span class="text-xs sm:text-sm font-bold">เลือก <span id="bulk-selected-count" class="text-amber-400 text-sm font-extrabold px-1">0</span> รายการ</span>
+          </div>
+          <button type="button" onclick="clearSelectedProducts()" class="text-slate-400 hover:text-white text-xs underline sm:hidden">ยกเลิก</button>
+        </div>
+
+        <div class="flex items-center flex-wrap gap-1.5 sm:gap-2 w-full sm:w-auto justify-center sm:justify-end">
+          <!-- 1. Bulk Stock (Add or Set) -->
+          <button type="button" onclick="openBulkStockModal()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition active:scale-95 shadow-xs" title="เพิ่มสต็อกหรือปรับยอดคงเหลือพร้อมกัน">
+            <i data-lucide="package-plus" class="w-3.5 h-3.5"></i>
+            <span>📦 รับเข้า/ปรับสต็อก</span>
+          </button>
+
+          <!-- 2. Bulk Expiry Date -->
+          <button type="button" onclick="openBulkExpiryModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition active:scale-95 shadow-xs" title="กำหนดวันหมดอายุพร้อมกัน">
+            <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+            <span>📅 วันหมดอายุ</span>
+          </button>
+
+          <!-- 3. Bulk Safety Stock -->
+          <button type="button" onclick="openBulkSafetyStockModal()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition active:scale-95 shadow-xs" title="กำหนดจุดสั่งซื้อพร้อมกัน">
+            <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+            <span>🎯 จุดสั่งซื้อ</span>
+          </button>
+
+          <!-- 4. Bulk Delete -->
+          <button type="button" onclick="openBulkDeleteModal()" class="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-semibold flex items-center space-x-1 transition active:scale-95 shadow-xs" title="ลบสินค้าที่เลือกทั้งหมด">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            <span>ลบ</span>
+          </button>
+
+          <!-- 5. Cancel selection -->
+          <button type="button" onclick="clearSelectedProducts()" class="hidden sm:flex p-1.5 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition" title="ยกเลิกการเลือกทั้งหมด">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
       </div>
 
     </div>
@@ -1613,10 +1660,30 @@
           </div>
         </div>
 
-        <!-- Step 6 -->
+        <!-- Step 6: Bulk Actions -->
+        <div class="p-3.5 bg-purple-50/60 rounded-2xl border border-purple-100 flex items-start space-x-3">
+          <div class="w-8 h-8 rounded-xl bg-purple-600 text-white font-black flex items-center justify-center shrink-0 text-sm shadow-xs">
+            6
+          </div>
+          <div class="space-y-1">
+            <h4 class="font-bold text-slate-900 text-xs flex items-center space-x-1.5">
+              <span>⚡ จัดการพร้อมกันหลายรายการ (Bulk Action)</span>
+              <span class="px-2 py-0.5 rounded-md bg-purple-100 text-purple-700 font-extrabold text-[10px]">ใหม่!</span>
+            </h4>
+            <p class="text-slate-600 text-[11px] leading-relaxed">
+              ติ๊กถูกที่ช่องสี่เหลี่ยมหน้าสินค้า (หรือกด <b>เลือกทั้งหมด</b> ด้านบน) แถบ <b>Bulk Action</b> สีดำจะลอยขึ้นมาด้านล่าง ให้คุณสามารถ:
+              <br>• <b>📦 รับเข้า/ปรับสต็อก:</b> ใส่จำนวนเพิ่มพร้อมกัน เช่น +10 ทุกรายการ หรือปรับยอดคงเหลือ
+              <br>• <b>📅 วันหมดอายุ:</b> ใส่วันหมดอายุให้ล็อตสินค้าที่เลือกพร้อมกันในคลิกเดียว
+              <br>• <b>🎯 จุดสั่งซื้อ:</b> ปรับ Safety Stock เป็นค่าเดียวกันหลายๆ รายการ
+              <br>• <b>🗑️ ลบสินค้า:</b> ลบรายการที่ไม่ใช้งานพร้อมกันทีเดียวอย่างปลอดภัย
+            </p>
+          </div>
+        </div>
+
+        <!-- Step 7 -->
         <div class="p-3.5 bg-amber-50/60 rounded-2xl border border-amber-100 flex items-start space-x-3">
           <div class="w-8 h-8 rounded-xl bg-amber-600 text-white font-black flex items-center justify-center shrink-0 text-sm shadow-xs">
-            6
+            7
           </div>
           <div class="space-y-1">
             <h4 class="font-bold text-slate-900 text-xs">🛡️ ระบบความปลอดภัย & สลับโหมด Admin (PIN)</h4>
@@ -1847,6 +1914,255 @@
     </form>
   </dialog>
 
+  <!-- MODAL 8: Bulk Stock (Add or Set) -->
+  <dialog id="modal-bulk-stock" class="rounded-3xl p-0 w-full max-w-lg shadow-2xl border border-slate-200 backdrop:bg-slate-900/50 m-auto max-h-[94vh] overflow-y-auto">
+    <div class="p-5 sm:p-6 bg-white space-y-4 text-xs">
+      <div class="flex justify-between items-start border-b border-slate-100 pb-3">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-extrabold uppercase tracking-wider">Bulk Action</span>
+            <span id="bulk-stock-selected-badge" class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-semibold">0 รายการ</span>
+          </div>
+          <h3 class="text-base sm:text-lg font-bold text-slate-900 mt-1 flex items-center space-x-2">
+            <span>📦 รับเข้า / ปรับสต็อกสินค้าพร้อมกัน</span>
+          </h3>
+          <p class="text-[11px] text-slate-400">เพิ่มจำนวนเข้าสต็อกหรือปรับยอดคงเหลือให้สินค้าที่เลือกทั้งหมด</p>
+        </div>
+        <button type="button" onclick="closeDialog('modal-bulk-stock')" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Preview Selected Items -->
+      <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-1.5">
+        <span class="text-[11px] font-semibold text-slate-600">สินค้าที่เลือก:</span>
+        <div id="bulk-stock-items-preview" class="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-1">
+          <!-- Dynamic Pills -->
+        </div>
+      </div>
+
+      <form id="form-bulk-stock" onsubmit="submitBulkStock(event)" class="space-y-4">
+        <!-- Action Mode Radio -->
+        <div class="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-100 space-y-2">
+          <label class="font-bold text-emerald-950 block text-xs">เลือกรูปแบบการปรับสต็อก:</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center space-x-2 p-2.5 bg-white rounded-xl border border-emerald-200 cursor-pointer shadow-2xs hover:bg-emerald-50/50 transition">
+              <input type="radio" name="bulk-stock-mode" value="ADD" checked class="text-emerald-600 focus:ring-emerald-500 w-4 h-4">
+              <div>
+                <p class="font-bold text-slate-800 text-xs">➕ รับเข้า (+N)</p>
+                <p class="text-[10px] text-slate-400">บวกเพิ่มจากยอดเดิม</p>
+              </div>
+            </label>
+            <label class="flex items-center space-x-2 p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer shadow-2xs hover:bg-slate-50 transition">
+              <input type="radio" name="bulk-stock-mode" value="SET" class="text-emerald-600 focus:ring-emerald-500 w-4 h-4">
+              <div>
+                <p class="font-bold text-slate-800 text-xs">✏️ ปรับยอดคงเหลือ (=N)</p>
+                <p class="text-[10px] text-slate-400">ตั้งยอดใหม่เป็นค่านี้</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Quantity Input -->
+        <div class="space-y-1.5">
+          <label class="font-bold text-slate-800 flex items-center justify-between text-xs">
+            <span>จำนวน (Quantity) <span class="text-rose-500">*</span></span>
+            <span class="text-[10px] text-slate-400 font-normal">จำนวนที่จะเพิ่มหรือปรับทุกรายการ</span>
+          </label>
+          <input type="number" step="any" min="0" id="bulk-stock-quantity" required class="w-full p-2.5 font-bold text-base sm:text-sm text-slate-900 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="10">
+          <div class="flex flex-wrap items-center gap-1.5 pt-1">
+            <span class="text-[10px] text-slate-400 mr-1">ปุ่มด่วน:</span>
+            <button type="button" onclick="setBulkStockQty(1)" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700">1</button>
+            <button type="button" onclick="setBulkStockQty(5)" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700">5</button>
+            <button type="button" onclick="setBulkStockQty(10)" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700">10</button>
+            <button type="button" onclick="setBulkStockQty(20)" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700">20</button>
+            <button type="button" onclick="setBulkStockQty(50)" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700">50</button>
+          </div>
+        </div>
+
+        <!-- Optional Expiry Date for new batch -->
+        <div class="space-y-1.5">
+          <label class="font-bold text-slate-800 flex items-center justify-between text-xs">
+            <span>วันหมดอายุล็อตนี้ (ไม่บังคับ)</span>
+            <span class="text-[10px] text-slate-400 font-normal">หากเว้นว่าง ระบบจะอิงวันเดิมหรือ +6 เดือน</span>
+          </label>
+          <input type="date" id="bulk-stock-expiry" class="w-full p-2.5 text-xs text-slate-800 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+          <div class="flex flex-wrap items-center gap-1.5 pt-1">
+            <span class="text-[10px] text-slate-400 mr-1">วันหมดอายุด่วน:</span>
+            <button type="button" onclick="setBulkStockExpiryMonths(1)" class="px-2 py-1 bg-slate-100 hover:bg-blue-100 border border-slate-200 text-[11px] font-medium rounded-lg text-slate-700">+1 เดือน</button>
+            <button type="button" onclick="setBulkStockExpiryMonths(3)" class="px-2 py-1 bg-slate-100 hover:bg-blue-100 border border-slate-200 text-[11px] font-medium rounded-lg text-slate-700">+3 เดือน</button>
+            <button type="button" onclick="setBulkStockExpiryMonths(6)" class="px-2 py-1 bg-slate-100 hover:bg-blue-100 border border-slate-200 text-[11px] font-medium rounded-lg text-slate-700">+6 เดือน</button>
+            <button type="button" onclick="setBulkStockExpiryMonths(12)" class="px-2 py-1 bg-slate-100 hover:bg-blue-100 border border-slate-200 text-[11px] font-medium rounded-lg text-slate-700">+1 ปี</button>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="space-y-1.5">
+          <label class="font-bold text-slate-800 block text-xs">หมายเหตุการรับเข้า/ปรับยอด:</label>
+          <input type="text" id="bulk-stock-notes" class="w-full p-2.5 text-xs text-slate-800 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="เช่น รับเข้าประจำสัปดาห์">
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeDialog('modal-bulk-stock')" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 font-medium transition active:scale-95">ยกเลิก</button>
+          <button type="submit" id="btn-submit-bulk-stock" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-xs transition active:scale-95 flex items-center space-x-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>ยืนยันบันทึกข้อมูล</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- MODAL 9: Bulk Set Expiry Date -->
+  <dialog id="modal-bulk-expiry" class="rounded-3xl p-0 w-full max-w-md shadow-2xl border border-slate-200 backdrop:bg-slate-900/50 m-auto max-h-[94vh] overflow-y-auto">
+    <div class="p-5 sm:p-6 bg-white space-y-4 text-xs">
+      <div class="flex justify-between items-start border-b border-slate-100 pb-3">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="px-2.5 py-0.5 rounded-md bg-blue-100 text-blue-800 text-[10px] font-extrabold uppercase tracking-wider">Bulk Expiry</span>
+            <span id="bulk-expiry-selected-badge" class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-semibold">0 รายการ</span>
+          </div>
+          <h3 class="text-base sm:text-lg font-bold text-slate-900 mt-1 flex items-center space-x-2">
+            <span>📅 กำหนดวันหมดอายุพร้อมกัน</span>
+          </h3>
+          <p class="text-[11px] text-slate-400">อัปเดตวันหมดอายุของสินค้าที่เลือกทั้งหมดเป็นวันเดียวกัน</p>
+        </div>
+        <button type="button" onclick="closeDialog('modal-bulk-expiry')" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Preview Selected Items -->
+      <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-1.5">
+        <span class="text-[11px] font-semibold text-slate-600">สินค้าที่เลือก:</span>
+        <div id="bulk-expiry-items-preview" class="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-1">
+          <!-- Dynamic Pills -->
+        </div>
+      </div>
+
+      <form id="form-bulk-expiry" onsubmit="submitBulkExpiry(event)" class="space-y-4">
+        <!-- Expiry Date Input -->
+        <div class="space-y-1.5">
+          <label class="font-bold text-slate-800 flex items-center justify-between text-xs">
+            <span>เลือกวันหมดอายุ (Expiry Date) <span class="text-rose-500">*</span></span>
+          </label>
+          <input type="date" id="bulk-expiry-date-input" required class="w-full p-2.5 text-sm font-semibold text-slate-900 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+          <div class="flex flex-wrap items-center gap-1.5 pt-1">
+            <span class="text-[10px] text-slate-400 mr-1">วันหมดอายุด่วน:</span>
+            <button type="button" onclick="setBulkExpiryDays(7)" class="px-2 py-1 bg-slate-100 hover:bg-blue-100 border border-slate-200 text-[11px] font-medium rounded-lg text-slate-700">+7 วัน</button>
+            <button type="button" onclick="setBulkExpiryMonthsDirect(1)" class="px-2 py-1 bg-slate-100 hover:bg-blue-100 border border-slate-200 text-[11px] font-medium rounded-lg text-slate-700">+1 เดือน</button>
+            <button type="button" onclick="setBulkExpiryMonthsDirect(3)" class="px-2 py-1 bg-slate-100 hover:bg-blue-100 border border-slate-200 text-[11px] font-medium rounded-lg text-slate-700">+3 เดือน</button>
+            <button type="button" onclick="setBulkExpiryMonthsDirect(6)" class="px-2 py-1 bg-slate-100 hover:bg-blue-100 border border-slate-200 text-[11px] font-medium rounded-lg text-slate-700">+6 เดือน</button>
+            <button type="button" onclick="setBulkExpiryMonthsDirect(12)" class="px-2 py-1 bg-slate-100 hover:bg-blue-100 border border-slate-200 text-[11px] font-medium rounded-lg text-slate-700">+1 ปี</button>
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeDialog('modal-bulk-expiry')" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 font-medium transition active:scale-95">ยกเลิก</button>
+          <button type="submit" id="btn-submit-bulk-expiry" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-xs transition active:scale-95 flex items-center space-x-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>บันทึกวันหมดอายุ</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- MODAL 10: Bulk Set Safety Stock -->
+  <dialog id="modal-bulk-safety-stock" class="rounded-3xl p-0 w-full max-w-md shadow-2xl border border-slate-200 backdrop:bg-slate-900/50 m-auto max-h-[94vh] overflow-y-auto">
+    <div class="p-5 sm:p-6 bg-white space-y-4 text-xs">
+      <div class="flex justify-between items-start border-b border-slate-100 pb-3">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-extrabold uppercase tracking-wider">Bulk Safety Stock</span>
+            <span id="bulk-safety-selected-badge" class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-semibold">0 รายการ</span>
+          </div>
+          <h3 class="text-base sm:text-lg font-bold text-slate-900 mt-1 flex items-center space-x-2">
+            <span>🎯 ปรับจุดสั่งซื้อ (Safety Stock) พร้อมกัน</span>
+          </h3>
+          <p class="text-[11px] text-slate-400">กำหนดเกณฑ์เตือนสต็อกใกล้หมดให้สินค้าที่เลือกทั้งหมด</p>
+        </div>
+        <button type="button" onclick="closeDialog('modal-bulk-safety-stock')" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Preview Selected Items -->
+      <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 space-y-1.5">
+        <span class="text-[11px] font-semibold text-slate-600">สินค้าที่เลือก:</span>
+        <div id="bulk-safety-items-preview" class="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-1">
+          <!-- Dynamic Pills -->
+        </div>
+      </div>
+
+      <form id="form-bulk-safety-stock" onsubmit="submitBulkSafetyStock(event)" class="space-y-4">
+        <!-- Safety Stock Input -->
+        <div class="space-y-1.5">
+          <label class="font-bold text-slate-800 flex items-center justify-between text-xs">
+            <span>จุดสั่งซื้อใหม่ (Safety Stock) <span class="text-rose-500">*</span></span>
+            <span class="text-[10px] text-slate-400 font-normal">เตือนเมื่อสินค้าเหลือ &le; ค่านี้</span>
+          </label>
+          <input type="number" step="any" min="0" id="bulk-safety-stock-input" required class="w-full p-2.5 text-base sm:text-sm font-bold text-rose-700 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none" placeholder="1">
+          <div class="flex flex-wrap items-center gap-1.5 pt-1">
+            <span class="text-[10px] text-slate-400 mr-1">ค่าด่วน:</span>
+            <button type="button" onclick="setBulkSafetyVal(0)" class="px-2.5 py-1 bg-slate-100 hover:bg-amber-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700">0 (ปิด)</button>
+            <button type="button" onclick="setBulkSafetyVal(1)" class="px-2.5 py-1 bg-slate-100 hover:bg-amber-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700">1</button>
+            <button type="button" onclick="setBulkSafetyVal(2)" class="px-2.5 py-1 bg-slate-100 hover:bg-amber-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700">2</button>
+            <button type="button" onclick="setBulkSafetyVal(3)" class="px-2.5 py-1 bg-slate-100 hover:bg-amber-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700">3</button>
+            <button type="button" onclick="setBulkSafetyVal(5)" class="px-2.5 py-1 bg-slate-100 hover:bg-amber-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700">5</button>
+            <button type="button" onclick="setBulkSafetyVal(10)" class="px-2.5 py-1 bg-slate-100 hover:bg-amber-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700">10</button>
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeDialog('modal-bulk-safety-stock')" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 font-medium transition active:scale-95">ยกเลิก</button>
+          <button type="submit" id="btn-submit-bulk-safety" class="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl shadow-xs transition active:scale-95 flex items-center space-x-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>บันทึกจุดสั่งซื้อ</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- MODAL 11: Bulk Delete -->
+  <dialog id="modal-bulk-delete" class="rounded-3xl p-0 w-full max-w-md shadow-2xl border border-slate-200 backdrop:bg-slate-900/50 m-auto max-h-[94vh] overflow-y-auto">
+    <div class="p-5 sm:p-6 bg-white space-y-4 text-xs">
+      <div class="flex justify-between items-start border-b border-slate-100 pb-3">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="px-2.5 py-0.5 rounded-md bg-rose-100 text-rose-800 text-[10px] font-extrabold uppercase tracking-wider">Danger Zone</span>
+            <span id="bulk-delete-selected-badge" class="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 text-[10px] font-semibold">0 รายการ</span>
+          </div>
+          <h3 class="text-base sm:text-lg font-bold text-rose-600 mt-1 flex items-center space-x-2">
+            <i data-lucide="alert-triangle" class="w-5 h-5 text-rose-600"></i>
+            <span>ยืนยันการลบสินค้าที่เลือก</span>
+          </h3>
+          <p class="text-[11px] text-slate-500">การกระทำนี้จะลบสินค้า ทุกล็อต และประวัติที่เกี่ยวข้องทั้งหมดอย่างถาวร</p>
+        </div>
+        <button type="button" onclick="closeDialog('modal-bulk-delete')" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Preview Selected Items -->
+      <div class="bg-rose-50/60 p-3 rounded-2xl border border-rose-200 space-y-1.5">
+        <span class="text-[11px] font-bold text-rose-900">รายชื่อสินค้าที่จะถูกลบ:</span>
+        <div id="bulk-delete-items-preview" class="flex flex-wrap gap-1 max-h-32 overflow-y-auto pr-1">
+          <!-- Dynamic Pills -->
+        </div>
+      </div>
+
+      <div class="flex justify-end space-x-2 pt-3 border-t border-slate-100">
+        <button type="button" onclick="closeDialog('modal-bulk-delete')" class="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 font-medium transition active:scale-95">ยกเลิก</button>
+        <button type="button" onclick="submitBulkDelete()" id="btn-submit-bulk-delete" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl shadow-xs transition active:scale-95 flex items-center space-x-1.5">
+          <i data-lucide="trash-2" class="w-4 h-4"></i>
+          <span>ยืนยันลบถาวร</span>
+        </button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- Toast Notification (Click to dismiss immediately) -->
   <div id="toast" onclick="hideToast()" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 pointer-events-none transition-all duration-300 bg-slate-900 text-white text-xs px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-2.5 border border-slate-700 cursor-pointer select-none">
     <i id="toast-icon" data-lucide="check-circle" class="w-4 h-4 text-emerald-400 shrink-0"></i>
@@ -1856,7 +2172,7 @@
     </button>
   </div>
 
-  <script src="/js/app.js?v=20260908_pin_hidden"></script>
+  <script src="/js/app.js?v=20260921_bulk_action"></script>
 </body>
 </html>
 

@@ -21,7 +21,8 @@ let state = {
   planningSort: localStorage.getItem('dq_planning_sort') || 'DAYS_ASC',
   batchModalSort: 'EXPIRY_ASC',
   currentRole: localStorage.getItem('dq_user_role') || 'staff',
-  adminPin: '9191'
+  adminPin: '9191',
+  selectedProductIds: new Set()
 };
 
 // =======================================================
@@ -1337,11 +1338,13 @@ function renderInventoryTable() {
     return 0;
   });
 
+  currentFilteredInventoryProducts = filtered;
+
   if (filtered.length === 0) {
     if (tbody) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="7" class="p-8 text-center text-slate-400">
+          <td colspan="9" class="p-8 text-center text-slate-400">
             <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
             <p>ไม่พบรายการสินค้าที่ตรงกับเงื่อนไขการค้นหา/ตัวกรอง</p>
           </td>
@@ -1357,12 +1360,14 @@ function renderInventoryTable() {
         </div>
       `;
     }
+    updateBulkActionBar();
     if (window.lucide) lucide.createIcons();
     return;
   }
 
   if (tbody) {
     tbody.innerHTML = filtered.map(p => {
+    const isSelected = state.selectedProductIds.has(Number(p.id));
     let statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800">ปกติ</span>`;
     if (p.is_low_stock) {
       statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-800">⚠️ ต่ำกว่าเกณฑ์/หมด</span>`;
@@ -1392,7 +1397,10 @@ function renderInventoryTable() {
       `;
 
     return `
-      <tr id="prod-row-${p.id}" class="hover:bg-slate-50/80 transition border-b border-slate-100">
+      <tr id="prod-row-${p.id}" class="hover:bg-slate-50/80 transition border-b border-slate-100 ${isSelected ? 'bg-indigo-50/50' : ''}">
+        <td class="p-3 w-10 text-center">
+          <input type="checkbox" onchange="toggleSelectProduct(${p.id}, this.checked)" ${isSelected ? 'checked' : ''} class="prod-checkbox w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer transition">
+        </td>
         <td class="p-3.5">
           <button type="button" onclick="openProductDetailModal('${p.id}')" class="text-left font-bold text-slate-900 hover:text-indigo-600 flex items-center space-x-1.5 group transition" title="คลิกเพื่อดูรายละเอียดสินค้าและประวัติย้อนหลัง">
             <span class="group-hover:underline text-xs">${p.name}</span>
@@ -1469,6 +1477,7 @@ function renderInventoryTable() {
       `;
     } else {
       mobileContainer.innerHTML = filtered.map(p => {
+        const isSelected = state.selectedProductIds.has(Number(p.id));
         let statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">ปกติ</span>`;
         if (p.is_low_stock) {
           statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">⚠️ ต่ำกว่าเกณฑ์/หมด</span>`;
@@ -1483,22 +1492,25 @@ function renderInventoryTable() {
           : `<span class="text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-md">ยังไม่ระบุ</span>`;
 
         return `
-          <div id="prod-card-${p.id}" class="bg-white p-4 rounded-3xl border ${p.is_low_stock ? 'border-rose-200 shadow-rose-100/40' : 'border-slate-200'} shadow-sm space-y-3">
+          <div id="prod-card-${p.id}" class="bg-white p-4 rounded-3xl border ${isSelected ? 'border-indigo-400 ring-2 ring-indigo-500/30 bg-indigo-50/10' : (p.is_low_stock ? 'border-rose-200 shadow-rose-100/40' : 'border-slate-200')} shadow-sm space-y-3">
             <!-- Header: Title & Status -->
             <div class="flex items-start justify-between gap-2">
-              <div>
-                <button type="button" onclick="openProductDetailModal('${p.id}')" class="text-left font-extrabold text-slate-900 text-sm leading-snug hover:text-indigo-600 flex items-center space-x-1 transition">
-                  <span>${p.name}</span>
-                  <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400"></i>
-                </button>
-                <div class="flex flex-wrap items-center gap-1.5 mt-0.5">
-                  <span class="inline-block text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${p.category}</span>
-                  <span class="text-[10px] text-slate-600 font-medium flex items-center space-x-1" title="แก้ไขล่าสุด: ${formatFullDateTime(p.last_updated_at || p.updated_at || p.created_at)}">
-                    <i data-lucide="clock" class="w-3 h-3 text-indigo-500"></i>
-                    <span>แก้ ${formatRelativeTime(p.last_updated_at || p.updated_at || p.created_at)}</span>
-                  </span>
-                  <span class="text-slate-300">•</span>
-                  <span class="text-[10px] text-slate-400" title="วันที่สร้าง: ${formatFullDateTime(p.created_at)}">สร้าง ${formatDateOnly(p.created_at)}</span>
+              <div class="flex items-start space-x-2.5">
+                <input type="checkbox" onchange="toggleSelectProduct(${p.id}, this.checked)" ${isSelected ? 'checked' : ''} class="w-4 h-4 mt-1 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer transition shrink-0">
+                <div>
+                  <button type="button" onclick="openProductDetailModal('${p.id}')" class="text-left font-extrabold text-slate-900 text-sm leading-snug hover:text-indigo-600 flex items-center space-x-1 transition">
+                    <span>${p.name}</span>
+                    <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400"></i>
+                  </button>
+                  <div class="flex flex-wrap items-center gap-1.5 mt-0.5">
+                    <span class="inline-block text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${p.category}</span>
+                    <span class="text-[10px] text-slate-600 font-medium flex items-center space-x-1" title="แก้ไขล่าสุด: ${formatFullDateTime(p.last_updated_at || p.updated_at || p.created_at)}">
+                      <i data-lucide="clock" class="w-3 h-3 text-indigo-500"></i>
+                      <span>แก้ ${formatRelativeTime(p.last_updated_at || p.updated_at || p.created_at)}</span>
+                    </span>
+                    <span class="text-slate-300">•</span>
+                    <span class="text-[10px] text-slate-400" title="วันที่สร้าง: ${formatFullDateTime(p.created_at)}">สร้าง ${formatDateOnly(p.created_at)}</span>
+                  </div>
                 </div>
               </div>
               <div class="shrink-0">${statusBadge}</div>
@@ -1553,11 +1565,372 @@ function renderInventoryTable() {
     }
   }
 
+  updateBulkActionBar();
   if (window.lucide) lucide.createIcons();
 }
 
 function filterInventory() {
   renderInventoryTable();
+}
+
+// =======================================================
+// BULK ACTIONS ENGINE
+// =======================================================
+let currentFilteredInventoryProducts = [];
+
+function toggleSelectAllProducts(checked) {
+  if (!currentFilteredInventoryProducts || currentFilteredInventoryProducts.length === 0) return;
+  
+  if (checked) {
+    currentFilteredInventoryProducts.forEach(p => state.selectedProductIds.add(Number(p.id)));
+  } else {
+    currentFilteredInventoryProducts.forEach(p => state.selectedProductIds.delete(Number(p.id)));
+  }
+  
+  renderInventoryTable();
+  updateBulkActionBar();
+}
+
+function toggleSelectProduct(productId, checked) {
+  const numId = Number(productId);
+  if (checked) {
+    state.selectedProductIds.add(numId);
+  } else {
+    state.selectedProductIds.delete(numId);
+  }
+
+  const row = document.getElementById(`prod-row-${numId}`);
+  if (row) {
+    if (checked) row.classList.add('bg-indigo-50/50');
+    else row.classList.remove('bg-indigo-50/50');
+    const cb = row.querySelector('.prod-checkbox');
+    if (cb) cb.checked = checked;
+  }
+  const card = document.getElementById(`prod-card-${numId}`);
+  if (card) {
+    if (checked) {
+      card.classList.add('border-indigo-400', 'ring-2', 'ring-indigo-500/30', 'bg-indigo-50/10');
+    } else {
+      card.classList.remove('border-indigo-400', 'ring-2', 'ring-indigo-500/30', 'bg-indigo-50/10');
+    }
+    const cardCb = card.querySelector('input[type="checkbox"]');
+    if (cardCb) cardCb.checked = checked;
+  }
+
+  updateBulkActionBar();
+}
+
+function clearSelectedProducts() {
+  state.selectedProductIds.clear();
+  const selectAllCb = document.getElementById('select-all-products');
+  if (selectAllCb) {
+    selectAllCb.checked = false;
+    selectAllCb.indeterminate = false;
+  }
+  renderInventoryTable();
+  updateBulkActionBar();
+}
+
+function updateBulkActionBar() {
+  const bar = document.getElementById('bulk-action-bar');
+  const countEl = document.getElementById('bulk-selected-count');
+  const selectAllCb = document.getElementById('select-all-products');
+
+  const count = state.selectedProductIds.size;
+  if (countEl) countEl.textContent = count;
+
+  if (bar) {
+    if (count > 0) {
+      bar.classList.remove('hidden');
+      if (window.lucide) lucide.createIcons();
+    } else {
+      bar.classList.add('hidden');
+    }
+  }
+
+  if (selectAllCb && currentFilteredInventoryProducts && currentFilteredInventoryProducts.length > 0) {
+    const selectedCountInView = currentFilteredInventoryProducts.filter(p => state.selectedProductIds.has(Number(p.id))).length;
+    if (selectedCountInView === 0) {
+      selectAllCb.checked = false;
+      selectAllCb.indeterminate = false;
+    } else if (selectedCountInView === currentFilteredInventoryProducts.length) {
+      selectAllCb.checked = true;
+      selectAllCb.indeterminate = false;
+    } else {
+      selectAllCb.checked = false;
+      selectAllCb.indeterminate = true;
+    }
+  }
+}
+
+function getSelectedProducts() {
+  const ids = Array.from(state.selectedProductIds);
+  return state.products.filter(p => ids.includes(Number(p.id)));
+}
+
+function renderBulkPreview(previewContainerId, badgeId) {
+  const selectedProds = getSelectedProducts();
+  const badge = document.getElementById(badgeId);
+  if (badge) badge.textContent = `${selectedProds.length} รายการ`;
+
+  const container = document.getElementById(previewContainerId);
+  if (container) {
+    container.innerHTML = selectedProds.map(p => `
+      <span class="inline-flex items-center space-x-1 px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-800 shadow-2xs">
+        <span>${p.name}</span>
+        <span class="text-[10px] text-slate-400 font-normal">(${p.current_stock} ${p.unit})</span>
+      </span>
+    `).join('');
+  }
+}
+
+// 1. Bulk Stock
+function openBulkStockModal() {
+  if (state.selectedProductIds.size === 0) {
+    showToast('กรุณาเลือกสินค้าอย่างน้อย 1 รายการ', 'warning');
+    return;
+  }
+  renderBulkPreview('bulk-stock-items-preview', 'bulk-stock-selected-badge');
+  document.getElementById('bulk-stock-quantity').value = '10';
+  document.getElementById('bulk-stock-expiry').value = '';
+  document.getElementById('bulk-stock-notes').value = '';
+  const addRadio = document.querySelector('input[name="bulk-stock-mode"][value="ADD"]');
+  if (addRadio) addRadio.checked = true;
+  openDialog('modal-bulk-stock');
+  if (window.lucide) lucide.createIcons();
+}
+
+function setBulkStockQty(qty) {
+  const input = document.getElementById('bulk-stock-quantity');
+  if (input) input.value = qty;
+}
+
+function setBulkStockExpiryMonths(months) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + months);
+  const input = document.getElementById('bulk-stock-expiry');
+  if (input) input.value = d.toISOString().split('T')[0];
+}
+
+async function submitBulkStock(event) {
+  event.preventDefault();
+  const qty = Number(document.getElementById('bulk-stock-quantity').value);
+  if (isNaN(qty) || qty < 0) {
+    showToast('กรุณาระบุจำนวนที่ถูกต้อง', 'warning');
+    return;
+  }
+  const mode = document.querySelector('input[name="bulk-stock-mode"]:checked')?.value || 'ADD';
+  const expiryDate = document.getElementById('bulk-stock-expiry').value || null;
+  const notes = document.getElementById('bulk-stock-notes').value.trim();
+  const productIds = Array.from(state.selectedProductIds);
+
+  const btn = document.getElementById('btn-submit-bulk-stock');
+  if (btn) { btn.disabled = true; btn.innerHTML = 'กำลังบันทึก...'; }
+
+  try {
+    const res = await fetch('/api/products/bulk-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: mode === 'ADD' ? 'ADD_STOCK' : 'SET_STOCK',
+        productIds,
+        quantity: qty,
+        expiry_date: expiryDate,
+        notes: notes || (mode === 'ADD' ? 'รับเข้ากลุ่ม' : 'ปรับยอดสต็อกกลุ่ม')
+      })
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.error);
+
+    playTapFeedback('save');
+    showToast(`✅ ${result.message}`, 'success');
+    closeDialog('modal-bulk-stock');
+    state.selectedProductIds.clear();
+    await loadAllData();
+  } catch (err) {
+    playTapFeedback('alert');
+    showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i><span>ยืนยันบันทึกข้อมูล</span>';
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+}
+
+// 2. Bulk Expiry
+function openBulkExpiryModal() {
+  if (state.selectedProductIds.size === 0) {
+    showToast('กรุณาเลือกสินค้าอย่างน้อย 1 รายการ', 'warning');
+    return;
+  }
+  renderBulkPreview('bulk-expiry-items-preview', 'bulk-expiry-selected-badge');
+  const d = new Date();
+  d.setMonth(d.getMonth() + 6);
+  document.getElementById('bulk-expiry-date-input').value = d.toISOString().split('T')[0];
+  openDialog('modal-bulk-expiry');
+  if (window.lucide) lucide.createIcons();
+}
+
+function setBulkExpiryDays(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  document.getElementById('bulk-expiry-date-input').value = d.toISOString().split('T')[0];
+}
+
+function setBulkExpiryMonthsDirect(months) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + months);
+  document.getElementById('bulk-expiry-date-input').value = d.toISOString().split('T')[0];
+}
+
+async function submitBulkExpiry(event) {
+  event.preventDefault();
+  const expiryDate = document.getElementById('bulk-expiry-date-input').value;
+  if (!expiryDate) {
+    showToast('กรุณาเลือกวันหมดอายุ', 'warning');
+    return;
+  }
+  const productIds = Array.from(state.selectedProductIds);
+  const btn = document.getElementById('btn-submit-bulk-expiry');
+  if (btn) { btn.disabled = true; btn.innerHTML = 'กำลังบันทึก...'; }
+
+  try {
+    const res = await fetch('/api/products/bulk-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'SET_EXPIRY',
+        productIds,
+        expiry_date: expiryDate
+      })
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.error);
+
+    playTapFeedback('save');
+    showToast(`✅ ${result.message}`, 'success');
+    closeDialog('modal-bulk-expiry');
+    state.selectedProductIds.clear();
+    await loadAllData();
+  } catch (err) {
+    playTapFeedback('alert');
+    showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i><span>บันทึกวันหมดอายุ</span>';
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+}
+
+// 3. Bulk Safety Stock
+function openBulkSafetyStockModal() {
+  if (state.selectedProductIds.size === 0) {
+    showToast('กรุณาเลือกสินค้าอย่างน้อย 1 รายการ', 'warning');
+    return;
+  }
+  renderBulkPreview('bulk-safety-items-preview', 'bulk-safety-selected-badge');
+  document.getElementById('bulk-safety-stock-input').value = '1';
+  openDialog('modal-bulk-safety-stock');
+  if (window.lucide) lucide.createIcons();
+}
+
+function setBulkSafetyVal(val) {
+  document.getElementById('bulk-safety-stock-input').value = val;
+}
+
+async function submitBulkSafetyStock(event) {
+  event.preventDefault();
+  const sVal = Number(document.getElementById('bulk-safety-stock-input').value);
+  if (isNaN(sVal) || sVal < 0) {
+    showToast('กรุณาระบุจุดสั่งซื้อที่ถูกต้อง', 'warning');
+    return;
+  }
+  const productIds = Array.from(state.selectedProductIds);
+  const btn = document.getElementById('btn-submit-bulk-safety');
+  if (btn) { btn.disabled = true; btn.innerHTML = 'กำลังบันทึก...'; }
+
+  try {
+    const res = await fetch('/api/products/bulk-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'SET_SAFETY_STOCK',
+        productIds,
+        safety_stock: sVal
+      })
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.error);
+
+    playTapFeedback('save');
+    showToast(`✅ ${result.message}`, 'success');
+    closeDialog('modal-bulk-safety-stock');
+    state.selectedProductIds.clear();
+    await loadAllData();
+  } catch (err) {
+    playTapFeedback('alert');
+    showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i><span>บันทึกจุดสั่งซื้อ</span>';
+      if (window.lucide) lucide.createIcons();
+    }
+  }
+}
+
+// 4. Bulk Delete
+function openBulkDeleteModal() {
+  if (state.currentRole !== 'admin') {
+    showToast('การแก้ไข/ลบข้อมูลสต็อกถูกจำกัด กรุณาปลดล็อคสิทธิ์ Admin', 'warning');
+    openPinModal();
+    return;
+  }
+  if (state.selectedProductIds.size === 0) {
+    showToast('กรุณาเลือกสินค้าอย่างน้อย 1 รายการ', 'warning');
+    return;
+  }
+  renderBulkPreview('bulk-delete-items-preview', 'bulk-delete-selected-badge');
+  openDialog('modal-bulk-delete');
+  if (window.lucide) lucide.createIcons();
+}
+
+async function submitBulkDelete() {
+  const productIds = Array.from(state.selectedProductIds);
+  const btn = document.getElementById('btn-submit-bulk-delete');
+  if (btn) { btn.disabled = true; btn.innerHTML = 'กำลังลบ...'; }
+
+  try {
+    const res = await fetch('/api/products/bulk-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'DELETE',
+        productIds
+      })
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error(result.error);
+
+    playTapFeedback('alert');
+    showToast(`🗑️ ${result.message}`, 'success');
+    closeDialog('modal-bulk-delete');
+    state.selectedProductIds.clear();
+    await loadAllData();
+  } catch (err) {
+    playTapFeedback('alert');
+    showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i data-lucide="trash-2" class="w-4 h-4"></i><span>ยืนยันลบถาวร</span>';
+      if (window.lucide) lucide.createIcons();
+    }
+  }
 }
 
 // 5. Render Planning Table (Consumption Rate & Stock Days Forecast)

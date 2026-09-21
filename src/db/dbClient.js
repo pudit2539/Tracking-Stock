@@ -1094,6 +1094,128 @@ const dbClient = {
         recipients
       };
     }
+  },
+
+  // 9. BULK ACTIONS
+  async bulkAddStock(productIds, quantity, expiryDate = null, notes = '', updatedBy = 'Admin') {
+    const qty = Math.max(1, Number(quantity) || 1);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const results = [];
+
+    for (const pid of productIds) {
+      try {
+        const batches = await this.getBatchesByProductId(pid);
+        const activeBatches = batches.filter(b => Number(b.quantity) > 0);
+        let finalExp = expiryDate ? String(expiryDate).trim() : null;
+
+        if (!finalExp) {
+          if (activeBatches.length > 0 && activeBatches[0].expiry_date) {
+            finalExp = activeBatches[0].expiry_date;
+          } else {
+            const d = new Date();
+            d.setMonth(d.getMonth() + 6);
+            finalExp = d.toISOString().split('T')[0];
+          }
+        }
+
+        const batchId = await this.createBatch({
+          product_id: pid,
+          lot_number: `LOT-BULK-${Date.now().toString().slice(-4)}`,
+          quantity: qty,
+          initial_quantity: qty,
+          expiry_date: finalExp,
+          received_date: todayStr,
+          notes: notes || `รับเข้ากลุ่ม (${updatedBy})`
+        });
+        await this.touchProductUpdated(pid);
+        results.push({ productId: pid, success: true, batchId });
+      } catch (err) {
+        results.push({ productId: pid, success: false, error: err.message });
+      }
+    }
+    return results;
+  },
+
+  async bulkSetStock(productIds, quantity, expiryDate = null, notes = '', updatedBy = 'Admin') {
+    const qty = Math.max(0, Number(quantity) || 0);
+    const results = [];
+
+    for (const pid of productIds) {
+      try {
+        await this.setProductStockDirect(pid, qty, updatedBy);
+        if (expiryDate) {
+          const batches = await this.getBatchesByProductId(pid);
+          const activeBatches = batches.filter(b => Number(b.quantity) > 0);
+          if (activeBatches.length > 0) {
+            await this.updateBatch(activeBatches[0].id, { expiry_date: expiryDate });
+          }
+        }
+        results.push({ productId: pid, success: true });
+      } catch (err) {
+        results.push({ productId: pid, success: false, error: err.message });
+      }
+    }
+    return results;
+  },
+
+  async bulkSetExpiryDate(productIds, expiryDate) {
+    if (!expiryDate) throw new Error('กรุณาระบุวันหมดอายุ');
+    const todayStr = new Date().toISOString().split('T')[0];
+    const results = [];
+
+    for (const pid of productIds) {
+      try {
+        const batches = await this.getBatchesByProductId(pid);
+        const activeBatches = batches.filter(b => Number(b.quantity) > 0);
+
+        if (activeBatches.length > 0) {
+          await this.updateBatch(activeBatches[0].id, { expiry_date: expiryDate });
+        } else {
+          await this.createBatch({
+            product_id: pid,
+            lot_number: `LOT-EXP-${Date.now().toString().slice(-4)}`,
+            quantity: 1,
+            initial_quantity: 1,
+            expiry_date: expiryDate,
+            received_date: todayStr,
+            notes: 'กำหนดวันหมดอายุกลุ่ม'
+          });
+        }
+        await this.touchProductUpdated(pid);
+        results.push({ productId: pid, success: true });
+      } catch (err) {
+        results.push({ productId: pid, success: false, error: err.message });
+      }
+    }
+    return results;
+  },
+
+  async bulkSetSafetyStock(productIds, safetyStock) {
+    const sVal = Math.max(0, Number(safetyStock) || 0);
+    const results = [];
+
+    for (const pid of productIds) {
+      try {
+        await this.updateSafetyStock(pid, sVal);
+        results.push({ productId: pid, success: true });
+      } catch (err) {
+        results.push({ productId: pid, success: false, error: err.message });
+      }
+    }
+    return results;
+  },
+
+  async bulkDeleteProducts(productIds) {
+    const results = [];
+    for (const pid of productIds) {
+      try {
+        await this.deleteProduct(pid);
+        results.push({ productId: pid, success: true });
+      } catch (err) {
+        results.push({ productId: pid, success: false, error: err.message });
+      }
+    }
+    return results;
   }
 };
 

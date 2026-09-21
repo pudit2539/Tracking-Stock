@@ -71,6 +71,26 @@ const stockService = {
 
   getBootstrapData() {
     return dbClient.getBootstrapData();
+  },
+
+  bulkAddStock(productIds, quantity, expiryDate, notes, updatedBy) {
+    return dbClient.bulkAddStock(productIds, quantity, expiryDate, notes, updatedBy);
+  },
+
+  bulkSetStock(productIds, quantity, expiryDate, notes, updatedBy) {
+    return dbClient.bulkSetStock(productIds, quantity, expiryDate, notes, updatedBy);
+  },
+
+  bulkSetExpiryDate(productIds, expiryDate) {
+    return dbClient.bulkSetExpiryDate(productIds, expiryDate);
+  },
+
+  bulkSetSafetyStock(productIds, safetyStock) {
+    return dbClient.bulkSetSafetyStock(productIds, safetyStock);
+  },
+
+  bulkDeleteProducts(productIds) {
+    return dbClient.bulkDeleteProducts(productIds);
   }
 };
 

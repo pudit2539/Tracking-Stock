@@ -54,3 +54,4 @@ CREATE POLICY "Allow app access to line_recipients" ON line_recipients
   TO public
   USING (true)
   WITH CHECK (true);
+

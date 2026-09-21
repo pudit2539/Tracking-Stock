@@ -81,6 +81,77 @@ router.post('/products/:id/quick-update', async (req, res) => {
   }
 });
 
+router.post('/products/bulk-action', async (req, res) => {
+  try {
+    const { action, productIds, quantity, expiry_date, safety_stock, notes, updated_by } = req.body;
+
+    if (!Array.isArray(productIds) || productIds.length === 0) {
+      return res.status(400).json({ success: false, error: 'กรุณาเลือกสินค้าอย่างน้อย 1 รายการ' });
+    }
+
+    let results = [];
+    const actor = updated_by || 'Admin';
+
+    switch (action) {
+      case 'ADD_STOCK': {
+        const qty = Number(quantity);
+        if (isNaN(qty) || qty <= 0) {
+          return res.status(400).json({ success: false, error: 'จำนวนที่เพิ่มต้องมากกว่า 0' });
+        }
+        results = await stockService.bulkAddStock(productIds, qty, expiry_date, notes, actor);
+        break;
+      }
+      case 'SET_STOCK': {
+        const qty = Number(quantity);
+        if (isNaN(qty) || qty < 0) {
+          return res.status(400).json({ success: false, error: 'จำนวนสต็อกต้องไม่ติดลบ' });
+        }
+        results = await stockService.bulkSetStock(productIds, qty, expiry_date, notes, actor);
+        break;
+      }
+      case 'SET_EXPIRY': {
+        if (!expiry_date) {
+          return res.status(400).json({ success: false, error: 'กรุณาระบุวันหมดอายุ' });
+        }
+        results = await stockService.bulkSetExpiryDate(productIds, expiry_date);
+        break;
+      }
+      case 'SET_SAFETY_STOCK': {
+        const sVal = Number(safety_stock);
+        if (isNaN(sVal) || sVal < 0) {
+          return res.status(400).json({ success: false, error: 'จุดสั่งซื้อต้องไม่ติดลบ' });
+        }
+        results = await stockService.bulkSetSafetyStock(productIds, sVal);
+        break;
+      }
+      case 'DELETE': {
+        results = await stockService.bulkDeleteProducts(productIds);
+        break;
+      }
+      default:
+        return res.status(400).json({ success: false, error: 'คำสั่งไม่ถูกต้อง (Invalid action)' });
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.length - successCount;
+
+    res.json({
+      success: true,
+      message: `ดำเนินการสำเร็จ ${successCount} รายการ${failCount > 0 ? ` (ไม่สำเร็จ ${failCount} รายการ)` : ''}`,
+      data: {
+        action,
+        total: results.length,
+        successCount,
+        failCount,
+        results
+      }
+    });
+  } catch (err) {
+    console.error('[Bulk Action Error]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 router.get('/products/:id/batches', async (req, res) => {
   try {
     const batches = await stockService.getBatchesByProductId(req.params.id);
