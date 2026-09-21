@@ -1700,6 +1700,20 @@ function openBulkStockModal() {
   if (window.lucide) lucide.createIcons();
 }
 
+function addBulkStockQty(qty) {
+  const input = document.getElementById('bulk-stock-quantity');
+  if (!input) return;
+  const cur = Number(input.value) || 0;
+  input.value = Math.max(0, cur + qty);
+  if (typeof playTapFeedback === 'function') playTapFeedback('filter');
+}
+
+function clearBulkStockQty() {
+  const input = document.getElementById('bulk-stock-quantity');
+  if (input) input.value = 0;
+  if (typeof playTapFeedback === 'function') playTapFeedback('filter');
+}
+
 function setBulkStockQty(qty) {
   const input = document.getElementById('bulk-stock-quantity');
   if (input) input.value = qty;

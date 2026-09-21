@@ -1482,23 +1482,24 @@
             </div>
           </div>
 
-          <!-- 4. Multi-Command -->
+          <!-- 4. Multi-Command & Bulk Action -->
           <div class="p-3 bg-amber-50/70 rounded-2xl border border-amber-200 space-y-1.5">
             <div class="flex items-center justify-between">
               <span class="font-bold text-amber-900 text-xs flex items-center space-x-1.5">
-                <span>⚡ 4. สั่งหลายคำสั่งพร้อมกันใน 1 ข้อความ!</span>
+                <span>⚡ 4. สั่งหลายคำสั่ง / จัดการพร้อมกัน (Bulk Action)</span>
               </span>
               <span class="text-[10px] px-2 py-0.5 bg-amber-200/80 text-amber-900 rounded-md font-bold">ยอดนิยม</span>
             </div>
             <p class="text-slate-600 text-[11px] leading-relaxed">
-              สามารถพิมพ์หลายคำสั่งส่งพร้อมกันได้เลย โดยเว้นบรรทัด หรือคั่นด้วยเครื่องหมายจุลภาค (<code class="font-mono text-amber-800">,</code>) บอทจะตัดและรับเข้าให้ครบทุกรายการในการ์ดเดียว
+              สามารถสั่งงานหลายสินค้าพร้อมกันได้ในข้อความเดียว ทั้งแบบกำหนดจำนวนเท่ากันทุกคน (อย่างละ N) หรือระบุคนละจำนวน:
             </p>
-            <div class="bg-white/90 p-2.5 rounded-xl border border-amber-300/80 font-mono text-[11px] text-slate-800 space-y-1">
-              <div class="text-slate-400 text-[10px] font-sans font-semibold">ตัวอย่างที่ 1 (ขึ้นบรรทัดใหม่):</div>
-              <div class="text-rose-600">DQ ตัด coke 2</div>
-              <div class="text-emerald-700">รับ นมจืด 10</div>
-              <div class="text-sky-700">ส้อม เหลือ 50</div>
-              <div class="text-slate-400 text-[10px] font-sans font-semibold pt-1 border-t border-slate-100">ตัวอย่างที่ 2 (คั่นด้วยลูกน้ำ):</div>
+            <div class="bg-white/90 p-2.5 rounded-xl border border-amber-300/80 font-mono text-[11px] text-slate-800 space-y-1.5">
+              <div class="text-slate-400 text-[10px] font-sans font-semibold">แบบที่ 1: กำหนดจำนวนเท่ากัน (คำว่า "อย่างละ N" หรือ "ละ N"):</div>
+              <div class="text-emerald-700 font-bold">• "DQ รับเข้า coke, oreo, นมจืด อย่างละ 10"</div>
+              <div class="text-rose-600">• "DQ ตัด coke, oreo ละ 2"</div>
+              <div class="text-slate-400 text-[10px] font-sans font-semibold pt-1 border-t border-slate-100">แบบที่ 2: กริยานำหน้า + จำนวน + รายการสินค้า:</div>
+              <div class="text-emerald-700">• "DQ เพิ่ม 10 ชิ้น coke, oreo, นมจืด"</div>
+              <div class="text-slate-400 text-[10px] font-sans font-semibold pt-1 border-t border-slate-100">แบบที่ 3: หลายคำสั่งคนละจำนวน (คั่นด้วยลูกน้ำ หรือขึ้นบรรทัดใหม่):</div>
               <div class="text-indigo-700">"DQ ตัด coke 2, รับ นม 10, ส้อม เหลือ 50"</div>
             </div>
           </div>
@@ -1672,10 +1673,10 @@
             </h4>
             <p class="text-slate-600 text-[11px] leading-relaxed">
               ติ๊กถูกที่ช่องสี่เหลี่ยมหน้าสินค้า (หรือกด <b>เลือกทั้งหมด</b> ด้านบน) แถบ <b>Bulk Action</b> สีดำจะลอยขึ้นมาด้านล่าง ให้คุณสามารถ:
-              <br>• <b>📦 รับเข้า/ปรับสต็อก:</b> ใส่จำนวนเพิ่มพร้อมกัน เช่น +10 ทุกรายการ หรือปรับยอดคงเหลือ
-              <br>• <b>📅 วันหมดอายุ:</b> ใส่วันหมดอายุให้ล็อตสินค้าที่เลือกพร้อมกันในคลิกเดียว
+              <br>• <b>📦 รับเข้า/ปรับสต็อก:</b> ใส่จำนวนเพิ่มพร้อมกัน เช่น +10 ทุกรายการ มีปุ่มลัด (+1, +5, +10, +20, +50) ที่สามารถ<b>กดซ้ำเพื่อบวกสะสมยอดได้เรื่อยๆ</b> และปุ่มล้าง (0)
+              <br>• <b>📅 วันหมดอายุ:</b> ใส่วันหมดอายุให้ล็อตสินค้าที่เลือกพร้อมกันในคลิกเดียว (มีปุ่มลัด +1ด, +3ด, +6ด, +1ปี)
               <br>• <b>🎯 จุดสั่งซื้อ:</b> ปรับ Safety Stock เป็นค่าเดียวกันหลายๆ รายการ
-              <br>• <b>🗑️ ลบสินค้า:</b> ลบรายการที่ไม่ใช้งานพร้อมกันทีเดียวอย่างปลอดภัย
+              <br>• <b>🗑️ ลบสินค้า:</b> ลบรายการที่ไม่ใช้งานพร้อมกันทีเดียวอย่างปลอดภัย (ป้องกันด้วยรหัส Admin)
             </p>
           </div>
         </div>
@@ -1971,12 +1972,13 @@
           </label>
           <input type="number" step="any" min="0" id="bulk-stock-quantity" required class="w-full p-2.5 font-bold text-base sm:text-sm text-slate-900 rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="10">
           <div class="flex flex-wrap items-center gap-1.5 pt-1">
-            <span class="text-[10px] text-slate-400 mr-1">ปุ่มด่วน:</span>
-            <button type="button" onclick="setBulkStockQty(1)" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700">1</button>
-            <button type="button" onclick="setBulkStockQty(5)" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700">5</button>
-            <button type="button" onclick="setBulkStockQty(10)" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700">10</button>
-            <button type="button" onclick="setBulkStockQty(20)" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700">20</button>
-            <button type="button" onclick="setBulkStockQty(50)" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700">50</button>
+            <span class="text-[10px] text-slate-400 mr-1">ปุ่มด่วน (กดสะสมได้):</span>
+            <button type="button" onclick="addBulkStockQty(1)" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700 transition active:scale-95">+1</button>
+            <button type="button" onclick="addBulkStockQty(5)" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700 transition active:scale-95">+5</button>
+            <button type="button" onclick="addBulkStockQty(10)" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700 transition active:scale-95">+10</button>
+            <button type="button" onclick="addBulkStockQty(20)" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700 transition active:scale-95">+20</button>
+            <button type="button" onclick="addBulkStockQty(50)" class="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 border border-slate-200 text-xs font-semibold rounded-lg text-slate-700 transition active:scale-95">+50</button>
+            <button type="button" onclick="clearBulkStockQty()" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-xs font-semibold rounded-lg text-rose-700 transition active:scale-95">ล้าง (0)</button>
           </div>
         </div>
 

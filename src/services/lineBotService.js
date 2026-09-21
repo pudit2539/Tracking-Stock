@@ -140,6 +140,34 @@ class LineBotService {
     return bestMatch;
   }
 
+  findAllProductsInText(text) {
+    if (!text || typeof text !== 'string') return [];
+    const clean = text.toLowerCase();
+    const matched = [];
+    const matchedNames = new Set();
+
+    const allAliases = [];
+    for (const item of PRODUCT_ALIASES) {
+      for (const alias of item.aliases) {
+        allAliases.push({ name: item.name, alias: alias.toLowerCase() });
+      }
+    }
+    allAliases.sort((a, b) => b.alias.length - a.alias.length);
+
+    let tempText = clean;
+    for (const { name, alias } of allAliases) {
+      if (tempText.includes(alias)) {
+        if (!matchedNames.has(name)) {
+          matchedNames.add(name);
+          matched.push(name);
+        }
+        const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        tempText = tempText.replace(new RegExp(escaped, 'g'), ' '.repeat(alias.length));
+      }
+    }
+    return matched;
+  }
+
   extractQuantity(text) {
     const match = text.match(/(\d+(\.\d+)?)/);
     if (match) {
@@ -300,6 +328,72 @@ class LineBotService {
     return null;
   }
 
+  parseBulkIntents(text) {
+    if (!text || typeof text !== 'string') return null;
+    const trimmed = text.trim();
+
+    // 1. "อย่างละ N" หรือ "ละ N" เช่น "รับเข้า coke, oreo อย่างละ 10", "ตัด coke oreo ละ 2"
+    const eachMatch = trimmed.match(/(?:อย่างละ|ละ)\s*(\d+(?:\.\d+)?)\s*(?:ชิ้น|pack|box|bag|cs|ea)?/i);
+    if (eachMatch) {
+      const qty = parseFloat(eachMatch[1]);
+      let action = 'ADD_STOCK';
+      if (/(ทิ้ง|เสีย|ชำรุด|หมดอายุ)/i.test(trimmed)) action = 'WASTE';
+      else if (/(ใช้ไปแล้ว|ใช้ไป|ใช้|ตัดสต็อก|ตัดของ|ตัด|เบิกใช้|เบิกของ|เบิก|หัก|minus|-)/i.test(trimmed)) action = 'USE';
+      else if (/(เหลือ|นับได้|ปรับเป็น|set)/i.test(trimmed)) action = 'SET_STOCK';
+
+      const textWithoutEach = trimmed.replace(eachMatch[0], '');
+      const prods = this.findAllProductsInText(textWithoutEach);
+      if (prods.length > 0) {
+        return prods.map(p => ({ action, productName: p, quantity: qty, rawText: `${p} ${qty}` }));
+      }
+    }
+
+    // 2. Leading verb + quantity + products
+    // เช่น "รับเข้า 10 ชิ้น coke, oreo, นมจืด" หรือ "เพิ่ม 5 coke, oreo" หรือ "ตัด 2 coke, oreo"
+    const leadMatch = trimmed.match(/^(รับเข้า|รับของ|รับ|เพิ่ม|เติมสต็อก|เติมของ|เติม|ซื้อมา|add|\+|ใช้ไปแล้ว|ใช้ไป|ใช้|ตัดสต็อก|ตัดของ|ตัด|เบิกใช้|เบิกของ|เบิก|หัก|minus|-|ทิ้ง|เสีย|ชำรุด|นับได้|เหลือ|ปรับเป็น)\s*[:\s]*(\d+(?:\.\d+)?)\s*(?:ชิ้น|pack|box|bag|cs|ea)?\s*[:\s,]+(.*)$/i);
+    if (leadMatch) {
+      const verb = leadMatch[1];
+      const qty = parseFloat(leadMatch[2]);
+      const rest = leadMatch[3];
+      let action = 'ADD_STOCK';
+      if (/(ทิ้ง|เสีย|ชำรุด)/i.test(verb)) action = 'WASTE';
+      else if (/(ตัด|ใช้|เบิก|หัก|minus|-)/i.test(verb)) action = 'USE';
+      else if (/(เหลือ|นับ|ปรับ)/i.test(verb)) action = 'SET_STOCK';
+
+      const prods = this.findAllProductsInText(rest);
+      if (prods.length > 0) {
+        return prods.map(p => ({ action, productName: p, quantity: qty, rawText: `${p} ${qty}` }));
+      }
+    }
+
+    // 3. Multi-line with header line
+    // บรรทัดแรก: "รับเข้า 10" หรือ "เพิ่ม 5 ชิ้น"
+    // บรรทัดต่อๆ ไป: รายชื่อสินค้า
+    const lines = trimmed.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    if (lines.length >= 2) {
+      const headerMatch = lines[0].match(/^(รับเข้า|รับของ|รับ|เพิ่ม|เติมสต็อก|เติมของ|เติม|ซื้อมา|add|\+|ใช้ไปแล้ว|ใช้ไป|ใช้|ตัดสต็อก|ตัดของ|ตัด|เบิกใช้|เบิกของ|เบิก|หัก|minus|-|ทิ้ง|เสีย|ชำรุด|นับได้|เหลือ|ปรับเป็น)\s*[:\s]*(\d+(?:\.\d+)?)\s*(?:ชิ้น|pack|box|bag|cs|ea)?$/i);
+      if (headerMatch) {
+        const verb = headerMatch[1];
+        const qty = parseFloat(headerMatch[2]);
+        let action = 'ADD_STOCK';
+        if (/(ทิ้ง|เสีย|ชำรุด)/i.test(verb)) action = 'WASTE';
+        else if (/(ตัด|ใช้|เบิก|หัก|minus|-)/i.test(verb)) action = 'USE';
+        else if (/(เหลือ|นับ|ปรับ)/i.test(verb)) action = 'SET_STOCK';
+
+        const prods = [];
+        for (let i = 1; i < lines.length; i++) {
+          const found = this.findAllProductsInText(lines[i]);
+          if (found.length > 0) prods.push(...found);
+        }
+        if (prods.length > 0) {
+          return prods.map(p => ({ action, productName: p, quantity: qty, rawText: `${p} ${qty}` }));
+        }
+      }
+    }
+
+    return null;
+  }
+
   parseAllIntents(text) {
     if (!text || typeof text !== 'string') return [];
     const trimmed = text.trim();
@@ -324,6 +418,12 @@ class LineBotService {
     }
     if (/^(ยกเลิก|กดยกเลิก|undo|revert)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(singleRaw)) {
       return [{ action: 'UNDO' }];
+    }
+
+    // Bulk Action commands (e.g. "รับเข้า coke, oreo อย่างละ 10", "เพิ่ม 10 coke, oreo")
+    const bulkIntents = this.parseBulkIntents(trimmed);
+    if (bulkIntents && bulkIntents.length > 0) {
+      return bulkIntents;
     }
 
     // Split by newlines first
@@ -757,15 +857,30 @@ class LineBotService {
 
       if (item.action === 'ADD_STOCK') {
         try {
+          const oldStock = Number(product.current_stock);
           const updated = await dbClient.addProductStockDirect(product.id, item.quantity, senderName);
+          const newStock = updated.current_stock;
+          const isLow = newStock <= Number(product.safety_stock);
+
+          this.pushRecentTransaction({
+            action: 'ADD_STOCK',
+            productId: product.id,
+            productName: product.name,
+            unit: product.unit,
+            quantity: item.quantity,
+            oldStock: oldStock,
+            newStock: newStock,
+            senderName
+          });
+
           results.push({
             success: true,
             action: 'ADD_STOCK',
             product,
             qty: item.quantity,
-            newStock: updated.current_stock,
+            newStock: newStock,
             unit: product.unit,
-            isLow: updated.current_stock <= Number(product.safety_stock)
+            isLow
           });
         } catch (err) {
           results.push({ success: false, name: product.name, error: err.message });
@@ -775,6 +890,7 @@ class LineBotService {
           const qty = item.quantity;
           const batches = await dbClient.getBatchesByProductId(product.id);
           const totalAvailable = batches.reduce((sum, b) => sum + Number(b.quantity), 0);
+          const oldStock = Number(product.current_stock);
 
           await dbClient.recordUsage({
             product_id: product.id,
@@ -788,6 +904,17 @@ class LineBotService {
           const newStock = updated.current_stock;
           const isLow = newStock <= Number(updated.safety_stock);
 
+          this.pushRecentTransaction({
+            action: 'USE',
+            productId: product.id,
+            productName: product.name,
+            unit: product.unit,
+            quantity: qty,
+            oldStock: oldStock,
+            newStock: newStock,
+            senderName
+          });
+
           results.push({
             success: true,
             action: 'USE',
@@ -800,11 +927,65 @@ class LineBotService {
         } catch (err) {
           results.push({ success: false, name: product.name, error: err.message });
         }
+      } else if (item.action === 'WASTE') {
+        try {
+          const qty = item.quantity;
+          const batches = await dbClient.getBatchesByProductId(product.id);
+          const totalAvailable = batches.reduce((sum, b) => sum + Number(b.quantity), 0);
+          const oldStock = Number(product.current_stock);
+
+          await dbClient.recordUsage({
+            product_id: product.id,
+            quantity: Math.min(qty, Math.max(0, totalAvailable)),
+            type: 'WASTE',
+            used_by: senderName,
+            notes: 'บันทึกของเสียผ่าน LINE'
+          });
+
+          const updated = await dbClient.getProductById(product.id);
+          const newStock = updated.current_stock;
+          const isLow = newStock <= Number(updated.safety_stock);
+
+          this.pushRecentTransaction({
+            action: 'WASTE',
+            productId: product.id,
+            productName: product.name,
+            unit: product.unit,
+            quantity: qty,
+            oldStock: oldStock,
+            newStock: newStock,
+            senderName
+          });
+
+          results.push({
+            success: true,
+            action: 'WASTE',
+            product,
+            qty,
+            newStock,
+            unit: product.unit,
+            isLow
+          });
+        } catch (err) {
+          results.push({ success: false, name: product.name, error: err.message });
+        }
       } else if (item.action === 'SET_STOCK') {
         try {
+          const oldStock = Number(product.current_stock);
           const updated = await dbClient.setProductStockDirect(product.id, item.quantity, senderName);
           const newStock = updated.current_stock;
           const isLow = newStock <= Number(updated.safety_stock);
+
+          this.pushRecentTransaction({
+            action: 'SET_STOCK',
+            productId: product.id,
+            productName: product.name,
+            unit: product.unit,
+            quantity: item.quantity,
+            oldStock: oldStock,
+            newStock: newStock,
+            senderName
+          });
 
           results.push({
             success: true,
@@ -840,6 +1021,7 @@ class LineBotService {
 
     const isAllAdd = successItems.length > 0 && successItems.every(r => r.action === 'ADD_STOCK');
     const isAllUse = successItems.length > 0 && successItems.every(r => r.action === 'USE');
+    const isAllWaste = successItems.length > 0 && successItems.every(r => r.action === 'WASTE');
 
     let headerBg = '#2563EB'; // Blue
     let headerTitle = `⚡ อัปเดตสำเร็จ (${successItems.length} รายการ)`;
@@ -853,6 +1035,10 @@ class LineBotService {
       headerBg = '#E11D48'; // Rose Red
       headerTitle = `✂️ ตัดสต็อกสำเร็จ (${successItems.length} รายการ)`;
       headerSubtitle = 'ตัดสต็อกตามหลัก FIFO เรียบร้อยแล้ว';
+    } else if (isAllWaste) {
+      headerBg = '#DC2626'; // Red
+      headerTitle = `🗑️ บันทึกของเสียสำเร็จ (${successItems.length} รายการ)`;
+      headerSubtitle = 'ตัดสต็อกของเสียออกจากระบบเรียบร้อยแล้ว';
     }
 
     const itemRows = [];
@@ -867,6 +1053,9 @@ class LineBotService {
       } else if (r.action === 'USE') {
         actionText = `-${r.qty} ${r.unit}`;
         actionColor = '#E11D48';
+      } else if (r.action === 'WASTE') {
+        actionText = `ทิ้ง -${r.qty} ${r.unit}`;
+        actionColor = '#DC2626';
       } else if (r.action === 'SET_STOCK') {
         actionText = `ปรับเป็น ${r.qty} ${r.unit}`;
         actionColor = '#0284C7';
@@ -1546,9 +1735,10 @@ class LineBotService {
               paddingAll: '10px',
               cornerRadius: '10px',
               contents: [
-                { type: 'text', text: '⚡ 4. สั่งหลายรายการพร้อมกันในข้อความเดียว:', weight: 'bold', size: 'xs', color: '#B45309' },
-                { type: 'text', text: '• พิมพ์ขึ้นบรรทัดใหม่ หรือคั่นด้วยลูกน้ำ (,)', size: 'xs', color: '#334155', margin: 'xs' },
-                { type: 'text', text: '  เช่น "ตัด coke 2, รับ นม 10, ส้อม เหลือ 50"', size: 'xs', color: '#B45309', weight: 'bold' }
+                { type: 'text', text: '⚡ 4. สั่งหลายรายการ / จัดการพร้อมกัน (Bulk Action):', weight: 'bold', size: 'xs', color: '#B45309' },
+                { type: 'text', text: '• แบบอย่างละ: "รับเข้า coke, oreo, นม อย่างละ 10"', size: 'xs', color: '#334155', margin: 'xs' },
+                { type: 'text', text: '• แบบกริยานำหน้า: "เพิ่ม 10 ชิ้น coke, oreo, นม"', size: 'xs', color: '#334155' },
+                { type: 'text', text: '• หลายรายการต่างจำนวน: "ตัด coke 2, รับ นม 10, ช้อน เหลือ 50"', size: 'xs', color: '#B45309', weight: 'bold' }
               ]
             },
             {
