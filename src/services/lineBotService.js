@@ -417,7 +417,13 @@ class LineBotService {
 
     // Fallback if product and number found without explicit verb
     if (prodName && qty !== null) {
-      return { action: defaultAction || 'USE', productName: prodName, quantity: qty };
+      const parsedDate = this.parseFlexibleDate(raw);
+      return {
+        action: defaultAction || 'USE',
+        productName: prodName,
+        quantity: qty,
+        ...(parsedDate && (defaultAction === 'ADD_STOCK' || !defaultAction) ? { expiryDate: parsedDate } : {})
+      };
     }
 
     // 8. TYPO / DID YOU MEAN DETECTION (When product is misspelled but stock intent is clear)
@@ -464,10 +470,17 @@ class LineBotService {
       else if (/(ใช้ไปแล้ว|ใช้ไป|ใช้|ตัดสต็อก|ตัดของ|ตัด|เบิกใช้|เบิกของ|เบิก|หัก|minus|-)/i.test(trimmed)) action = 'USE';
       else if (/(เหลือ|นับได้|ปรับเป็น|set)/i.test(trimmed)) action = 'SET_STOCK';
 
+      const parsedDate = action === 'ADD_STOCK' ? this.parseFlexibleDate(trimmed) : null;
       const textWithoutEach = trimmed.replace(eachMatch[0], '');
       const prods = this.findAllProductsInText(textWithoutEach);
       if (prods.length > 0) {
-        return prods.map(p => ({ action, productName: p, quantity: qty, rawText: `${p} ${qty}` }));
+        return prods.map(p => ({
+          action,
+          productName: p,
+          quantity: qty,
+          ...(parsedDate ? { expiryDate: parsedDate } : {}),
+          rawText: `${p} ${qty}`
+        }));
       }
     }
 
@@ -483,9 +496,16 @@ class LineBotService {
       else if (/(ตัด|ใช้|เบิก|หัก|minus|-)/i.test(verb)) action = 'USE';
       else if (/(เหลือ|นับ|ปรับ)/i.test(verb)) action = 'SET_STOCK';
 
+      const parsedDate = action === 'ADD_STOCK' ? this.parseFlexibleDate(trimmed) : null;
       const prods = this.findAllProductsInText(rest);
       if (prods.length > 0) {
-        return prods.map(p => ({ action, productName: p, quantity: qty, rawText: `${p} ${qty}` }));
+        return prods.map(p => ({
+          action,
+          productName: p,
+          quantity: qty,
+          ...(parsedDate ? { expiryDate: parsedDate } : {}),
+          rawText: `${p} ${qty}`
+        }));
       }
     }
 
@@ -503,13 +523,20 @@ class LineBotService {
         else if (/(ตัด|ใช้|เบิก|หัก|minus|-)/i.test(verb)) action = 'USE';
         else if (/(เหลือ|นับ|ปรับ)/i.test(verb)) action = 'SET_STOCK';
 
+        const parsedDate = action === 'ADD_STOCK' ? this.parseFlexibleDate(trimmed) : null;
         const prods = [];
         for (let i = 1; i < lines.length; i++) {
           const found = this.findAllProductsInText(lines[i]);
           if (found.length > 0) prods.push(...found);
         }
         if (prods.length > 0) {
-          return prods.map(p => ({ action, productName: p, quantity: qty, rawText: `${p} ${qty}` }));
+          return prods.map(p => ({
+            action,
+            productName: p,
+            quantity: qty,
+            ...(parsedDate ? { expiryDate: parsedDate } : {}),
+            rawText: `${p} ${qty}`
+          }));
         }
       }
     }
@@ -566,13 +593,28 @@ class LineBotService {
       return bulkIntents;
     }
 
+    // Check for trailing shared expiry date across compound/multi commands
+    // e.g. "รับ แก๊สบอม 10 และ โคน 10 exp 31/12/2026" or "รับ แก๊สบอม 10 และ โคน 10 exp\n31/12/2026"
+    const trailingExpiryRegex = /(?:[\s,]+|และ|\r?\n)(?:exp(?:ire|iry)?|หมดอายุ|วันหมดอายุ|bbd|bbf)?\s*[:\s]*((?:\d{1,2}[-/.]\d{1,2}[-/.]\d{4}|\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|(?:\+|บวก)?\s*\d+\s*(?:เดือน|m|month|months|ปี|y|year|years|วัน|d|days?)|(?:\d{1,2}\s*(?:ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.|มกราคม|กุมภาพันธ์|มีนาคม|เมษายน|พฤษภาคม|มิถุนายน|กรกฎาคม|สิงหาคม|กันยายน|ตุลาคม|พฤศจิกายน|ธันวาคม)\s*\d{2,4})))\s*$/i;
+
+    let sharedExpiryDate = null;
+    let textToParse = trimmed;
+    const trailingMatch = trimmed.match(trailingExpiryRegex);
+    if (trailingMatch) {
+      const parsedTrailing = this.parseFlexibleDate(trailingMatch[1]);
+      if (parsedTrailing) {
+        sharedExpiryDate = parsedTrailing;
+        textToParse = trimmed.slice(0, trailingMatch.index).trim();
+      }
+    }
+
     // Split by newlines first
-    const rawLines = trimmed.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const rawLines = textToParse.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     const commands = [];
 
     for (const line of rawLines) {
-      if (line.includes(',') || line.includes(';') || /[\s,]+และ[\s,]+/i.test(line)) {
-        const parts = line.split(/[,;]|(?:[\s,]+และ[\s,]+)/).map(p => p.trim()).filter(Boolean);
+      if (line.includes(',') || line.includes(';') || /[\s,]*และ[\s,]*/i.test(line)) {
+        const parts = line.split(/[,;]|(?:[\s,]*และ[\s,]*)/).map(p => p.trim()).filter(Boolean);
         commands.push(...parts);
       } else {
         commands.push(line);
@@ -585,6 +627,9 @@ class LineBotService {
     for (const cmd of commands) {
       const intent = this.parseIntent(cmd, lastAction);
       if (intent) {
+        if (intent.action === 'ADD_STOCK' && !intent.expiryDate && sharedExpiryDate) {
+          intent.expiryDate = sharedExpiryDate;
+        }
         intents.push({ ...intent, rawText: cmd });
         if (['USE', 'ADD_STOCK', 'SET_STOCK'].includes(intent.action)) {
           lastAction = intent.action;
@@ -1049,9 +1094,10 @@ class LineBotService {
       if (item.action === 'ADD_STOCK') {
         try {
           const oldStock = Number(product.current_stock);
-          const updated = await dbClient.addProductStockDirect(product.id, item.quantity, senderName);
+          const updated = await dbClient.addProductStockDirect(product.id, item.quantity, senderName, item.expiryDate);
           const newStock = updated.current_stock;
           const isLow = newStock <= Number(product.safety_stock);
+          const expiryDateStr = item.expiryDate || updated.new_batch_expiry || null;
 
           this.pushRecentTransaction({
             action: 'ADD_STOCK',
@@ -1061,6 +1107,7 @@ class LineBotService {
             quantity: item.quantity,
             oldStock: oldStock,
             newStock: newStock,
+            expiryDate: expiryDateStr,
             senderName
           });
 
@@ -1071,6 +1118,7 @@ class LineBotService {
             qty: item.quantity,
             newStock: newStock,
             unit: product.unit,
+            expiryDate: expiryDateStr,
             isLow
           });
         } catch (err) {
@@ -1306,7 +1354,21 @@ class LineBotService {
                 flex: 4
               }] : [])
             ]
-          }
+          },
+          ...(r.expiryDate ? [{
+            type: 'box',
+            layout: 'horizontal',
+            contents: [
+              {
+                type: 'text',
+                text: `📅 หมดอายุล็อตนี้: ${r.expiryDate}`,
+                size: 'xxs',
+                color: '#059669',
+                weight: 'bold',
+                flex: 10
+              }
+            ]
+          }] : [])
         ]
       });
 

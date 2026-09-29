@@ -59,6 +59,18 @@ async function testExpiryAdjustment() {
     const allIntents = lineBotService.parseAllIntents('dq ปรับวันหมดอายุเป็น 2026-11-31');
     assert(allIntents && allIntents.length === 1 && allIntents[0].action === 'UPDATE_EXPIRY', '1.9 parseAllIntents correctly routes UPDATE_EXPIRY');
 
+    // 1.10 Multi-item receive with trailing expiry date (User command from screenshot)
+    const multiExp1 = lineBotService.parseAllIntents('DQ รับ แก๊สบอม 10 และ โคน 10 exp 31/12/2026'.replace(/^DQ\s+/i, ''));
+    assert(multiExp1 && multiExp1.length === 2 && multiExp1[0].expiryDate === '2026-12-31' && multiExp1[1].expiryDate === '2026-12-31', '1.10 Multi-item receive with trailing expiry date');
+
+    // 1.11 Multi-item receive with newline before expiry date
+    const multiExp2 = lineBotService.parseAllIntents('DQ รับ แก๊สบอม 10 และ โคน 10 exp\n31/12/2026'.replace(/^DQ\s+/i, ''));
+    assert(multiExp2 && multiExp2.length === 2 && multiExp2[0].expiryDate === '2026-12-31' && multiExp2[1].expiryDate === '2026-12-31', '1.11 Multi-item receive with newline before date');
+
+    // 1.12 Bulk receive with expiry date
+    const bulkExp = lineBotService.parseAllIntents('รับเข้า 10 แก๊สบอม โคน exp 31/12/2026');
+    assert(bulkExp && bulkExp.length === 2 && bulkExp[0].expiryDate === '2026-12-31' && bulkExp[1].expiryDate === '2026-12-31', '1.12 Bulk receive with expiry date');
+
     // ----------------------------------------------------
     // TEST 2: DATABASE & DIRECT UPDATE
     // ----------------------------------------------------
@@ -113,6 +125,12 @@ async function testExpiryAdjustment() {
     // 3.4 Test Bare prompt: "DQ ปรับวันหมดอายุ"
     const bareMsg = await lineBotService.handleMessage('DQ ปรับวันหมดอายุ', 'Staff', 'http://localhost:3000');
     assert(bareMsg && bareMsg.text.includes('ปรับวันหมดอายุ'), '3.4 Bare prompt returns helpful instructions & quickReply');
+
+    // 3.5 Test Multi-item receive with trailing exp: "DQ รับ แก๊สบอม 2 และ โคน 2 exp 2027-08-31"
+    const multiRcvMsg = await lineBotService.handleMessage('DQ รับ แก๊สบอม 2 และ โคน 2 exp 2027-08-31', 'Staff', 'http://localhost:3000');
+    assert(multiRcvMsg && multiRcvMsg.type === 'flex' && multiRcvMsg.altText.includes('2 รายการ'), '3.5 Multi-receive returns flex card for 2 items');
+    const multiBodyStr = JSON.stringify(multiRcvMsg.contents.body);
+    assert(multiBodyStr.includes('2027-08-31') && multiBodyStr.includes('แก๊สบอม') && multiBodyStr.includes('โคน'), '3.5 Multi-receive card contains both items and 2027-08-31 expiry');
 
     // Clean up test product
     await dbClient.deleteProduct(testProd.id);
