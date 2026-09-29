@@ -218,6 +218,88 @@ class LineBotService {
     return words.join(' ').trim();
   }
 
+  parseFlexibleDate(text, refDate = new Date()) {
+    if (!text || typeof text !== 'string') return null;
+    const s = text.trim();
+
+    // 1. Relative: +N เดือน / N เดือน / +N m
+    const relMonth = s.match(/(?:\+|บวก)?\s*(\d+)\s*(?:เดือน|m|month|months|ด\b)/i);
+    if (relMonth) {
+      const months = parseInt(relMonth[1], 10);
+      const d = new Date(refDate);
+      d.setMonth(d.getMonth() + months);
+      return d.toISOString().split('T')[0];
+    }
+
+    // Relative: +N ปี / N ปี / +N y
+    const relYear = s.match(/(?:\+|บวก)?\s*(\d+)\s*(?:ปี|y|year|years)/i);
+    if (relYear) {
+      const years = parseInt(relYear[1], 10);
+      const d = new Date(refDate);
+      d.setFullYear(d.getFullYear() + years);
+      return d.toISOString().split('T')[0];
+    }
+
+    // Relative: +N วัน / N วัน / +N d
+    const relDay = s.match(/(?:\+|บวก)?\s*(\d+)\s*(?:วัน|d|days?)/i);
+    if (relDay) {
+      const days = parseInt(relDay[1], 10);
+      const d = new Date(refDate);
+      d.setDate(d.getDate() + days);
+      return d.toISOString().split('T')[0];
+    }
+
+    // 2. ISO: YYYY-MM-DD or YYYY/MM/DD
+    const isoMatch = s.match(/\b(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\b/);
+    if (isoMatch) {
+      let year = parseInt(isoMatch[1], 10);
+      let month = parseInt(isoMatch[2], 10);
+      let day = parseInt(isoMatch[3], 10);
+      if (year >= 2500) year -= 543;
+      month = Math.max(1, Math.min(12, month));
+      const maxDays = new Date(year, month, 0).getDate();
+      day = Math.max(1, Math.min(maxDays, day));
+      return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    // 3. DD/MM/YYYY or DD-MM-YYYY
+    const dmyMatch = s.match(/\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})\b/);
+    if (dmyMatch) {
+      let day = parseInt(dmyMatch[1], 10);
+      let month = parseInt(dmyMatch[2], 10);
+      let year = parseInt(dmyMatch[3], 10);
+      if (year >= 2500) year -= 543;
+      month = Math.max(1, Math.min(12, month));
+      const maxDays = new Date(year, month, 0).getDate();
+      day = Math.max(1, Math.min(maxDays, day));
+      return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    // 4. Thai month names: e.g. 30 พ.ย. 2026 or 30 พฤศจิกายน 2026
+    const thMonths = {
+      'ม.ค.': 1, 'มกราคม': 1, 'ก.พ.': 2, 'กุมภาพันธ์': 2,
+      'มี.ค.': 3, 'มีนาคม': 3, 'เม.ย.': 4, 'เมษายน': 4,
+      'พ.ค.': 5, 'พฤษภาคม': 5, 'มิ.ย.': 6, 'มิถุนายน': 6,
+      'ก.ค.': 7, 'กรกฎาคม': 7, 'ส.ค.': 8, 'สิงหาคม': 8,
+      'ก.ย.': 9, 'กันยายน': 9, 'ต.ค.': 10, 'ตุลาคม': 10,
+      'พ.ย.': 11, 'พฤศจิกายน': 11, 'ธ.ค.': 12, 'ธันวาคม': 12
+    };
+    const thPattern = new RegExp(`\\b(\\d{1,2})\\s*(${Object.keys(thMonths).join('|')})\\s*(\\d{2,4})?\\b`, 'i');
+    const thMatch = s.match(thPattern);
+    if (thMatch) {
+      let day = parseInt(thMatch[1], 10);
+      const month = thMonths[thMatch[2]];
+      let year = thMatch[3] ? parseInt(thMatch[3], 10) : new Date().getFullYear();
+      if (year < 100) year += 2500;
+      if (year >= 2500) year -= 543;
+      const maxDays = new Date(year, month, 0).getDate();
+      day = Math.max(1, Math.min(maxDays, day));
+      return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    return null;
+  }
+
   parseIntent(text, defaultAction = null) {
     const raw = text.toLowerCase().trim();
     if (!raw) return null;
@@ -240,6 +322,32 @@ class LineBotService {
       const pName = this.findProduct(raw);
       if (!pName) {
         return { action: 'STOCK_OVERVIEW' };
+      }
+    }
+
+    // 3.5 UPDATE EXPIRY DATE (ปรับวันหมดอายุ, เลื่อนวันหมดอายุ, ต่ออายุ, etc.)
+    const isUpdateExpiry = /(ปรับวันหมดอายุ|เลื่อนวันหมดอายุ|ต่อวันหมดอายุ|ต่ออายุ|แก้ไขวันหมดอายุ|แก้วันหมดอายุ|เปลี่ยนวันหมดอายุ|ระบุวันหมดอายุ|ตั้งวันหมดอายุ|ปรับวัน)/i.test(raw) ||
+      (/(วันหมดอายุ|หมดอายุ)/i.test(raw) && /(เป็น|ให้เป็น|เลื่อน|ต่อ|ปรับ|แก้|เปลี่ยน|\+|บวก)/i.test(raw));
+
+    if (isUpdateExpiry) {
+      const lotMatch = raw.match(/\b(lot-[a-z0-9-]+)\b/i);
+      const lotNumber = lotMatch ? lotMatch[1].toUpperCase() : null;
+      const prodName = this.findProduct(raw);
+      const parsedDate = this.parseFlexibleDate(raw);
+
+      if (parsedDate) {
+        return {
+          action: 'UPDATE_EXPIRY',
+          productName: prodName,
+          lotNumber,
+          date: parsedDate
+        };
+      } else {
+        return {
+          action: 'UPDATE_EXPIRY_PROMPT',
+          productName: prodName,
+          lotNumber
+        };
       }
     }
 
@@ -266,8 +374,19 @@ class LineBotService {
       }
     }
 
-    // 4. DEDUCT / USE (ใช้ไปแล้ว, ใช้, ตัด, เบิก, -)
-    if (/(ใช้ไปแล้ว|ใช้ไป|ใช้|ตัด|เบิก|หัก|เอาไป|use|minus|-)/i.test(raw)) {
+    // 4.7 ADD / RECEIVE (รับ, เติม, เข้า, ซื้อมา, +)
+    const hasAddIntent = /(รับเข้า|รับของ|รับ|เติมสต็อก|เติมของ|เติม|ซื้อมา|add|\+)/i.test(raw);
+    const hasUseIntent = /(ใช้ไปแล้ว|ใช้ไป|ใช้|ตัดสต็อก|ตัดของ|ตัด|เบิกใช้|เบิกของ|เบิก|หักสต็อก|หัก|เอาไป|use|minus|(?:\s|^)-\s*\d)/i.test(raw);
+
+    if (hasAddIntent && (!hasUseIntent || /^(รับ|เติม|ซื้อมา)/i.test(raw))) {
+      if (prodName && qty !== null) {
+        const parsedDate = this.parseFlexibleDate(raw);
+        return { action: 'ADD_STOCK', productName: prodName, quantity: qty, expiryDate: parsedDate };
+      }
+    }
+
+    // 4.8 DEDUCT / USE (ใช้ไปแล้ว, ใช้, ตัด, เบิก, -)
+    if (hasUseIntent) {
       if (prodName && qty !== null) {
         return { action: 'USE', productName: prodName, quantity: qty };
       }
@@ -280,11 +399,9 @@ class LineBotService {
       }
     }
 
-    // 6. ADD / RECEIVE (รับ, เติม, เข้า, ซื้อมา, +)
-    if (/(รับเข้า|รับ|เติม|เข้า|ซื้อมา|add|\+)/i.test(raw)) {
-      if (prodName && qty !== null) {
-        return { action: 'ADD_STOCK', productName: prodName, quantity: qty };
-      }
+    if (hasAddIntent && prodName && qty !== null) {
+      const parsedDate = this.parseFlexibleDate(raw);
+      return { action: 'ADD_STOCK', productName: prodName, quantity: qty, expiryDate: parsedDate };
     }
 
     // 7. SPECIFIC ITEM CHECK (เช็ค coke, coke เหลือเท่าไหร่, ภาพรวม cokeกด, หรือพิมพ์ชื่อสินค้าเดี่ยวๆ)
@@ -422,6 +539,17 @@ class LineBotService {
         return [{ action: 'STOCK_OVERVIEW' }];
       }
     }
+    // Check UPDATE_EXPIRY before EXPIRING_SOON
+    const isUpdateExpiry = /(ปรับวันหมดอายุ|เลื่อนวันหมดอายุ|ต่อวันหมดอายุ|ต่ออายุ|แก้ไขวันหมดอายุ|แก้วันหมดอายุ|เปลี่ยนวันหมดอายุ|ระบุวันหมดอายุ|ตั้งวันหมดอายุ|ปรับวัน)/i.test(singleRaw) ||
+      (/(วันหมดอายุ|หมดอายุ)/i.test(singleRaw) && /(เป็น|ให้เป็น|เลื่อน|ต่อ|ปรับ|แก้|เปลี่ยน|\+|บวก)/i.test(singleRaw));
+
+    if (isUpdateExpiry) {
+      const intent = this.parseIntent(trimmed);
+      if (intent) {
+        return [{ ...intent, rawText: trimmed }];
+      }
+    }
+
     if (/(หมดอายุ|ใกล้หมดอายุ|วันหมดอายุ|expir)/i.test(singleRaw)) {
       const p = this.findProduct(singleRaw);
       if (!p) {
@@ -497,13 +625,13 @@ class LineBotService {
     if (!processedText) {
       return {
         type: 'text',
-        text: `🍦 สวัสดีครับ! บอท ${botPrefix} พร้อมทำงานครับ\n\n💡 แตะ 4 ปุ่มลัดด้านล่าง หรือพิมพ์สั่งงานได้ทันที:\n• "${botPrefix} สั่งของ" (ดูรายการของใกล้หมด)\n• "${botPrefix} ใกล้หมดอายุ" (เช็ควันหมดอายุ)\n• "${botPrefix} ตัด coke 2" (ตัดสต็อก)\n• "${botPrefix} รับ coke 24" (รับของเข้า)\n• "${botPrefix} ทิ้ง coke 1" (บันทึกของเสีย)\n• "${botPrefix} ยกเลิก" (ยกเลิกรายการล่าสุด)\n• "${botPrefix} วิธีใช้" (ดูคู่มือทั้งหมด)`,
+        text: `🍦 สวัสดีครับ! บอท ${botPrefix} พร้อมทำงานครับ\n\n💡 แตะปุ่มลัดด้านล่าง หรือพิมพ์สั่งงานได้ทันที:\n• "${botPrefix} สั่งของ" (ดูรายการของใกล้หมด)\n• "${botPrefix} ใกล้หมดอายุ" (เช็ควันหมดอายุ)\n• "${botPrefix} ปรับวันหมดอายุ แก๊สบอม 2026-11-30" (ปรับวัน)\n• "${botPrefix} รับ coke 24 หมดอายุ 2026-12-31" (รับเข้า)\n• "${botPrefix} ตัด coke 2" (ตัดสต็อก)\n• "${botPrefix} ยกเลิก" (ยกเลิกรายการล่าสุด)\n• "${botPrefix} วิธีใช้" (ดูคู่มือทั้งหมด)`,
         quickReply: {
           items: [
             { type: 'action', action: { type: 'message', label: '🛒 สรุปสั่งของ', text: `${botPrefix} สั่งของ` } },
             { type: 'action', action: { type: 'message', label: '⏳ ใกล้หมดอายุ', text: `${botPrefix} ใกล้หมดอายุ` } },
-            { type: 'action', action: { type: 'message', label: '↩️ ยกเลิก (Undo)', text: `${botPrefix} ยกเลิก` } },
-            { type: 'action', action: { type: 'message', label: '📊 ภาพรวมร้าน', text: `${botPrefix} ภาพรวม` } }
+            { type: 'action', action: { type: 'message', label: '📅 ปรับวันหมดอายุ', text: `${botPrefix} ปรับวันหมดอายุ` } },
+            { type: 'action', action: { type: 'message', label: '↩️ ยกเลิก (Undo)', text: `${botPrefix} ยกเลิก` } }
           ]
         }
       };
@@ -514,12 +642,12 @@ class LineBotService {
       if (hasPrefix || !prefixRegex) {
         return {
           type: 'text',
-          text: `🤖 ขออภัยครับ ไม่เข้าใจคำสั่ง "${processedText}"\n\n💡 คำสั่งที่ใช้บ่อย:\n• "${botPrefix} รายการหมดอายุ" หรือ "${botPrefix} ใกล้หมดอายุ"\n• "${botPrefix} สั่งของ" (ดูของใกล้หมด)\n• "${botPrefix} ภาพรวม" (ดูสต็อกทั้งหมด)\n• "${botPrefix} ตัด coke 2" (ตัดสต็อก)\n• "${botPrefix} รับ coke 10" (รับของเข้า)\n• "${botPrefix} วิธีใช้" (ดูคู่มือทั้งหมด)`,
+          text: `🤖 ขออภัยครับ ไม่เข้าใจคำสั่ง "${processedText}"\n\n💡 คำสั่งที่ใช้บ่อย:\n• "${botPrefix} ปรับวันหมดอายุ [สินค้า] [วันที่ YYYY-MM-DD]"\n• "${botPrefix} รายการหมดอายุ" หรือ "${botPrefix} ใกล้หมดอายุ"\n• "${botPrefix} สั่งของ" (ดูของใกล้หมด)\n• "${botPrefix} รับ coke 10" (รับของเข้า)\n• "${botPrefix} ตัด coke 2" (ตัดสต็อก)\n• "${botPrefix} วิธีใช้" (ดูคู่มือทั้งหมด)`,
           quickReply: {
             items: [
               { type: 'action', action: { type: 'message', label: '🛒 สรุปสั่งของ', text: `${botPrefix} สั่งของ` } },
               { type: 'action', action: { type: 'message', label: '⏳ รายการหมดอายุ', text: `${botPrefix} รายการหมดอายุ` } },
-              { type: 'action', action: { type: 'message', label: '📊 ภาพรวมร้าน', text: `${botPrefix} ภาพรวม` } },
+              { type: 'action', action: { type: 'message', label: '📅 ปรับวันหมดอายุ', text: `${botPrefix} ปรับวันหมดอายุ` } },
               { type: 'action', action: { type: 'message', label: '📖 วิธีใช้', text: `${botPrefix} วิธีใช้` } }
             ]
           }
@@ -574,6 +702,16 @@ class LineBotService {
         };
       }
       return lineService.buildExpiringFlex(batches, webUrl);
+    }
+
+    // ACTION: UPDATE EXPIRY
+    if (intent.action === 'UPDATE_EXPIRY') {
+      return this.executeUpdateExpiry(intent, senderName, webUrl);
+    }
+
+    // ACTION: UPDATE EXPIRY PROMPT
+    if (intent.action === 'UPDATE_EXPIRY_PROMPT') {
+      return this.executeUpdateExpiryPrompt(intent, senderName, webUrl);
     }
 
     // ACTION: UNDO
@@ -772,8 +910,9 @@ class LineBotService {
     if (intent.action === 'ADD_STOCK') {
       try {
         const oldStock = Number(product.current_stock);
-        const updated = await dbClient.addProductStockDirect(product.id, intent.quantity, senderName);
+        const updated = await dbClient.addProductStockDirect(product.id, intent.quantity, senderName, intent.expiryDate);
         const newStock = updated.current_stock;
+        const expiryDateStr = updated.new_batch_expiry || null;
 
         this.pushRecentTransaction({
           action: 'ADD_STOCK',
@@ -823,22 +962,46 @@ class LineBotService {
                     { type: 'text', text: 'คงเหลือรวมใหม่:', color: '#64748B', size: 'xs', flex: 5 },
                     { type: 'text', text: `${updated.current_stock} ${product.unit}`, weight: 'bold', color: '#1E293B', size: 'sm', flex: 5, align: 'end' }
                   ]
-                }
+                },
+                ...(expiryDateStr ? [{
+                  type: 'box',
+                  layout: 'horizontal',
+                  contents: [
+                    { type: 'text', text: 'วันหมดอายุล็อตนี้:', color: '#64748B', size: 'xs', flex: 5 },
+                    { type: 'text', text: expiryDateStr, weight: 'bold', color: '#059669', size: 'xs', flex: 5, align: 'end' }
+                  ]
+                }] : [])
               ]
             },
             footer: {
               type: 'box',
               layout: 'vertical',
               paddingAll: '10px',
+              spacing: 'xs',
               contents: [
                 {
+                  type: 'button',
+                  style: 'secondary',
+                  color: '#F1F5F9',
+                  height: 'sm',
+                  action: { type: 'message', label: '✏️ ปรับวันหมดอายุล็อตนี้', text: `DQ ปรับวันหมดอายุ ${product.name}` }
+                },
+                ...(webUrl ? [{
                   type: 'button',
                   style: 'link',
                   height: 'sm',
                   action: { type: 'uri', label: '📱 ดูประวัติการรับเข้าบนเว็บ', uri: `${webUrl}?tab=usage&subtab=inbound` }
-                }
+                }] : [])
               ]
             }
+          },
+          quickReply: {
+            items: [
+              { type: 'action', action: { type: 'message', label: '📅 ปรับเป็น +1 ด.', text: `DQ ปรับวันหมดอายุ ${product.name} +1 เดือน` } },
+              { type: 'action', action: { type: 'message', label: '📅 ปรับเป็น +3 ด.', text: `DQ ปรับวันหมดอายุ ${product.name} +3 เดือน` } },
+              { type: 'action', action: { type: 'message', label: '📅 ปรับเป็น +6 ด.', text: `DQ ปรับวันหมดอายุ ${product.name} +6 เดือน` } },
+              { type: 'action', action: { type: 'message', label: '↩️ ยกเลิก (Undo)', text: 'DQ ยกเลิก' } }
+            ]
           }
         };
       } catch (err) {
@@ -1369,18 +1532,286 @@ class LineBotService {
     };
   }
 
+  async executeUpdateExpiry(intent, senderName, webUrl) {
+    const { productName, lotNumber, date } = intent;
+
+    // Case 1: Product or Lot specified directly
+    if (productName || lotNumber) {
+      try {
+        const target = lotNumber || productName;
+        const res = await dbClient.updateProductExpiryDate(target, date, senderName);
+
+        // Push to recentTransactions for UNDO
+        this.pushRecentTransaction({
+          action: 'UPDATE_EXPIRY',
+          productId: res.product.id,
+          productName: res.product.name,
+          batchId: res.batchId,
+          lotNumber: res.lotNumber,
+          oldExpiryDate: res.oldExpiryDate,
+          newExpiryDate: res.newExpiryDate,
+          senderName
+        });
+
+        return this.buildUpdateExpiryResultFlex(res, senderName, webUrl);
+      } catch (err) {
+        return {
+          type: 'text',
+          text: `❌ ไม่สามารถปรับวันหมดอายุได้: ${err.message}`
+        };
+      }
+    }
+
+    // Case 2: Date specified, but NO product or lot specified (e.g. "dq ปรับวันหมดอายุเป็น 2026-11-31")
+    const alerts = await dbClient.getAlertsData();
+    const expiringBatches = alerts.expiring_batches || [];
+
+    if (expiringBatches.length === 0) {
+      return {
+        type: 'text',
+        text: `📅 คุณต้องการปรับวันหมดอายุเป็น "${date}" แต่ไม่ได้ระบุชื่อสินค้า\n\nกรุณาระบุชื่อสินค้าด้วยครับ เช่น:\n• "DQ ปรับวันหมดอายุ แก๊สบอม เป็น ${date}"\n• "DQ ปรับวันหมดอายุ โคน เป็น ${date}"`,
+        quickReply: {
+          items: [
+            { type: 'action', action: { type: 'message', label: '🛒 สรุปสั่งของ', text: 'DQ สั่งของ' } },
+            { type: 'action', action: { type: 'message', label: '⏳ ใกล้หมดอายุ', text: 'DQ ใกล้หมดอายุ' } },
+            { type: 'action', action: { type: 'message', label: '📊 ภาพรวมร้าน', text: 'DQ ภาพรวม' } }
+          ]
+        }
+      };
+    }
+
+    // If exactly 1 product expiring, auto-apply and notify with Undo option
+    if (expiringBatches.length === 1) {
+      const b = expiringBatches[0];
+      const res = await dbClient.updateProductExpiryDate(b.lot_number || b.product_name, date, senderName);
+      this.pushRecentTransaction({
+        action: 'UPDATE_EXPIRY',
+        productId: res.product.id,
+        productName: res.product.name,
+        batchId: res.batchId,
+        lotNumber: res.lotNumber,
+        oldExpiryDate: res.oldExpiryDate,
+        newExpiryDate: res.newExpiryDate,
+        senderName
+      });
+      return this.buildUpdateExpiryResultFlex(res, senderName, webUrl);
+    }
+
+    // If multiple products expiring (e.g. แก๊สบอม and โคน)
+    // Offer quick selection buttons!
+    const quickItems = expiringBatches.slice(0, 4).map(b => ({
+      type: 'action',
+      action: {
+        type: 'message',
+        label: `${b.product_name || b.name}`.slice(0, 20),
+        text: `DQ ปรับวันหมดอายุ ${b.product_name || b.name} เป็น ${date}`
+      }
+    }));
+
+    return {
+      type: 'text',
+      text: `📅 พบสินค้าใกล้หมดอายุ ${expiringBatches.length} รายการ\nต้องการปรับวันหมดอายุเป็น "${date}" ให้สินค้าตัวไหนครับ?\n\nแตะเลือกสินค้าด้านล่างได้เลยครับ 👇`,
+      quickReply: {
+        items: quickItems
+      }
+    };
+  }
+
+  async executeUpdateExpiryPrompt(intent, senderName, webUrl) {
+    const { productName, lotNumber } = intent;
+
+    if (productName || lotNumber) {
+      const allProds = await dbClient.getAllProducts();
+      const product = allProds.find(p => p.name === productName) || (lotNumber ? { name: lotNumber } : null);
+      const batches = product?.id ? await dbClient.getBatchesByProductId(product.id) : [];
+      const activeBatches = batches.filter(b => Number(b.quantity) > 0);
+      const currentExp = activeBatches.length > 0 ? activeBatches[0].expiry_date : 'ไม่ระบุ';
+      const lot = activeBatches.length > 0 ? activeBatches[0].lot_number : (lotNumber || '-');
+
+      const pName = product?.name || productName;
+      return {
+        type: 'text',
+        text: `📅 ปรับวันหมดอายุ: ${pName}\nล็อต: ${lot}\nวันหมดอายุเดิม: ${currentExp}\n\nต้องการปรับเป็นเมื่อไหร่? แตะปุ่มด่วนด้านล่าง หรือพิมพ์ระบุวันที่ เช่น "DQ ปรับวันหมดอายุ ${pName} 2026-11-30":`,
+        quickReply: {
+          items: [
+            { type: 'action', action: { type: 'message', label: '+1 เดือน', text: `DQ ปรับวันหมดอายุ ${pName} +1 เดือน` } },
+            { type: 'action', action: { type: 'message', label: '+3 เดือน', text: `DQ ปรับวันหมดอายุ ${pName} +3 เดือน` } },
+            { type: 'action', action: { type: 'message', label: '+6 เดือน', text: `DQ ปรับวันหมดอายุ ${pName} +6 เดือน` } },
+            { type: 'action', action: { type: 'message', label: '+1 ปี', text: `DQ ปรับวันหมดอายุ ${pName} +1 ปี` } },
+            { type: 'action', action: { type: 'message', label: '🗑️ ทิ้งของเสีย', text: `DQ ทิ้ง ${pName} 1` } }
+          ]
+        }
+      };
+    }
+
+    // No product specified, show expiring items
+    const alerts = await dbClient.getAlertsData();
+    const expiringBatches = alerts.expiring_batches || [];
+
+    if (expiringBatches.length > 0) {
+      const quickItems = expiringBatches.slice(0, 4).map(b => ({
+        type: 'action',
+        action: {
+          type: 'message',
+          label: `✏️ ปรับ ${b.product_name || b.name}`.slice(0, 20),
+          text: `DQ ปรับวันหมดอายุ ${b.product_name || b.name}`
+        }
+      }));
+      quickItems.push({
+        type: 'action',
+        action: { type: 'message', label: '⏳ ใกล้หมดอายุ', text: 'DQ ใกล้หมดอายุ' }
+      });
+
+      return {
+        type: 'text',
+        text: `📅 คุณต้องการปรับวันหมดอายุของสินค้าตัวไหนครับ?\n\n💡 วิธีสั่งงาน:\n• แตะเลือกสินค้าด้านล่าง 👇\n• หรือพิมพ์: "DQ ปรับวันหมดอายุ [ชื่อสินค้า] [วันที่]"\n  เช่น "DQ ปรับวันหมดอายุ แก๊สบอม 2026-11-30"`,
+        quickReply: {
+          items: quickItems
+        }
+      };
+    }
+
+    return {
+      type: 'text',
+      text: `📅 วิธีสั่งปรับวันหมดอายุสินค้า:\n\n• "DQ ปรับวันหมดอายุ [ชื่อสินค้า] [วันที่ YYYY-MM-DD]"\n  เช่น: "DQ ปรับวันหมดอายุ แก๊สบอม 2026-11-30"\n• "DQ ปรับวันหมดอายุ [ชื่อสินค้า] +1 เดือน"\n• "DQ ต่ออายุ [ชื่อสินค้า] 3 เดือน"`,
+      quickReply: {
+        items: [
+          { type: 'action', action: { type: 'message', label: '🛒 สรุปสั่งของ', text: 'DQ สั่งของ' } },
+          { type: 'action', action: { type: 'message', label: '⏳ ใกล้หมดอายุ', text: 'DQ ใกล้หมดอายุ' } },
+          { type: 'action', action: { type: 'message', label: '📊 ภาพรวมร้าน', text: 'DQ ภาพรวม' } }
+        ]
+      }
+    };
+  }
+
+  buildUpdateExpiryResultFlex(res, senderName, webUrl) {
+    const { product, batchId, lotNumber, oldExpiryDate, newExpiryDate } = res;
+    const today = new Date().toISOString().split('T')[0];
+    const diffDays = Math.ceil((new Date(newExpiryDate) - new Date(today)) / (1000 * 60 * 60 * 24));
+    const statusText = diffDays < 0 ? `หมดอายุแล้ว (${Math.abs(diffDays)} วันก่อน)` : `อีก ${diffDays} วันหมดอายุ`;
+
+    return {
+      type: 'flex',
+      altText: `📅 ปรับวันหมดอายุ ${product.name} เป็น ${newExpiryDate}`,
+      contents: {
+        type: 'bubble',
+        size: 'kilo',
+        header: {
+          type: 'box',
+          layout: 'vertical',
+          backgroundColor: '#0E7490',
+          paddingAll: '16px',
+          contents: [
+            { type: 'text', text: '📅 ปรับวันหมดอายุสำเร็จ', weight: 'bold', color: '#FFFFFF', size: 'sm' },
+            { type: 'text', text: product.name, weight: 'bold', color: '#FFFFFF', size: 'lg', margin: 'xs' }
+          ]
+        },
+        body: {
+          type: 'box',
+          layout: 'vertical',
+          paddingAll: '16px',
+          spacing: 'sm',
+          contents: [
+            {
+              type: 'box',
+              layout: 'horizontal',
+              contents: [
+                { type: 'text', text: 'ล็อต:', color: '#64748B', size: 'xs', flex: 4 },
+                { type: 'text', text: lotNumber || '-', weight: 'bold', color: '#1E293B', size: 'xs', flex: 6, align: 'end' }
+              ]
+            },
+            ...(oldExpiryDate ? [{
+              type: 'box',
+              layout: 'horizontal',
+              contents: [
+                { type: 'text', text: 'วันหมดอายุเดิม:', color: '#64748B', size: 'xs', flex: 5 },
+                { type: 'text', text: oldExpiryDate, color: '#94A3B8', size: 'xs', flex: 5, align: 'end' }
+              ]
+            }] : []),
+            {
+              type: 'box',
+              layout: 'horizontal',
+              contents: [
+                { type: 'text', text: 'วันหมดอายุใหม่:', color: '#64748B', size: 'xs', flex: 5 },
+                { type: 'text', text: newExpiryDate, weight: 'bold', color: '#0E7490', size: 'sm', flex: 5, align: 'end' }
+              ]
+            },
+            {
+              type: 'box',
+              layout: 'horizontal',
+              contents: [
+                { type: 'text', text: 'สถานะ:', color: '#64748B', size: 'xs', flex: 4 },
+                { type: 'text', text: statusText, weight: 'bold', color: diffDays <= 7 ? '#EA580C' : '#059669', size: 'xs', flex: 6, align: 'end' }
+              ]
+            },
+            {
+              type: 'box',
+              layout: 'horizontal',
+              contents: [
+                { type: 'text', text: 'ผู้ปรับปรุง:', color: '#64748B', size: 'xs', flex: 4 },
+                { type: 'text', text: senderName, color: '#1E293B', size: 'xs', flex: 6, align: 'end' }
+              ]
+            }
+          ]
+        },
+        footer: {
+          type: 'box',
+          layout: 'vertical',
+          paddingAll: '10px',
+          spacing: 'xs',
+          contents: [
+            {
+              type: 'button',
+              style: 'secondary',
+              color: '#F1F5F9',
+              height: 'sm',
+              action: { type: 'message', label: '↩️ ยกเลิก (Undo)', text: 'DQ ยกเลิก' }
+            },
+            ...(webUrl ? [{
+              type: 'button',
+              style: 'link',
+              height: 'sm',
+              action: { type: 'uri', label: '📱 ดูทุกล็อตบนเว็บ', uri: `${webUrl}?tab=inventory&product_id=${product.id}` }
+            }] : [])
+          ]
+        }
+      },
+      quickReply: {
+        items: [
+          { type: 'action', action: { type: 'message', label: '+1 เดือน', text: `DQ ปรับวันหมดอายุ ${product.name} +1 เดือน` } },
+          { type: 'action', action: { type: 'message', label: '+3 เดือน', text: `DQ ปรับวันหมดอายุ ${product.name} +3 เดือน` } },
+          { type: 'action', action: { type: 'message', label: '⏳ ใกล้หมดอายุ', text: 'DQ ใกล้หมดอายุ' } },
+          { type: 'action', action: { type: 'message', label: '📊 ภาพรวมร้าน', text: 'DQ ภาพรวม' } }
+        ]
+      }
+    };
+  }
+
   async executeUndo(senderName, webUrl) {
     const now = Date.now();
     const validIndex = recentTransactions.findIndex(t => (now - t.timestamp) <= UNDO_EXPIRY_MS);
     if (validIndex === -1) {
       return {
         type: 'text',
-        text: '⚠️ ไม่พบรายการล่าสุดที่สามารถยกเลิกได้ครับ\n\n💡 ระบบอนุญาตให้ยกเลิกรายการ (ตัดสต็อก, ของเสีย, รับเข้า) ได้ภายใน 5 นาทีหลังจากทำรายการเท่านั้นครับ'
+        text: '⚠️ ไม่พบรายการล่าสุดที่สามารถยกเลิกได้ครับ\n\n💡 ระบบอนุญาตให้ยกเลิกรายการ (ตัดสต็อก, ของเสีย, รับเข้า, ปรับวันหมดอายุ) ได้ภายใน 5 นาทีหลังจากทำรายการเท่านั้นครับ'
       };
     }
 
     const t = recentTransactions.splice(validIndex, 1)[0];
     try {
+      if (t.action === 'UPDATE_EXPIRY') {
+        if (t.batchId && t.oldExpiryDate) {
+          await dbClient.updateBatch(t.batchId, {
+            expiry_date: t.oldExpiryDate,
+            notes: `ยกเลิกการปรับวันหมดอายุโดย ${senderName}`
+          });
+        }
+        return {
+          type: 'text',
+          text: `↩️ ยกเลิกการปรับวันหมดอายุสำเร็จ!\n• สินค้า: ${t.productName} (ล็อต: ${t.lotNumber || '-'})\n• วันหมดอายุคืนค่าเป็น: ${t.oldExpiryDate || 'ค่าเดิม'}\n• ผู้ทำรายการยกเลิก: ${senderName}`
+        };
+      }
+
       await dbClient.setProductStockDirect(t.productId, t.oldStock, `ยกเลิกโดย ${senderName}`);
 
       if (t.action === 'USE' || t.action === 'WASTE') {
@@ -1740,9 +2171,23 @@ class LineBotService {
               paddingAll: '10px',
               cornerRadius: '10px',
               contents: [
-                { type: 'text', text: '📦 2. รับของเข้าสต็อก:', weight: 'bold', size: 'xs', color: '#059669' },
-                { type: 'text', text: '• "รับ coke 24" หรือ "เติม ช้อน 10"', size: 'xs', color: '#334155', margin: 'xs' },
-                { type: 'text', text: '• "นมจืด +12" (ใช้เครื่องหมายบวกได้)', size: 'xs', color: '#64748B' }
+                { type: 'text', text: '📦 2. รับของเข้าสต็อก (ระบุวันหมดอายุได้):', weight: 'bold', size: 'xs', color: '#059669' },
+                { type: 'text', text: '• "รับ coke 24" หรือ "นมจืด +12"', size: 'xs', color: '#334155', margin: 'xs' },
+                { type: 'text', text: '• ระบุวันหมดอายุ: "รับ coke 10 หมดอายุ 2026-11-30"', size: 'xs', color: '#059669', weight: 'bold' },
+                { type: 'text', text: '• ระบุเดือน: "รับ แก๊สบอม 5 +6 เดือน"', size: 'xs', color: '#64748B' }
+              ]
+            },
+            {
+              type: 'box',
+              layout: 'vertical',
+              backgroundColor: '#ECFEFF',
+              paddingAll: '10px',
+              cornerRadius: '10px',
+              contents: [
+                { type: 'text', text: '📅 3. ปรับวันหมดอายุ / ต่ออายุล็อต:', weight: 'bold', size: 'xs', color: '#0E7490' },
+                { type: 'text', text: '• "ปรับวันหมดอายุ แก๊สบอม 2026-11-30"', size: 'xs', color: '#334155', margin: 'xs' },
+                { type: 'text', text: '• "ต่ออายุ โคน 1 เดือน" หรือ "เลื่อนวันหมดอายุ coke +3 เดือน"', size: 'xs', color: '#0E7490', weight: 'bold' },
+                { type: 'text', text: '• ระบุล็อต: "ปรับวันหมดอายุ LOT-9789 2026-11-30"', size: 'xs', color: '#64748B' }
               ]
             },
             {

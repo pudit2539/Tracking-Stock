@@ -463,13 +463,63 @@ class LineService {
         ]
       };
 
-      bodyContents.push(batchRow);
+      const pName = batch.product_name || batch.name || 'สินค้า';
+      const batchContainer = {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'xs',
+        contents: [
+          batchRow,
+          {
+            type: 'box',
+            layout: 'horizontal',
+            margin: 'xs',
+            spacing: 'xs',
+            contents: [
+              {
+                type: 'button',
+                style: 'secondary',
+                color: '#F1F5F9',
+                height: 'sm',
+                flex: 4,
+                action: { type: 'message', label: '✏️ ปรับวัน', text: `DQ ปรับวันหมดอายุ ${pName}` }
+              },
+              {
+                type: 'button',
+                style: 'secondary',
+                color: '#FEF3C7',
+                height: 'sm',
+                flex: 3,
+                action: { type: 'message', label: '+1 ด.', text: `DQ ปรับวันหมดอายุ ${pName} +1 เดือน` }
+              },
+              {
+                type: 'button',
+                style: 'secondary',
+                color: '#FEF3C7',
+                height: 'sm',
+                flex: 3,
+                action: { type: 'message', label: '+3 ด.', text: `DQ ปรับวันหมดอายุ ${pName} +3 เดือน` }
+              },
+              {
+                type: 'button',
+                style: 'secondary',
+                color: '#FEE2E2',
+                height: 'sm',
+                flex: 3,
+                action: { type: 'message', label: '🗑️ ทิ้ง', text: `DQ ทิ้ง ${pName} ${batch.quantity}` }
+              }
+            ]
+          }
+        ]
+      };
+
+      bodyContents.push(batchContainer);
 
       if (index < batches.length - 1) {
         bodyContents.push({
           type: 'separator',
           margin: 'md',
-          color: '#F3F4F6'
+          color: '#E5E7EB'
         });
       }
     });
@@ -559,10 +609,36 @@ class LineService {
       }
     };
 
+    const quickItems = [];
+    batches.slice(0, 4).forEach(b => {
+      const name = (b.product_name || b.name || '').slice(0, 14);
+      if (name) {
+        quickItems.push({
+          type: 'action',
+          action: {
+            type: 'message',
+            label: `✏️ ปรับ ${name}`,
+            text: `DQ ปรับวันหมดอายุ ${b.product_name || b.name}`
+          }
+        });
+      }
+    });
+    quickItems.push({
+      type: 'action',
+      action: {
+        type: 'message',
+        label: '📦 รับของเข้า',
+        text: 'DQ รับเข้า'
+      }
+    });
+
     return {
       type: 'flex',
       altText: `⏳ แจ้งเตือนสินค้าใกล้หมดอายุ ${batches.length} รายการ`,
-      contents: bubble
+      contents: bubble,
+      quickReply: {
+        items: quickItems
+      }
     };
   }
 
@@ -834,20 +910,30 @@ class LineService {
       name: 'DQ Stock Menu',
       chatBarText: 'เมนูสต็อก DQ',
       areas: [
+        // Row 1 (y: 0, height: 405)
         {
-          bounds: { x: 0, y: 0, width: 600, height: 405 },
+          bounds: { x: 0, y: 0, width: 400, height: 405 },
           action: { type: 'message', text: 'DQ สั่งของ' }
         },
         {
-          bounds: { x: 600, y: 0, width: 600, height: 405 },
+          bounds: { x: 400, y: 0, width: 400, height: 405 },
           action: { type: 'message', text: 'DQ ใกล้หมดอายุ' }
         },
         {
-          bounds: { x: 0, y: 405, width: 600, height: 405 },
+          bounds: { x: 800, y: 0, width: 400, height: 405 },
+          action: { type: 'message', text: 'DQ รับเข้า' }
+        },
+        // Row 2 (y: 405, height: 405)
+        {
+          bounds: { x: 0, y: 405, width: 400, height: 405 },
+          action: { type: 'message', text: 'DQ ปรับวันหมดอายุ' }
+        },
+        {
+          bounds: { x: 400, y: 405, width: 400, height: 405 },
           action: { type: 'message', text: 'DQ ยกเลิก' }
         },
         {
-          bounds: { x: 600, y: 405, width: 600, height: 405 },
+          bounds: { x: 800, y: 405, width: 400, height: 405 },
           action: { type: 'uri', uri: webUrl }
         }
       ]

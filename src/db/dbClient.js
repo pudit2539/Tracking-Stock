@@ -490,22 +490,24 @@ const dbClient = {
     return this.getProductById(productId);
   },
 
-  async addProductStockDirect(productId, addQuantity, updatedBy = 'LINE User') {
+  async addProductStockDirect(productId, addQuantity, updatedBy = 'LINE User', customExpiryDate = null) {
     const qty = Math.max(1, Number(addQuantity) || 1);
     const todayStr = new Date().toISOString().split('T')[0];
     const batches = await this.getBatchesByProductId(productId);
     const activeBatches = batches.filter(b => Number(b.quantity) > 0);
 
-    let expiryDate = null;
-    if (activeBatches.length > 0 && activeBatches[0].expiry_date) {
-      expiryDate = activeBatches[0].expiry_date;
-    } else {
-      const d = new Date();
-      d.setMonth(d.getMonth() + 6);
-      expiryDate = d.toISOString().split('T')[0];
+    let expiryDate = customExpiryDate || null;
+    if (!expiryDate) {
+      if (activeBatches.length > 0 && activeBatches[0].expiry_date) {
+        expiryDate = activeBatches[0].expiry_date;
+      } else {
+        const d = new Date();
+        d.setMonth(d.getMonth() + 6);
+        expiryDate = d.toISOString().split('T')[0];
+      }
     }
 
-    await this.createBatch({
+    const batchId = await this.createBatch({
       product_id: productId,
       lot_number: `LOT-IN-${Date.now().toString().slice(-4)}`,
       quantity: qty,
@@ -516,7 +518,114 @@ const dbClient = {
     });
 
     await this.touchProductUpdated(productId);
-    return this.getProductById(productId);
+    const updatedProd = await this.getProductById(productId);
+    return {
+      ...updatedProd,
+      new_batch_id: batchId,
+      new_batch_expiry: expiryDate
+    };
+  },
+
+  async updateProductExpiryDate(identifier, newExpiryDate, updatedBy = 'LINE User') {
+    if (!identifier || !newExpiryDate) throw new Error('ต้องระบุสินค้า/ล็อต และวันหมดอายุใหม่');
+
+    let targetBatch = null;
+    let product = null;
+
+    // 1. Check if identifier is a lot number (e.g. LOT-9789)
+    if (typeof identifier === 'string' && identifier.toUpperCase().startsWith('LOT-')) {
+      const lot = identifier.trim();
+      if (isSupabase) {
+        const { data } = await supabase.from('inventory_batches').select('*, products(*)').eq('lot_number', lot).order('id', { ascending: false }).limit(1).maybeSingle();
+        if (data) {
+          targetBatch = data;
+          product = data.products;
+        }
+      } else {
+        const row = sqliteDb.prepare(`
+          SELECT b.*, p.name AS prod_name, p.unit AS prod_unit, p.category AS prod_category, p.safety_stock, p.expiry_warning_days
+          FROM inventory_batches b
+          LEFT JOIN products p ON b.product_id = p.id
+          WHERE UPPER(b.lot_number) = UPPER(?)
+          ORDER BY b.id DESC LIMIT 1
+        `).get(lot);
+        if (row) {
+          targetBatch = row;
+          product = { id: row.product_id, name: row.prod_name, unit: row.prod_unit, safety_stock: row.safety_stock, expiry_warning_days: row.expiry_warning_days };
+        }
+      }
+    }
+
+    // 2. Search by product ID or Name if not found by lot
+    if (!targetBatch) {
+      let prodId = null;
+      if (typeof identifier === 'number' || (!isNaN(Number(identifier)) && Number(identifier) > 0)) {
+        prodId = Number(identifier);
+        product = await this.getProductById(prodId);
+      } else {
+        const allProds = await this.getAllProducts();
+        const found = allProds.find(p => p.name.toLowerCase() === String(identifier).toLowerCase().trim());
+        if (found) {
+          prodId = found.id;
+          product = found;
+        }
+      }
+
+      if (prodId) {
+        const batches = await this.getBatchesByProductId(prodId);
+        const activeBatches = batches.filter(b => Number(b.quantity) > 0);
+        if (activeBatches.length > 0) {
+          // Sort by expiry_date ascending to pick the one closest to expiry
+          activeBatches.sort((a, b) => (a.expiry_date || '').localeCompare(b.expiry_date || ''));
+          targetBatch = activeBatches[0];
+        } else {
+          // If no active batch, create one with quantity = current_stock || 1
+          const initialQty = Math.max(1, Number(product?.current_stock) || 1);
+          const newLotNum = `LOT-ADJ-${Date.now().toString().slice(-4)}`;
+          const bId = await this.createBatch({
+            product_id: prodId,
+            lot_number: newLotNum,
+            quantity: initialQty,
+            initial_quantity: initialQty,
+            expiry_date: newExpiryDate,
+            received_date: new Date().toISOString().split('T')[0],
+            notes: `สร้างล็อตและกำหนดวันหมดอายุโดย ${updatedBy}`
+          });
+          const updatedProd = await this.getProductById(prodId);
+          return {
+            success: true,
+            isNewBatch: true,
+            product: updatedProd,
+            batchId: bId,
+            lotNumber: newLotNum,
+            quantity: initialQty,
+            oldExpiryDate: null,
+            newExpiryDate
+          };
+        }
+      }
+    }
+
+    if (!targetBatch) {
+      throw new Error(`ไม่พบล็อตหรือสินค้า "${identifier}" ในระบบ`);
+    }
+
+    const oldExpiryDate = targetBatch.expiry_date;
+    await this.updateBatch(targetBatch.id, {
+      expiry_date: newExpiryDate,
+      notes: `ปรับวันหมดอายุเป็น ${newExpiryDate} โดย ${updatedBy}`
+    });
+
+    const updatedProd = await this.getProductById(targetBatch.product_id);
+    return {
+      success: true,
+      product: updatedProd,
+      batchId: targetBatch.id,
+      lotNumber: targetBatch.lot_number,
+      quantity: targetBatch.quantity,
+      oldExpiryDate,
+      newExpiryDate
+    };
   },
 
   // 3. BATCHES & RECEIVING LOGS
