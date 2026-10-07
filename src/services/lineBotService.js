@@ -111,6 +111,59 @@ const recentTransactions = [];
 const UNDO_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 
 class LineBotService {
+  constructor() {
+    this.cachedProducts = [];
+    this.lastProductCacheTime = 0;
+  }
+
+  async getDbProducts() {
+    const now = Date.now();
+    // Cache products for 5 seconds to reduce DB load
+    if (this.cachedProducts.length > 0 && (now - this.lastProductCacheTime) < 5000) {
+      return this.cachedProducts;
+    }
+    try {
+      this.cachedProducts = await dbClient.getAllProducts();
+      this.lastProductCacheTime = now;
+    } catch (err) {
+      // keep existing cache if query fails
+    }
+    return this.cachedProducts;
+  }
+
+  getAllProductAliases(dbProducts = null) {
+    const prods = (Array.isArray(dbProducts) && dbProducts.length > 0) ? dbProducts : this.cachedProducts;
+    const map = new Map();
+
+    // 1. Static presets
+    for (const item of PRODUCT_ALIASES) {
+      map.set(item.name, new Set(item.aliases.map(a => a.toLowerCase().trim())));
+    }
+
+    // 2. Dynamic DB products (incorporate user-created products like 'หมูเด้ง')
+    if (Array.isArray(prods)) {
+      for (const p of prods) {
+        if (!p || !p.name) continue;
+        const rawName = p.name.trim();
+        const lowerName = rawName.toLowerCase();
+        if (!map.has(rawName)) {
+          map.set(rawName, new Set([lowerName]));
+        } else {
+          map.get(rawName).add(lowerName);
+        }
+        if (lowerName.includes(' ')) {
+          map.get(rawName).add(lowerName.replace(/\s+/g, ''));
+        }
+      }
+    }
+
+    const result = [];
+    for (const [name, set] of map.entries()) {
+      result.push({ name, aliases: Array.from(set) });
+    }
+    return result;
+  }
+
   pushRecentTransaction(data) {
     recentTransactions.unshift({
       ...data,
@@ -121,12 +174,14 @@ class LineBotService {
     }
   }
 
-  findProduct(text) {
+  findProduct(text, dbProducts = null) {
+    if (!text || typeof text !== 'string') return null;
     const clean = text.toLowerCase().trim();
+    const aliasList = this.getAllProductAliases(dbProducts);
     let bestMatch = null;
     let maxLen = 0;
 
-    for (const item of PRODUCT_ALIASES) {
+    for (const item of aliasList) {
       for (const alias of item.aliases) {
         const aliasLower = alias.toLowerCase();
         if (clean.includes(aliasLower)) {
@@ -140,14 +195,15 @@ class LineBotService {
     return bestMatch;
   }
 
-  findAllProductsInText(text) {
+  findAllProductsInText(text, dbProducts = null) {
     if (!text || typeof text !== 'string') return [];
     const clean = text.toLowerCase();
     const matched = [];
     const matchedNames = new Set();
+    const aliasList = this.getAllProductAliases(dbProducts);
 
     const allAliases = [];
-    for (const item of PRODUCT_ALIASES) {
+    for (const item of aliasList) {
       for (const alias of item.aliases) {
         allAliases.push({ name: item.name, alias: alias.toLowerCase() });
       }
@@ -176,12 +232,13 @@ class LineBotService {
     return null;
   }
 
-  getFuzzyProductSuggestions(candidate, maxSuggestions = 3) {
+  getFuzzyProductSuggestions(candidate, maxSuggestions = 3, dbProducts = null) {
     if (!candidate) return [];
     const cand = candidate.toLowerCase().trim();
     const scored = [];
+    const aliasList = this.getAllProductAliases(dbProducts);
 
-    for (const item of PRODUCT_ALIASES) {
+    for (const item of aliasList) {
       let maxItemScore = 0;
       for (const alias of item.aliases) {
         const score = stringSimilarity(cand, alias.toLowerCase().trim());
@@ -208,7 +265,7 @@ class LineBotService {
   extractCandidateWord(raw) {
     if (!raw) return '';
     let clean = raw
-      .replace(/(รับเข้า|รับของ|รับ|เติมสต็อก|เติมของ|เติม|ซื้อมา|add|\+|ใช้ไปแล้ว|ใช้ไป|ใช้|ตัดสต็อก|ตัดของ|ตัด|เบิกใช้|เบิกของ|เบิก|หักสต็อก|หัก|เอาไป|use|minus|-|เหลืออยู่|เหลือ|นับได้|นับสต็อก|นับ|มีอยู่|ปรับเป็น|set|count|เช็คสต็อก|เช็คของ|เช็ค|ตรวจสต็อก|ดูสต็อก|ดู|เหลือเท่าไหร่|มีมั้ย|เท่าไหร่|กี่อัน|กี่ชิ้น)/gi, ' ')
+      .replace(/(รับเข้า|รับของ|รับ|เติมสต็อก|เติมของ|เติม|ซื้อมา|add|\+|ใช้ไปแล้ว|ใช้ไป|ใช้|ตัดสต็อก|ตัดของ|ตัด|เบิกใช้|เบิกของ|เบิก|หักสต็อก|หัก|เอาไป|use|minus|-|เหลืออยู่|เหลือ|นับได้|นับสต็อก|นับ|มีอยู่|ปรับเป็น|set|count|เช็คสต็อก|เช็คของ|เช็ค|ตรวจสต็อก|ดูสต็อก|ดู|เหลือเท่าไหร่|มีมั้ย|เท่าไหร่|กี่อัน|กี่ชิ้น|ทิ้ง|ของเสีย|ชำรุด|เสีย|waste|damaged|หมดอายุแล้วทิ้ง|หมดอายุ|และ|แล้วก็|แล้ว|กับ|ใหม่|ของใหม่|เข้ามาใหม่|ทั้งหมด|ทุกชิ้น)/gi, ' ')
       .replace(/(\d+(\.\d+)?)/g, ' ')
       .replace(/\b(pack|cs|bag|box|can|pcs|btl|ชิ้น|แพ็ค|แพค|กล่อง|ถุง|ลัง|ขวด|กระป๋อง|หลอด|ม้วน|อัน)\b/gi, ' ')
       .replace(/[^\u0E00-\u0E7Fa-zA-Z0-9\s]/g, ' ')
@@ -300,7 +357,7 @@ class LineBotService {
     return null;
   }
 
-  parseIntent(text, defaultAction = null) {
+  parseIntent(text, defaultAction = null, dbProducts = null) {
     const raw = text.toLowerCase().trim();
     if (!raw) return null;
 
@@ -311,7 +368,7 @@ class LineBotService {
 
     // 2. ORDER LIST
     if (/^(สั่งของ|ของหมด|ของใกล้หมด|order|สรุปสั่งของ|รายการสั่งของ)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(raw) || /(สรุปของหมด|ต้องสั่งอะไร|ของต้องสั่ง|รายการสั่งของ|รายการของหมด)/i.test(raw)) {
-      const pName = this.findProduct(raw);
+      const pName = this.findProduct(raw, dbProducts);
       if (!pName) {
         return { action: 'ORDER_LIST' };
       }
@@ -319,7 +376,7 @@ class LineBotService {
 
     // 3. OVERVIEW CHECK STOCK
     if (/^(ภาพรวม|ดูภาพรวม|ขอภาพรวม|ภาพรวมร้าน|ภาพรวมทั้งหมด|สรุป|สรุปสต็อก|สรุปยอด|ดูสต็อก|เช็คสต็อก|สต็อก|คงเหลือ|เช็คของ|stock|overview|status|รายงาน|report)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(raw) || /(ภาพรวมร้าน|ภาพรวมสต็อก|สรุปสต็อกทั้งหมด|เช็คสต็อกทั้งหมด)/i.test(raw)) {
-      const pName = this.findProduct(raw);
+      const pName = this.findProduct(raw, dbProducts);
       if (!pName) {
         return { action: 'STOCK_OVERVIEW' };
       }
@@ -332,7 +389,7 @@ class LineBotService {
     if (isUpdateExpiry) {
       const lotMatch = raw.match(/\b(lot-[a-z0-9-]+)\b/i);
       const lotNumber = lotMatch ? lotMatch[1].toUpperCase() : null;
-      const prodName = this.findProduct(raw);
+      const prodName = this.findProduct(raw, dbProducts);
       const parsedDate = this.parseFlexibleDate(raw);
 
       if (parsedDate) {
@@ -353,7 +410,7 @@ class LineBotService {
 
     // 4. EXPIRING SOON
     if (/(หมดอายุ|ใกล้หมดอายุ|วันหมดอายุ|expir)/i.test(raw)) {
-      const pName = this.findProduct(raw);
+      const pName = this.findProduct(raw, dbProducts);
       if (!pName) {
         return { action: 'EXPIRING_SOON' };
       }
@@ -364,12 +421,13 @@ class LineBotService {
       return { action: 'UNDO' };
     }
 
-    const prodName = this.findProduct(raw);
+    const prodName = this.findProduct(raw, dbProducts);
     const qty = this.extractQuantity(raw);
 
-    // 4.6 WASTE / SPOILED (ของเสีย, ทิ้ง, เสีย, ชำรุด, waste, damaged)
-    if (/(ของเสีย|ทิ้ง|เสีย|ชำรุด|waste|damaged|หมดอายุแล้วทิ้ง)/i.test(raw)) {
-      if (prodName && qty !== null) {
+    // 4.6 WASTE / SPOILED (ของเสีย, ทิ้ง, เสีย, ชำรุด, waste, damaged, หมดอายุ)
+    if (/(ของเสีย|ทิ้ง|เสีย|ชำรุด|waste|damaged|หมดอายุแล้วทิ้ง)/i.test(raw) ||
+        (/(หมดอายุ)/i.test(raw) && /(ทิ้ง|ตัด)/i.test(raw))) {
+      if (prodName) {
         return { action: 'WASTE', productName: prodName, quantity: qty };
       }
     }
@@ -408,7 +466,7 @@ class LineBotService {
     if (prodName && qty === null) {
       const isCheckWord = /(เช็ค|ดู|ตรวจ|ภาพรวม|สต็อก|คงเหลือ|เช็คของ|มีมั้ย|เหลือเท่าไหร่|เท่าไหร่|\?|ค้นหา|หมดอายุ)/i.test(raw);
       const isJustProduct = raw.replace(/\s+/g, '') === prodName.toLowerCase().replace(/\s+/g, '') ||
-                            PRODUCT_ALIASES.some(p => p.aliases.some(a => a.toLowerCase().replace(/\s+/g, '') === raw.replace(/\s+/g, '')));
+                            this.getAllProductAliases(dbProducts).some(p => p.aliases.some(a => a.toLowerCase().replace(/\s+/g, '') === raw.replace(/\s+/g, '')));
 
       if (isCheckWord || isJustProduct) {
         return { action: 'CHECK_ITEM', productName: prodName };
@@ -429,16 +487,18 @@ class LineBotService {
     // 8. TYPO / DID YOU MEAN DETECTION (When product is misspelled but stock intent is clear)
     const isAdd = /^(รับเข้า|รับของ|รับ|เติมสต็อก|เติมของ|เติม|ซื้อมา|add|\+)/i.test(raw);
     const isUse = /^(ใช้ไปแล้ว|ใช้ไป|ใช้|ตัดสต็อก|ตัดของ|ตัด|เบิกใช้|เบิกของ|เบิก|หักสต็อก|หัก|เอาไป|use|minus|-)/i.test(raw);
+    const isWaste = /^(ของเสีย|ทิ้ง|เสีย|ชำรุด|waste|damaged|หมดอายุ)/i.test(raw);
     const isSet = /^(เหลืออยู่|นับได้|นับสต็อก|ปรับเป็น|set|count)/i.test(raw);
     const isCheck = /^(เช็คสต็อก|เช็คของ|เช็ค|ตรวจสต็อก|ดูสต็อก)/i.test(raw);
-    const hasVerb = isAdd || isUse || isSet || isCheck;
+    const hasVerb = isAdd || isUse || isWaste || isSet || isCheck;
 
-    if (hasVerb || (defaultAction && qty !== null) || (qty !== null && /(รับ|เติม|ตัด|ใช้|เบิก)/i.test(raw))) {
+    if (hasVerb || (defaultAction && qty !== null) || (qty !== null && /(รับ|เติม|ตัด|ใช้|เบิก|ทิ้ง|เสีย)/i.test(raw))) {
       const candidate = this.extractCandidateWord(raw);
       if (candidate && candidate.length >= 2) {
-        const suggestions = this.getFuzzyProductSuggestions(candidate);
+        const suggestions = this.getFuzzyProductSuggestions(candidate, 3, dbProducts);
         let intendedAction = 'USE';
         if (isAdd || defaultAction === 'ADD_STOCK') intendedAction = 'ADD_STOCK';
+        else if (isWaste || defaultAction === 'WASTE') intendedAction = 'WASTE';
         else if (isSet || defaultAction === 'SET_STOCK') intendedAction = 'SET_STOCK';
         else if (isCheck) intendedAction = 'CHECK_ITEM';
 
@@ -448,7 +508,7 @@ class LineBotService {
           suggestions,
           quantity: qty,
           intendedAction,
-          originalVerb: isAdd ? 'รับ' : (isUse ? 'ตัด' : (isSet ? 'นับ' : (isCheck ? 'เช็ค' : ''))),
+          originalVerb: isAdd ? 'รับ' : (isWaste ? 'ทิ้ง' : (isUse ? 'ตัด' : (isSet ? 'นับ' : (isCheck ? 'เช็ค' : '')))),
           rawText: text
         };
       }
@@ -457,7 +517,7 @@ class LineBotService {
     return null;
   }
 
-  parseBulkIntents(text) {
+  parseBulkIntents(text, dbProducts = null) {
     if (!text || typeof text !== 'string') return null;
     const trimmed = text.trim();
 
@@ -472,7 +532,7 @@ class LineBotService {
 
       const parsedDate = action === 'ADD_STOCK' ? this.parseFlexibleDate(trimmed) : null;
       const textWithoutEach = trimmed.replace(eachMatch[0], '');
-      const prods = this.findAllProductsInText(textWithoutEach);
+      const prods = this.findAllProductsInText(textWithoutEach, dbProducts);
       if (prods.length > 0) {
         return prods.map(p => ({
           action,
@@ -497,7 +557,7 @@ class LineBotService {
       else if (/(เหลือ|นับ|ปรับ)/i.test(verb)) action = 'SET_STOCK';
 
       const parsedDate = action === 'ADD_STOCK' ? this.parseFlexibleDate(trimmed) : null;
-      const prods = this.findAllProductsInText(rest);
+      const prods = this.findAllProductsInText(rest, dbProducts);
       if (prods.length > 0) {
         return prods.map(p => ({
           action,
@@ -526,7 +586,7 @@ class LineBotService {
         const parsedDate = action === 'ADD_STOCK' ? this.parseFlexibleDate(trimmed) : null;
         const prods = [];
         for (let i = 1; i < lines.length; i++) {
-          const found = this.findAllProductsInText(lines[i]);
+          const found = this.findAllProductsInText(lines[i], dbProducts);
           if (found.length > 0) prods.push(...found);
         }
         if (prods.length > 0) {
@@ -544,7 +604,7 @@ class LineBotService {
     return null;
   }
 
-  parseAllIntents(text) {
+  parseAllIntents(text, dbProducts = null) {
     if (!text || typeof text !== 'string') return [];
     const trimmed = text.trim();
     if (!trimmed) return [];
@@ -555,13 +615,13 @@ class LineBotService {
       return [{ action: 'HELP' }];
     }
     if (/^(สั่งของ|ของหมด|ของใกล้หมด|order|สรุปสั่งของ|รายการสั่งของ)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(singleRaw) || /(สรุปของหมด|ต้องสั่งอะไร|ของต้องสั่ง|รายการสั่งของ|รายการของหมด)/i.test(singleRaw)) {
-      const p = this.findProduct(singleRaw);
+      const p = this.findProduct(singleRaw, dbProducts);
       if (!p) {
         return [{ action: 'ORDER_LIST' }];
       }
     }
     if (/^(ภาพรวม|ดูภาพรวม|ขอภาพรวม|ภาพรวมร้าน|ภาพรวมทั้งหมด|สรุป|สรุปสต็อก|สรุปยอด|ดูสต็อก|เช็คสต็อก|สต็อก|คงเหลือ|เช็คของ|stock|overview|status|รายงาน|report)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(singleRaw) || /(ภาพรวมร้าน|ภาพรวมสต็อก|สรุปสต็อกทั้งหมด|เช็คสต็อกทั้งหมด)/i.test(singleRaw)) {
-      const p = this.findProduct(singleRaw);
+      const p = this.findProduct(singleRaw, dbProducts);
       if (!p) {
         return [{ action: 'STOCK_OVERVIEW' }];
       }
@@ -571,14 +631,14 @@ class LineBotService {
       (/(วันหมดอายุ|หมดอายุ)/i.test(singleRaw) && /(เป็น|ให้เป็น|เลื่อน|ต่อ|ปรับ|แก้|เปลี่ยน|\+|บวก)/i.test(singleRaw));
 
     if (isUpdateExpiry) {
-      const intent = this.parseIntent(trimmed);
+      const intent = this.parseIntent(trimmed, null, dbProducts);
       if (intent) {
         return [{ ...intent, rawText: trimmed }];
       }
     }
 
     if (/(หมดอายุ|ใกล้หมดอายุ|วันหมดอายุ|expir)/i.test(singleRaw)) {
-      const p = this.findProduct(singleRaw);
+      const p = this.findProduct(singleRaw, dbProducts);
       if (!p) {
         return [{ action: 'EXPIRING_SOON' }];
       }
@@ -588,13 +648,13 @@ class LineBotService {
     }
 
     // Bulk Action commands (e.g. "รับเข้า coke, oreo อย่างละ 10", "เพิ่ม 10 coke, oreo")
-    const bulkIntents = this.parseBulkIntents(trimmed);
+    const bulkIntents = this.parseBulkIntents(trimmed, dbProducts);
     if (bulkIntents && bulkIntents.length > 0) {
       return bulkIntents;
     }
 
     // Check for trailing shared expiry date across compound/multi commands
-    // e.g. "รับ แก๊สบอม 10 และ โคน 10 exp 31/12/2026" or "รับ แก๊สบอม 10 และ โคน 10 exp\n31/12/2026"
+    // e.g. "รับ แก๊สบอม 10 และ โคน 10 exp 31/12/2026" or "ทิ้งหมูเด้ง และรับเข้าใหม่ 5 exp 2026-12-31"
     const trailingExpiryRegex = /(?:[\s,]+|และ|\r?\n)(?:exp(?:ire|iry)?|หมดอายุ|วันหมดอายุ|bbd|bbf)?\s*[:\s]*((?:\d{1,2}[-/.]\d{1,2}[-/.]\d{4}|\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|(?:\+|บวก)?\s*\d+\s*(?:เดือน|m|month|months|ปี|y|year|years|วัน|d|days?)|(?:\d{1,2}\s*(?:ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.|มกราคม|กุมภาพันธ์|มีนาคม|เมษายน|พฤษภาคม|มิถุนายน|กรกฎาคม|สิงหาคม|กันยายน|ตุลาคม|พฤศจิกายน|ธันวาคม)\s*\d{2,4})))\s*$/i;
 
     let sharedExpiryDate = null;
@@ -608,30 +668,65 @@ class LineBotService {
       }
     }
 
-    // Split by newlines first
+    // Split by newlines, comma, semicolon, or Thai conjunctions (และ, แล้วก็, แล้ว, กับ)
+    const splitRegex = /(?:[\r\n]+|[,;]|\s*(?:และ|แล้วก็|แล้ว)\s*|\s+กับ\s+)/i;
     const rawLines = textToParse.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     const commands = [];
 
     for (const line of rawLines) {
-      if (line.includes(',') || line.includes(';') || /[\s,]*และ[\s,]*/i.test(line)) {
-        const parts = line.split(/[,;]|(?:[\s,]*และ[\s,]*)/).map(p => p.trim()).filter(Boolean);
+      const parts = line.split(splitRegex).map(p => p.trim()).filter(Boolean);
+      if (parts.length > 0) {
         commands.push(...parts);
-      } else {
-        commands.push(line);
       }
     }
 
     const intents = [];
     let lastAction = null;
+    let lastProductName = null;
 
     for (const cmd of commands) {
-      const intent = this.parseIntent(cmd, lastAction);
+      let intent = this.parseIntent(cmd, lastAction, dbProducts);
+
+      // Handle context inheritance if product was omitted in this phrase (e.g. "และรับเข้าใหม่ 5" or "รับ 5")
+      const isUnknown = intent && intent.action === 'UNKNOWN_PRODUCT';
+      if (!intent || isUnknown) {
+        const hasAdd = /(รับเข้า|รับของ|รับ|เติมสต็อก|เติมของ|เติม|ซื้อมา|add|\+)/i.test(cmd);
+        const hasUse = /(ใช้ไปแล้ว|ใช้ไป|ใช้|ตัดสต็อก|ตัดของ|ตัด|เบิกใช้|เบิกของ|เบิก|หัก|minus|-)/i.test(cmd);
+        const hasWaste = /(ของเสีย|ทิ้ง|เสีย|ชำรุด|waste|damaged)/i.test(cmd);
+        const hasSet = /(เหลือ|นับได้|ปรับเป็น|set|count)/i.test(cmd);
+        const q = this.extractQuantity(cmd);
+
+        if (lastProductName && (hasAdd || hasUse || hasWaste || hasSet || q !== null)) {
+          let act = 'USE';
+          if (hasAdd) act = 'ADD_STOCK';
+          else if (hasWaste) act = 'WASTE';
+          else if (hasSet) act = 'SET_STOCK';
+          else if (hasUse) act = 'USE';
+          else if (lastAction) act = lastAction;
+
+          const parsedDate = act === 'ADD_STOCK' ? this.parseFlexibleDate(cmd) : null;
+          intent = {
+            action: act,
+            productName: lastProductName,
+            quantity: q,
+            ...(parsedDate ? { expiryDate: parsedDate } : {})
+          };
+        }
+      } else if (intent && !intent.productName && lastProductName) {
+        if (['ADD_STOCK', 'USE', 'WASTE', 'SET_STOCK'].includes(intent.action)) {
+          intent.productName = lastProductName;
+        }
+      }
+
       if (intent) {
         if (intent.action === 'ADD_STOCK' && !intent.expiryDate && sharedExpiryDate) {
           intent.expiryDate = sharedExpiryDate;
         }
         intents.push({ ...intent, rawText: cmd });
-        if (['USE', 'ADD_STOCK', 'SET_STOCK'].includes(intent.action)) {
+        if (intent.productName) {
+          lastProductName = intent.productName;
+        }
+        if (['USE', 'ADD_STOCK', 'SET_STOCK', 'WASTE'].includes(intent.action)) {
           lastAction = intent.action;
         }
       }
@@ -644,6 +739,9 @@ class LineBotService {
     if (!text || typeof text !== 'string') return null;
     const rawTrimmed = text.trim();
     if (!rawTrimmed) return null;
+
+    // Load DB products dynamically
+    const dbProducts = await this.getDbProducts();
 
     // 1. Check Bot Prefix Configuration
     const botPrefix = ((await dbClient.getSetting('bot_prefix', 'DQ')) || 'DQ').trim();
@@ -670,7 +768,7 @@ class LineBotService {
     if (!processedText) {
       return {
         type: 'text',
-        text: `🍦 สวัสดีครับ! บอท ${botPrefix} พร้อมทำงานครับ\n\n💡 แตะปุ่มลัดด้านล่าง หรือพิมพ์สั่งงานได้ทันที:\n• "${botPrefix} สั่งของ" (ดูรายการของใกล้หมด)\n• "${botPrefix} ใกล้หมดอายุ" (เช็ควันหมดอายุ)\n• "${botPrefix} ปรับวันหมดอายุ แก๊สบอม 2026-11-30" (ปรับวัน)\n• "${botPrefix} รับ coke 24 หมดอายุ 2026-12-31" (รับเข้า)\n• "${botPrefix} ตัด coke 2" (ตัดสต็อก)\n• "${botPrefix} ยกเลิก" (ยกเลิกรายการล่าสุด)\n• "${botPrefix} วิธีใช้" (ดูคู่มือทั้งหมด)`,
+        text: `🍦 สวัสดีครับ! บอท ${botPrefix} พร้อมทำงานครับ\n\n💡 แตะปุ่มลัดด้านล่าง หรือพิมพ์สั่งงานได้ทันที:\n• "${botPrefix} สั่งของ" (ดูรายการของใกล้หมด)\n• "${botPrefix} ใกล้หมดอายุ" (เช็ควันหมดอายุ)\n• "${botPrefix} ทิ้งหมูเด้ง และรับเข้าใหม่ 5" (ทิ้งของเก่า+รับใหม่ทันที)\n• "${botPrefix} ทิ้งหมูเด้ง" (ตัดสต็อกของเสีย/หมดอายุ)\n• "${botPrefix} ปรับวันหมดอายุ แก๊สบอม 2026-11-30" (ปรับวัน)\n• "${botPrefix} รับ coke 24 หมดอายุ 2026-12-31" (รับเข้า)\n• "${botPrefix} ตัด coke 2" (ตัดสต็อก)\n• "${botPrefix} ยกเลิก" (ยกเลิกรายการล่าสุด)\n• "${botPrefix} วิธีใช้" (ดูคู่มือทั้งหมด)`,
         quickReply: {
           items: [
             { type: 'action', action: { type: 'message', label: '🛒 สรุปสั่งของ', text: `${botPrefix} สั่งของ` } },
@@ -682,12 +780,12 @@ class LineBotService {
       };
     }
 
-    const intents = this.parseAllIntents(processedText);
+    const intents = this.parseAllIntents(processedText, dbProducts);
     if (!intents || intents.length === 0) {
       if (hasPrefix || !prefixRegex) {
         return {
           type: 'text',
-          text: `🤖 ขออภัยครับ ไม่เข้าใจคำสั่ง "${processedText}"\n\n💡 คำสั่งที่ใช้บ่อย:\n• "${botPrefix} ปรับวันหมดอายุ [สินค้า] [วันที่ YYYY-MM-DD]"\n• "${botPrefix} รายการหมดอายุ" หรือ "${botPrefix} ใกล้หมดอายุ"\n• "${botPrefix} สั่งของ" (ดูของใกล้หมด)\n• "${botPrefix} รับ coke 10" (รับของเข้า)\n• "${botPrefix} ตัด coke 2" (ตัดสต็อก)\n• "${botPrefix} วิธีใช้" (ดูคู่มือทั้งหมด)`,
+          text: `🤖 ขออภัยครับ ไม่เข้าใจคำสั่ง "${processedText}"\n\n💡 คำสั่งที่ใช้บ่อย:\n• "${botPrefix} ทิ้ง [สินค้า] และรับเข้าใหม่ [จำนวน]" (ทิ้งของเก่าแล้วรับใหม่)\n• "${botPrefix} ทิ้ง [สินค้า]" (บันทึกของเสีย/หมดอายุ)\n• "${botPrefix} ปรับวันหมดอายุ [สินค้า] [วันที่ YYYY-MM-DD]"\n• "${botPrefix} รายการหมดอายุ" หรือ "${botPrefix} ใกล้หมดอายุ"\n• "${botPrefix} สั่งของ" (ดูของใกล้หมด)\n• "${botPrefix} รับ coke 10" (รับของเข้า)\n• "${botPrefix} ตัด coke 2" (ตัดสต็อก)\n• "${botPrefix} วิธีใช้" (ดูคู่มือทั้งหมด)`,
           quickReply: {
             items: [
               { type: 'action', action: { type: 'message', label: '🛒 สรุปสั่งของ', text: `${botPrefix} สั่งของ` } },
@@ -793,10 +891,20 @@ class LineBotService {
     if (intent.action === 'USE' || intent.action === 'WASTE') {
       const isWaste = intent.action === 'WASTE';
       try {
-        const qty = intent.quantity;
         const oldStock = Number(product.current_stock);
         const batches = await dbClient.getBatchesByProductId(product.id);
         const totalAvailable = batches.reduce((sum, b) => sum + Number(b.quantity), 0);
+        let qty = intent.quantity;
+
+        // If waste quantity is not specified, auto-detect expired batches or default to total stock
+        if (isWaste && (qty === null || qty === undefined || isNaN(qty) || qty <= 0)) {
+          const expiredBatches = batches.filter(b => (b.days_until_expiry !== null && b.days_until_expiry < 0) && Number(b.quantity) > 0);
+          const expiredQty = expiredBatches.reduce((sum, b) => sum + Number(b.quantity), 0);
+          qty = expiredQty > 0 ? expiredQty : (totalAvailable > 0 ? totalAvailable : oldStock);
+        }
+        if (qty === null || qty === undefined || isNaN(qty) || qty <= 0) {
+          qty = 1;
+        }
 
         if (totalAvailable <= 0) {
           await dbClient.recordUsage({
@@ -1168,10 +1276,20 @@ class LineBotService {
         }
       } else if (item.action === 'WASTE') {
         try {
-          const qty = item.quantity;
           const batches = await dbClient.getBatchesByProductId(product.id);
           const totalAvailable = batches.reduce((sum, b) => sum + Number(b.quantity), 0);
           const oldStock = Number(product.current_stock);
+          let qty = item.quantity;
+
+          // If waste quantity is not specified, auto-detect expired batches or default to total stock
+          if (qty === null || qty === undefined || isNaN(qty) || qty <= 0) {
+            const expiredBatches = batches.filter(b => (b.days_until_expiry !== null && b.days_until_expiry < 0) && Number(b.quantity) > 0);
+            const expiredQty = expiredBatches.reduce((sum, b) => sum + Number(b.quantity), 0);
+            qty = expiredQty > 0 ? expiredQty : (totalAvailable > 0 ? totalAvailable : oldStock);
+          }
+          if (qty === null || qty === undefined || isNaN(qty) || qty <= 0) {
+            qty = 1;
+          }
 
           await dbClient.recordUsage({
             product_id: product.id,
@@ -2308,8 +2426,10 @@ class LineBotService {
               paddingAll: '10px',
               cornerRadius: '10px',
               contents: [
-                { type: 'text', text: '🗑️ 7. บันทึกของเสีย / ชำรุด / ทิ้ง (Waste):', weight: 'bold', size: 'xs', color: '#BE123C' },
-                { type: 'text', text: '• "ทิ้ง coke 2" หรือ "เสีย นม 1" หรือ "waste"', size: 'xs', color: '#334155', margin: 'xs' }
+                { type: 'text', text: '🗑️ 7. บันทึกของเสีย / ชำรุด / ทิ้ง (Waste) & สองคำสั่งพร้อมกัน:', weight: 'bold', size: 'xs', color: '#BE123C' },
+                { type: 'text', text: '• ทิ้งระบุจำนวน: "ทิ้ง coke 2" หรือ "เสีย นม 1"', size: 'xs', color: '#334155', margin: 'xs' },
+                { type: 'text', text: '• ทิ้งของหมดอายุอัตโนมัติ: "ทิ้ง หมูเด้ง" (ตัดสต็อกล็อตที่หมดอายุ)', size: 'xs', color: '#BE123C', weight: 'bold' },
+                { type: 'text', text: '• สองคำสั่งพร้อมกัน: "ทิ้ง หมูเด้ง และรับเข้าใหม่ 5" (ทิ้งของเก่า+รับใหม่ทันที)', size: 'xs', color: '#059669', weight: 'bold' }
               ]
             },
             {

@@ -282,16 +282,17 @@ const dbClient = {
     };
 
     let newProduct = null;
+    const nowIso = new Date().toISOString();
     if (isSupabase) {
       const { data: res, error } = await supabase.from('products').insert(payload).select().single();
       if (error) throw new Error(error.message);
       newProduct = res;
     } else {
       const stmt = sqliteDb.prepare(`
-        INSERT INTO products (name, category, unit, safety_stock, expiry_warning_days)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO products (name, category, unit, safety_stock, expiry_warning_days, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `);
-      const res = stmt.run(payload.name, payload.category, payload.unit, payload.safety_stock, payload.expiry_warning_days);
+      const res = stmt.run(payload.name, payload.category, payload.unit, payload.safety_stock, payload.expiry_warning_days, nowIso, nowIso);
       newProduct = await this.getProductById(res.lastInsertRowid);
     }
 
@@ -777,11 +778,12 @@ const dbClient = {
       if (error) throw new Error(error.message);
       batchId = res.id;
     } else {
+      const nowIso = new Date().toISOString();
       const stmt = sqliteDb.prepare(`
-        INSERT INTO inventory_batches (product_id, lot_number, quantity, initial_quantity, expiry_date, received_date, cost_per_unit, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO inventory_batches (product_id, lot_number, quantity, initial_quantity, expiry_date, received_date, cost_per_unit, notes, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
-      const res = stmt.run(payload.product_id, payload.lot_number, payload.quantity, payload.initial_quantity, payload.expiry_date, payload.received_date, payload.cost_per_unit, payload.notes);
+      const res = stmt.run(payload.product_id, payload.lot_number, payload.quantity, payload.initial_quantity, payload.expiry_date, payload.received_date, payload.cost_per_unit, payload.notes, nowIso);
       batchId = res.lastInsertRowid;
     }
     await this.touchProductUpdated(payload.product_id);
@@ -1201,16 +1203,70 @@ const dbClient = {
         recipients
       };
     } else {
-      const [products, batches, receivingHistory, alerts, usageLogs, usageSummary, settings, recipients] = await Promise.all([
+      const today = new Date().toISOString().split('T')[0];
+      const [products, batches, receivingHistory, usageLogs, settings, recipients] = await Promise.all([
         this.getAllProducts(),
         this.getAllBatches(),
         this.getReceivingHistory(100),
-        this.getAlertsData(),
         this.getUsageLogs(50),
-        this.getUsageSummary(30),
         this.getAllSettings(),
         this.getRecipients()
       ]);
+
+      // Calculate alerts in-memory (No duplicate SQL queries)
+      const defaultWarningDays = parseInt(settings.default_expiry_alert_days || '7', 10) || 7;
+      const lowStockItems = products.filter(p => p.is_low_stock);
+      const activeBatches = batches.filter(b => b.quantity > 0);
+      const expiringBatches = activeBatches.filter(b => b.days_until_expiry <= defaultWarningDays);
+      const expiredBatches = activeBatches.filter(b => b.days_until_expiry < 0);
+      const expiringSoonBatches = activeBatches.filter(b => b.days_until_expiry >= 0 && b.days_until_expiry <= defaultWarningDays);
+
+      const alerts = {
+        today,
+        low_stock_items: lowStockItems,
+        expiring_batches: expiringBatches,
+        expired_batches: expiredBatches,
+        expiring_soon_batches: expiringSoonBatches,
+        summary: {
+          total_products: products.length,
+          low_stock_count: lowStockItems.length,
+          expiring_soon_count: expiringSoonBatches.length,
+          expired_count: expiredBatches.length
+        }
+      };
+
+      // Calculate usageSummary with 1 single SQL group query
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - 30);
+      const cutoffStr = cutoffDate.toISOString().split('T')[0];
+
+      let usageSummary = [];
+      try {
+        const summaryRows = sqliteDb.prepare(`
+          SELECT product_id, SUM(quantity) as total_used, COUNT(id) as usage_count
+          FROM usage_logs
+          WHERE used_date >= ? AND type = 'USE'
+          GROUP BY product_id
+        `).all(cutoffStr);
+        const map = new Map(summaryRows.map(r => [r.product_id, r]));
+
+        usageSummary = products.map(p => {
+          const entry = map.get(p.id);
+          const totalUsed = entry ? Number(entry.total_used) : 0;
+          const count = entry ? Number(entry.usage_count) : 0;
+          return {
+            product_id: p.id,
+            product_name: p.name,
+            unit: p.unit,
+            safety_stock: p.safety_stock,
+            total_used: totalUsed,
+            usage_count: count,
+            avg_daily_use: Number((totalUsed / 30).toFixed(2))
+          };
+        }).sort((a, b) => b.total_used - a.total_used);
+      } catch (err) {
+        usageSummary = [];
+      }
 
       return {
         products,

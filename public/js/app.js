@@ -1028,10 +1028,30 @@ function filterInventory() {
   renderInventoryTable();
 }
 
+function parseSafeDate(isoString) {
+  if (!isoString) return null;
+  if (isoString instanceof Date) return isNaN(isoString.getTime()) ? null : isoString;
+  let s = String(isoString).trim();
+  // Support SQLite format: "2026-10-06 06:30:15"
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(s)) {
+    s = s.replace(' ', 'T') + 'Z';
+  }
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function isNewProduct(isoString, withinDays = 7) {
+  if (!isoString) return false;
+  const d = parseSafeDate(isoString);
+  if (!d) return false;
+  const diffMs = Date.now() - d.getTime();
+  return diffMs >= 0 && diffMs <= (withinDays * 24 * 60 * 60 * 1000);
+}
+
 function formatRelativeTime(isoString) {
   if (!isoString) return '-';
-  const d = new Date(isoString);
-  if (isNaN(d.getTime())) return '-';
+  const d = parseSafeDate(isoString);
+  if (!d) return '-';
   const diffSec = Math.round((Date.now() - d.getTime()) / 1000);
   if (diffSec < 45) return 'เมื่อสักครู่';
   if (diffSec < 3600) return `${Math.max(1, Math.floor(diffSec / 60))} นาทีที่แล้ว`;
@@ -1042,15 +1062,15 @@ function formatRelativeTime(isoString) {
 
 function formatDateOnly(isoString) {
   if (!isoString) return '-';
-  const d = new Date(isoString);
-  if (isNaN(d.getTime())) return '-';
+  const d = parseSafeDate(isoString);
+  if (!d) return '-';
   return d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
 function formatFullDateTime(isoString) {
   if (!isoString) return '-';
-  const d = new Date(isoString);
-  if (isNaN(d.getTime())) return '-';
+  const d = parseSafeDate(isoString);
+  if (!d) return '-';
   return d.toLocaleDateString('th-TH', { 
     day: '2-digit', 
     month: 'short', 
@@ -1204,6 +1224,7 @@ function renderInventoryTable() {
   const lowCount = state.products.filter(p => p.is_low_stock).length;
   const noExpiryCount = state.products.filter(p => !p.nearest_expiry).length;
   const expiringCount = state.products.filter(p => p.is_expiring_soon || p.is_expired).length;
+  const newCount = state.products.filter(p => isNewProduct(p.created_at, 7)).length;
 
   const countAllEl = document.getElementById('count-all');
   if (countAllEl) countAllEl.textContent = totalCount;
@@ -1214,6 +1235,16 @@ function renderInventoryTable() {
   const countExpEl = document.getElementById('count-expiring');
   if (countExpEl) countExpEl.textContent = expiringCount;
 
+  const badgeNewCountEl = document.getElementById('badge-new-products-count');
+  if (badgeNewCountEl) {
+    if (newCount > 0) {
+      badgeNewCountEl.textContent = newCount;
+      badgeNewCountEl.classList.remove('hidden');
+    } else {
+      badgeNewCountEl.classList.add('hidden');
+    }
+  }
+
   const btnInvOrder = document.getElementById('btn-inventory-order-count');
   if (btnInvOrder) btnInvOrder.textContent = lowCount;
   const btnOrderCount = document.getElementById('btn-order-count');
@@ -1221,11 +1252,13 @@ function renderInventoryTable() {
 
   // Update filter pills active styling
   const pillAll = document.getElementById('filter-pill-all');
+  const pillNew = document.getElementById('filter-pill-new');
   const pillLow = document.getElementById('filter-pill-low');
   const pillExp = document.getElementById('filter-pill-exp');
   const pillExpired = document.getElementById('filter-pill-expired');
 
   if (pillAll) pillAll.className = 'px-3 py-1 rounded-full font-medium transition ' + (currentFilter === 'ALL' ? 'bg-slate-900 text-white font-bold shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200');
+  if (pillNew) pillNew.className = 'px-3 py-1 rounded-full font-medium transition flex items-center space-x-1 ' + (currentFilter === 'NEW' ? 'bg-indigo-600 text-white font-bold shadow-xs' : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100');
   if (pillLow) pillLow.className = 'px-3 py-1 rounded-full font-medium transition ' + (currentFilter === 'LOW' || currentFilter === 'LOW_STOCK' ? 'bg-rose-600 text-white font-bold shadow-xs' : 'bg-rose-50 text-rose-700 hover:bg-rose-100');
   if (pillExp) pillExp.className = 'px-3 py-1 rounded-full font-medium transition ' + (currentFilter === 'EXPIRING' ? 'bg-amber-600 text-white font-bold shadow-xs' : 'bg-amber-50 text-amber-700 hover:bg-amber-100');
   if (pillExpired) pillExpired.className = 'px-3 py-1 rounded-full font-medium transition ' + (currentFilter === 'EXPIRED' ? 'bg-red-600 text-white font-bold shadow-xs' : 'bg-red-100 text-red-800 hover:bg-red-200');
@@ -1284,6 +1317,7 @@ function renderInventoryTable() {
     else if (currentFilter === 'NO_EXPIRY') matchFilter = !p.nearest_expiry;
     else if (currentFilter === 'EXPIRING') matchFilter = p.is_expiring_soon || p.is_expired;
     else if (currentFilter === 'EXPIRED') matchFilter = p.is_expired;
+    else if (currentFilter === 'NEW') matchFilter = isNewProduct(p.created_at, 7);
 
     return matchSearch && matchCat && matchFilter;
   });
@@ -1298,13 +1332,13 @@ function renderInventoryTable() {
   const sortBy = state.inventorySort || 'UPDATED_DESC';
   filtered.sort((a, b) => {
     if (sortBy === 'UPDATED_DESC') {
-      const timeA = new Date(a.last_updated_at || a.updated_at || a.created_at || 0).getTime();
-      const timeB = new Date(b.last_updated_at || b.updated_at || b.created_at || 0).getTime();
+      const timeA = (parseSafeDate(a.last_updated_at || a.updated_at || a.created_at) || new Date(0)).getTime();
+      const timeB = (parseSafeDate(b.last_updated_at || b.updated_at || b.created_at) || new Date(0)).getTime();
       return timeB - timeA;
     }
     if (sortBy === 'UPDATED_ASC') {
-      const timeA = new Date(a.last_updated_at || a.updated_at || a.created_at || 0).getTime();
-      const timeB = new Date(b.last_updated_at || b.updated_at || b.created_at || 0).getTime();
+      const timeA = (parseSafeDate(a.last_updated_at || a.updated_at || a.created_at) || new Date(0)).getTime();
+      const timeB = (parseSafeDate(b.last_updated_at || b.updated_at || b.created_at) || new Date(0)).getTime();
       return timeA - timeB;
     }
     if (sortBy === 'NAME_ASC') {
@@ -1314,13 +1348,13 @@ function renderInventoryTable() {
       return b.name.localeCompare(a.name, 'th');
     }
     if (sortBy === 'CREATED_DESC') {
-      const timeA = new Date(a.created_at || 0).getTime();
-      const timeB = new Date(b.created_at || 0).getTime();
+      const timeA = (parseSafeDate(a.created_at) || new Date(0)).getTime();
+      const timeB = (parseSafeDate(b.created_at) || new Date(0)).getTime();
       return timeB - timeA;
     }
     if (sortBy === 'CREATED_ASC') {
-      const timeA = new Date(a.created_at || 0).getTime();
-      const timeB = new Date(b.created_at || 0).getTime();
+      const timeA = (parseSafeDate(a.created_at) || new Date(0)).getTime();
+      const timeB = (parseSafeDate(b.created_at) || new Date(0)).getTime();
       return timeA - timeB;
     }
     if (sortBy === 'EXPIRY_ASC') {
@@ -1384,18 +1418,19 @@ function renderInventoryTable() {
           <span class="text-[10px] ${p.days_until_expiry < 0 ? 'text-rose-600 font-bold' : (p.days_until_expiry <= 7 ? 'text-amber-600 font-bold' : 'text-slate-400')}">
             (${p.days_until_expiry < 0 ? 'หมดอายุแล้ว' : `อีก ${p.days_until_expiry} วัน`})
           </span>
-          <button onclick="openQuickUpdateModal(${p.id})" title="ปรับวันหมดอายุ" class="p-1 hover:bg-blue-50 text-blue-500 rounded transition">
+          <button onclick="openQuickUpdateModal(${p.id}, 'expiry')" title="ปรับวันหมดอายุ" class="p-1 hover:bg-blue-50 text-blue-500 rounded transition cursor-pointer">
             <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
           </button>
         </div>
       `
       : `
-        <button onclick="openQuickUpdateModal(${p.id})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium text-xs rounded-lg border border-blue-200 transition">
+        <button onclick="openQuickUpdateModal(${p.id}, 'expiry')" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium text-xs rounded-lg border border-blue-200 transition cursor-pointer">
           <i data-lucide="calendar-plus" class="w-3.5 h-3.5"></i>
           <span>+ ใส่วันหมดอายุ</span>
         </button>
       `;
 
+    const isNew = isNewProduct(p.created_at, 7);
     return `
       <tr id="prod-row-${p.id}" class="hover:bg-slate-50/80 transition border-b border-slate-100 ${isSelected ? 'bg-indigo-50/50' : ''}">
         <td class="p-3 w-10 text-center">
@@ -1405,33 +1440,40 @@ function renderInventoryTable() {
           <button type="button" onclick="openProductDetailModal('${p.id}')" class="text-left font-bold text-slate-900 hover:text-indigo-600 flex items-center space-x-1.5 group transition" title="คลิกเพื่อดูรายละเอียดสินค้าและประวัติย้อนหลัง">
             <span class="group-hover:underline text-xs">${p.name}</span>
             <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 transition"></i>
+            ${isNew ? `<span class="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-indigo-100 text-indigo-700 border border-indigo-200">NEW</span>` : ''}
           </button>
-          <span class="text-[10px] text-slate-400">${p.category}</span>
+        </td>
+        <td class="p-3.5">
+          <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200/60">${p.category || '-'}</span>
         </td>
         <td class="p-3.5">
           <div class="flex items-center space-x-1.5">
             <span class="font-bold ${p.is_low_stock ? 'text-rose-600 font-extrabold' : 'text-slate-800'} text-sm">${p.current_stock}</span>
             <span class="text-slate-500 text-[11px] font-medium uppercase">${p.unit}</span>
+            <button type="button" onclick="openQuickUpdateModal('${p.id}', 'quantity')" title="คลิกเพื่อปรับแก้คงเหลือรวม (${p.name})" class="p-1 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded transition active:scale-95 cursor-pointer">
+              <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
+            </button>
           </div>
         </td>
         <td class="p-3.5">
           <div class="flex items-center space-x-1.5">
             <span class="font-semibold text-slate-700 text-xs">${p.safety_stock} ${p.unit}</span>
-            <button onclick="inlineEditSafetyStock(${p.id}, ${p.safety_stock}, '${p.name.replace(/'/g, "\\'")}')" title="คลิกเพื่อแก้จุดสั่งซื้อ" class="p-1 hover:bg-slate-200 text-slate-400 hover:text-slate-700 rounded transition">
-              <i data-lucide="edit-2" class="w-3 h-3"></i>
+            <button type="button" onclick="openQuickUpdateModal('${p.id}', 'safety')" title="คลิกเพื่อแก้จุดสั่งซื้อ (${p.name})" class="p-1 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded transition active:scale-95 cursor-pointer">
+              <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
             </button>
           </div>
         </td>
         <td class="p-3.5">${expiryDisplay}</td>
         <td class="p-3.5 whitespace-nowrap">
-          <div class="flex flex-col space-y-0.5">
-            <div class="flex items-center space-x-1.5 text-slate-700 font-semibold text-xs" title="แก้ไขล่าสุด: ${formatFullDateTime(p.last_updated_at || p.updated_at || p.created_at)}">
-              <i data-lucide="clock" class="w-3.5 h-3.5 text-indigo-500"></i>
-              <span>${formatRelativeTime(p.last_updated_at || p.updated_at || p.created_at)}</span>
+          <div class="flex flex-col space-y-1">
+            <div class="flex items-center space-x-1.5 font-bold text-xs ${isNew ? 'text-indigo-900 bg-indigo-50/90 px-2 py-0.5 rounded-md border border-indigo-200/70' : 'text-slate-800'}" title="วันที่เพิ่มสินค้าเข้าสู่ระบบ: ${formatFullDateTime(p.created_at)}">
+              <i data-lucide="calendar-plus" class="w-3.5 h-3.5 ${isNew ? 'text-indigo-600' : 'text-slate-400'}"></i>
+              <span>เพิ่ม ${formatDateOnly(p.created_at)}</span>
+              ${isNew ? `<span class="px-1 py-0.2 rounded text-[9px] font-extrabold bg-indigo-200 text-indigo-800">ใหม่</span>` : ''}
             </div>
-            <div class="text-[10px] text-slate-400 flex items-center space-x-1" title="วันที่สร้าง: ${formatFullDateTime(p.created_at)}">
-              <i data-lucide="calendar-plus" class="w-3 h-3 text-slate-400"></i>
-              <span>สร้าง ${formatDateOnly(p.created_at)}</span>
+            <div class="text-[10px] text-slate-400 flex items-center space-x-1 pl-0.5" title="แก้ไขล่าสุด: ${formatFullDateTime(p.last_updated_at || p.updated_at || p.created_at)}">
+              <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
+              <span>แก้ ${formatRelativeTime(p.last_updated_at || p.updated_at || p.created_at)}</span>
             </div>
           </div>
         </td>
@@ -1491,6 +1533,7 @@ function renderInventoryTable() {
           ? `<span class="font-bold text-slate-900">${p.nearest_expiry}</span> <span class="text-[10px] ${p.days_until_expiry < 0 ? 'text-rose-600 font-bold' : (p.days_until_expiry <= 7 ? 'text-amber-600 font-bold' : 'text-slate-400')}">(${p.days_until_expiry < 0 ? 'หมดอายุแล้ว' : `อีก ${p.days_until_expiry} วัน`})</span>`
           : `<span class="text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-md">ยังไม่ระบุ</span>`;
 
+        const isNew = isNewProduct(p.created_at, 7);
         return `
           <div id="prod-card-${p.id}" class="bg-white p-4 rounded-3xl border ${isSelected ? 'border-indigo-400 ring-2 ring-indigo-500/30 bg-indigo-50/10' : (p.is_low_stock ? 'border-rose-200 shadow-rose-100/40' : 'border-slate-200')} shadow-sm space-y-3">
             <!-- Header: Title & Status -->
@@ -1498,18 +1541,22 @@ function renderInventoryTable() {
               <div class="flex items-start space-x-2.5">
                 <input type="checkbox" onchange="toggleSelectProduct(${p.id}, this.checked)" ${isSelected ? 'checked' : ''} class="w-4 h-4 mt-1 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer transition shrink-0">
                 <div>
-                  <button type="button" onclick="openProductDetailModal('${p.id}')" class="text-left font-extrabold text-slate-900 text-sm leading-snug hover:text-indigo-600 flex items-center space-x-1 transition">
+                  <button type="button" onclick="openProductDetailModal('${p.id}')" class="text-left font-extrabold text-slate-900 text-sm leading-snug hover:text-indigo-600 flex items-center space-x-1.5 transition">
                     <span>${p.name}</span>
                     <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400"></i>
+                    ${isNew ? `<span class="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-indigo-100 text-indigo-700 border border-indigo-200">NEW</span>` : ''}
                   </button>
-                  <div class="flex flex-wrap items-center gap-1.5 mt-0.5">
+                  <div class="flex flex-wrap items-center gap-1.5 mt-1">
                     <span class="inline-block text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${p.category}</span>
-                    <span class="text-[10px] text-slate-600 font-medium flex items-center space-x-1" title="แก้ไขล่าสุด: ${formatFullDateTime(p.last_updated_at || p.updated_at || p.created_at)}">
-                      <i data-lucide="clock" class="w-3 h-3 text-indigo-500"></i>
+                    <span class="text-[10px] font-bold flex items-center space-x-1 px-2 py-0.5 rounded-md ${isNew ? 'bg-indigo-50 text-indigo-800 border border-indigo-200/80' : 'bg-slate-100 text-slate-600'}" title="วันที่เพิ่มสินค้าเข้าสู่ระบบ: ${formatFullDateTime(p.created_at)}">
+                      <i data-lucide="calendar-plus" class="w-3 h-3 ${isNew ? 'text-indigo-600' : 'text-slate-400'}"></i>
+                      <span>เพิ่ม ${formatDateOnly(p.created_at)}</span>
+                      ${isNew ? `<span class="ml-0.5 px-1 py-0.2 rounded bg-indigo-200 text-indigo-900 text-[9px] font-extrabold">ใหม่</span>` : ''}
+                    </span>
+                    <span class="text-[10px] text-slate-400 flex items-center space-x-1" title="แก้ไขล่าสุด: ${formatFullDateTime(p.last_updated_at || p.updated_at || p.created_at)}">
+                      <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
                       <span>แก้ ${formatRelativeTime(p.last_updated_at || p.updated_at || p.created_at)}</span>
                     </span>
-                    <span class="text-slate-300">•</span>
-                    <span class="text-[10px] text-slate-400" title="วันที่สร้าง: ${formatFullDateTime(p.created_at)}">สร้าง ${formatDateOnly(p.created_at)}</span>
                   </div>
                 </div>
               </div>
@@ -1519,19 +1566,34 @@ function renderInventoryTable() {
             <!-- Stats 3 Columns -->
             <div class="grid grid-cols-3 gap-2 p-3 bg-slate-50/80 rounded-2xl border border-slate-100 text-xs">
               <div>
-                <div class="text-[10px] text-slate-400 font-medium">คงเหลือ</div>
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] text-slate-400 font-medium">คงเหลือ</span>
+                  <button type="button" onclick="openQuickUpdateModal('${p.id}', 'quantity')" class="p-0.5 text-slate-400 hover:text-indigo-600 rounded transition" title="แก้คงเหลือ">
+                    <i data-lucide="edit-2" class="w-3 h-3"></i>
+                  </button>
+                </div>
                 <div class="font-black ${p.is_low_stock ? 'text-rose-600 text-base' : 'text-slate-900 text-sm'}">
                   ${p.current_stock} <span class="text-[10px] font-normal uppercase text-slate-500">${p.unit}</span>
                 </div>
               </div>
               <div>
-                <div class="text-[10px] text-slate-400 font-medium">จุดสั่งซื้อ</div>
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] text-slate-400 font-medium">จุดสั่งซื้อ</span>
+                  <button type="button" onclick="openQuickUpdateModal('${p.id}', 'safety')" class="p-0.5 text-slate-400 hover:text-indigo-600 rounded transition" title="แก้จุดสั่งซื้อ">
+                    <i data-lucide="edit-2" class="w-3 h-3"></i>
+                  </button>
+                </div>
                 <div class="font-bold text-slate-700">
                   ${p.safety_stock} <span class="text-[10px] font-normal uppercase text-slate-500">${p.unit}</span>
                 </div>
               </div>
               <div>
-                <div class="text-[10px] text-slate-400 font-medium">วันหมดอายุ</div>
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] text-slate-400 font-medium">วันหมดอายุ</span>
+                  <button type="button" onclick="openQuickUpdateModal('${p.id}', 'expiry')" class="p-0.5 text-slate-400 hover:text-indigo-600 rounded transition" title="แก้วันหมดอายุ">
+                    <i data-lucide="edit-2" class="w-3 h-3"></i>
+                  </button>
+                </div>
                 <div class="text-[11px] truncate mt-0.5">${expiryText}</div>
               </div>
             </div>
@@ -2514,6 +2576,8 @@ function switchQuickGuideTab(tab) {
 function openAddProductModal() {
   const titleEl = document.getElementById('modal-product-title');
   if (titleEl) titleEl.textContent = 'เพิ่มสินค้าใหม่';
+  const metaEl = document.getElementById('modal-product-meta');
+  if (metaEl) metaEl.classList.add('hidden');
   const form = document.getElementById('form-product');
   if (form) form.reset();
   const prodId = document.getElementById('prod-id');
@@ -2556,6 +2620,14 @@ function openEditProductModal(id) {
 
   const titleEl = document.getElementById('modal-product-title');
   if (titleEl) titleEl.textContent = 'แก้ไขข้อมูลสินค้า';
+
+  const metaEl = document.getElementById('modal-product-meta');
+  const metaTextEl = document.getElementById('modal-product-meta-text');
+  if (metaEl && metaTextEl) {
+    metaTextEl.textContent = `เพิ่มเข้าระบบเมื่อ: ${formatFullDateTime(product.created_at)} (${formatRelativeTime(product.created_at)})`;
+    metaEl.classList.remove('hidden');
+  }
+
   const setVal = (elemId, val) => {
     const el = document.getElementById(elemId);
     if (el) el.value = val ?? '';
@@ -2627,6 +2699,26 @@ async function openProductDetailModal(productId) {
     badges += `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">✅ สต็อกเพียงพอ</span>`;
   }
   statusEl.innerHTML = badges;
+
+  // Added Date & Timeline Info
+  const createdEl = document.getElementById('product-detail-created');
+  const updatedEl = document.getElementById('product-detail-updated');
+  const newPillEl = document.getElementById('product-detail-new-pill');
+
+  if (createdEl) {
+    createdEl.innerHTML = `${formatFullDateTime(product.created_at)} <span class="text-xs font-normal text-slate-500">(${formatRelativeTime(product.created_at)})</span>`;
+  }
+  if (updatedEl) {
+    const updatedTime = product.last_updated_at || product.updated_at || product.created_at;
+    updatedEl.innerHTML = `${formatFullDateTime(updatedTime)} <span class="text-[10px] font-normal text-slate-400">(${formatRelativeTime(updatedTime)})</span>`;
+  }
+  if (newPillEl) {
+    if (isNewProduct(product.created_at, 7)) {
+      newPillEl.innerHTML = `<span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100 text-indigo-700 border border-indigo-200">✨ สินค้าใหม่</span>`;
+    } else {
+      newPillEl.innerHTML = '';
+    }
+  }
 
   // 4 Metrics
   document.getElementById('product-detail-stock').innerHTML = `${product.current_stock} <span class="text-xs font-normal text-slate-500 uppercase">${product.unit}</span>`;
@@ -2992,9 +3084,9 @@ async function handleSaveProduct(e) {
   e.preventDefault();
   const id = document.getElementById('prod-id').value;
   const data = {
-    name: document.getElementById('prod-name').value,
+    name: document.getElementById('prod-name').value.trim(),
     category: document.getElementById('prod-category').value,
-    unit: document.getElementById('prod-unit').value,
+    unit: document.getElementById('prod-unit').value.trim(),
     safety_stock: document.getElementById('prod-safety').value,
     expiry_warning_days: document.getElementById('prod-warn-days').value
   };
@@ -3008,6 +3100,13 @@ async function handleSaveProduct(e) {
     }
   }
 
+  const submitBtn = document.getElementById('btn-save-product');
+  const originalHtml = submitBtn ? submitBtn.innerHTML : '<span>บันทึก</span>';
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>กำลังบันทึก...</span>';
+  }
+
   try {
     const url = id ? `/api/products/${id}` : '/api/products';
     const method = id ? 'PUT' : 'POST';
@@ -3019,11 +3118,39 @@ async function handleSaveProduct(e) {
     const json = await res.json();
     if (!json.success) throw new Error(json.error);
 
+    const savedProd = json.data;
+
+    // Instant Optimistic State Update for lightning-fast UX
+    if (savedProd) {
+      if (id) {
+        const idx = state.products.findIndex(p => p.id == id);
+        if (idx !== -1) {
+          state.products[idx] = { ...state.products[idx], ...savedProd };
+        }
+      } else {
+        // Newly created product -> put right on top and highlight
+        state.products.unshift(savedProd);
+        state.inventorySort = 'CREATED_DESC';
+        const sortSelect = document.getElementById('sort-inventory');
+        if (sortSelect) sortSelect.value = 'CREATED_DESC';
+      }
+      renderInventoryTable();
+      renderStats();
+    }
+
     closeDialog('modal-product');
-    showToast(id ? 'แก้ไขสินค้าสำเร็จ' : 'เพิ่มสินค้าใหม่สำเร็จ');
-    await loadAllData();
+    playTapFeedback('save');
+    showToast(id ? 'แก้ไขสินค้าสำเร็จ' : `✨ เพิ่ม "${data.name}" เรียบร้อยแล้ว!`, 'success');
+
+    // Asynchronous background sync to ensure deep relations/batches are perfectly synced
+    loadAllData();
   } catch (err) {
     showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalHtml;
+    }
   }
 }
 
@@ -3068,6 +3195,13 @@ async function handleSaveBatch(e) {
     notes: document.getElementById('batch-notes').value
   };
 
+  const submitBtn = document.getElementById('btn-save-batch');
+  const originalHtml = submitBtn ? submitBtn.innerHTML : '<span>บันทึกรับเข้า</span>';
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<div class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div><span>กำลังบันทึก...</span>';
+  }
+
   try {
     const res = await fetch('/api/batches', {
       method: 'POST',
@@ -3078,10 +3212,16 @@ async function handleSaveBatch(e) {
     if (!json.success) throw new Error(json.error);
 
     closeDialog('modal-batch');
-    showToast('บันทึกรับเข้าล็อตใหม่สำเร็จ');
+    playTapFeedback('save');
+    showToast('✅ บันทึกรับเข้าล็อตใหม่สำเร็จ');
     await loadAllData();
   } catch (err) {
     showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = originalHtml;
+    }
   }
 }
 
@@ -3506,12 +3646,29 @@ function hideToast() {
 let currentQuickIndex = -1;
 let quickProductList = [];
 
-function openQuickUpdateModal(productId) {
+function openQuickUpdateModal(productId, focusField = null) {
   quickProductList = state.products;
-  currentQuickIndex = quickProductList.findIndex(p => p.id == productId);
+  currentQuickIndex = quickProductList.findIndex(p => String(p.id) === String(productId));
   if (currentQuickIndex === -1) currentQuickIndex = 0;
   populateQuickModal();
   openDialog('modal-quick-update');
+
+  if (focusField) {
+    setTimeout(() => {
+      let targetInput = null;
+      if (focusField === 'quantity' || focusField === 'stock') {
+        targetInput = document.getElementById('quick-quantity');
+      } else if (focusField === 'safety') {
+        targetInput = document.getElementById('quick-safety-stock');
+      } else if (focusField === 'expiry') {
+        targetInput = document.getElementById('quick-expiry-date');
+      }
+      if (targetInput) {
+        targetInput.focus();
+        if (typeof targetInput.select === 'function') targetInput.select();
+      }
+    }, 120);
+  }
 }
 
 function populateQuickModal() {
@@ -3656,27 +3813,7 @@ function navigateQuickProduct(direction) {
 }
 
 async function inlineEditSafetyStock(productId, currentVal, name) {
-  const newVal = prompt(`ตั้งค่าจุดสั่งซื้อ (Safety Stock) สำหรับ:\n"${name}"\n(แจ้งเตือนเมื่อสต็อกเหลือ \u2264 ค่านี้)`, currentVal);
-  if (newVal === null) return;
-  const parsed = parseFloat(newVal);
-  if (isNaN(parsed) || parsed < 0) {
-    showToast('กรุณาระบุตัวเลขที่ถูกต้อง', 'error');
-    return;
-  }
-
-  try {
-    const res = await fetch(`/api/products/${productId}/safety-stock`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ safety_stock: parsed })
-    });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.error);
-    showToast(`✅ อัปเดตจุดสั่งซื้อของ ${name} เป็น ${parsed} สำเร็จ`);
-    await loadAllData();
-  } catch (err) {
-    showToast('เกิดข้อผิดพลาด: ' + err.message, 'error');
-  }
+  openQuickUpdateModal(productId, 'safety');
 }
 
 // =======================================================

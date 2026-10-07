@@ -382,10 +382,37 @@ class LineService {
       }
     };
 
+    const lowStockQuickItems = [];
+    items.slice(0, 3).forEach(item => {
+      const name = (item.name || '').slice(0, 14);
+      const reorderQty = Math.max(1, (Number(item.safety_stock || 1) * 2) - Number(item.current_stock || 0));
+      if (name) {
+        lowStockQuickItems.push({
+          type: 'action',
+          action: {
+            type: 'message',
+            label: `📦 รับ ${name} +${reorderQty}`,
+            text: `DQ รับ ${item.name} ${reorderQty}`
+          }
+        });
+      }
+    });
+    lowStockQuickItems.push({
+      type: 'action',
+      action: {
+        type: 'message',
+        label: '🛒 สรุปสั่งของ',
+        text: 'DQ สั่งของ'
+      }
+    });
+
     return {
       type: 'flex',
       altText: `⚠️ แจ้งเตือนสินค้าใกล้หมด ${items.length} รายการ`,
-      contents: bubble
+      contents: bubble,
+      quickReply: {
+        items: lowStockQuickItems
+      }
     };
   }
 
@@ -610,15 +637,36 @@ class LineService {
     };
 
     const quickItems = [];
-    batches.slice(0, 4).forEach(b => {
-      const name = (b.product_name || b.name || '').slice(0, 14);
-      if (name) {
+    batches.slice(0, 3).forEach(b => {
+      const fullName = b.product_name || b.name || '';
+      const name = fullName.slice(0, 10);
+      const isExpired = b.days_until_expiry !== null && b.days_until_expiry < 0;
+      if (fullName) {
+        // Discard / Waste button
         quickItems.push({
           type: 'action',
           action: {
             type: 'message',
-            label: `✏️ ปรับ ${name}`,
-            text: `DQ ปรับวันหมดอายุ ${b.product_name || b.name}`
+            label: `🗑️ ทิ้ง ${name}`,
+            text: `DQ ทิ้ง${fullName}`
+          }
+        });
+        // Discard + Re-order / Receive button
+        quickItems.push({
+          type: 'action',
+          action: {
+            type: 'message',
+            label: `🔄 ทิ้ง+รับใหม่ ${name}`,
+            text: `DQ ทิ้ง${fullName} และรับเข้าใหม่ ${b.quantity || 1}`
+          }
+        });
+        // Adjust expiry button
+        quickItems.push({
+          type: 'action',
+          action: {
+            type: 'message',
+            label: `✏️ ปรับวัน ${name}`,
+            text: `DQ ปรับวันหมดอายุ ${fullName}`
           }
         });
       }
