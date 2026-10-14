@@ -174,25 +174,37 @@ class LineBotService {
     }
   }
 
-  findProduct(text, dbProducts = null) {
+  findProductMatch(text, dbProducts = null) {
     if (!text || typeof text !== 'string') return null;
     const clean = text.toLowerCase().trim();
     const aliasList = this.getAllProductAliases(dbProducts);
     let bestMatch = null;
+    let matchedAlias = null;
     let maxLen = 0;
 
     for (const item of aliasList) {
       for (const alias of item.aliases) {
         const aliasLower = alias.toLowerCase();
+        // Prevent short 2-char false positives (e.g. "นม" in "ชานม", "ขนม")
+        if (aliasLower === 'นม' && /(?:ชานม|ขนม)/.test(clean)) {
+          continue;
+        }
         if (clean.includes(aliasLower)) {
           if (aliasLower.length > maxLen) {
             maxLen = aliasLower.length;
             bestMatch = item.name;
+            matchedAlias = aliasLower;
           }
         }
       }
     }
-    return bestMatch;
+    if (!bestMatch) return null;
+    return { name: bestMatch, alias: matchedAlias };
+  }
+
+  findProduct(text, dbProducts = null) {
+    const res = this.findProductMatch(text, dbProducts);
+    return res ? res.name : null;
   }
 
   findAllProductsInText(text, dbProducts = null) {
@@ -265,7 +277,9 @@ class LineBotService {
   extractCandidateWord(raw) {
     if (!raw) return '';
     let clean = raw
-      .replace(/(รับเข้า|รับของ|รับ|เติมสต็อก|เติมของ|เติม|ซื้อมา|add|\+|ใช้ไปแล้ว|ใช้ไป|ใช้|ตัดสต็อก|ตัดของ|ตัด|เบิกใช้|เบิกของ|เบิก|หักสต็อก|หัก|เอาไป|use|minus|-|เหลืออยู่|เหลือ|นับได้|นับสต็อก|นับ|มีอยู่|ปรับเป็น|set|count|เช็คสต็อก|เช็คของ|เช็ค|ตรวจสต็อก|ดูสต็อก|ดู|เหลือเท่าไหร่|มีมั้ย|เท่าไหร่|กี่อัน|กี่ชิ้น|ทิ้ง|ของเสีย|ชำรุด|เสีย|waste|damaged|หมดอายุแล้วทิ้ง|หมดอายุ|และ|แล้วก็|แล้ว|กับ|ใหม่|ของใหม่|เข้ามาใหม่|ทั้งหมด|ทุกชิ้น)/gi, ' ')
+      .replace(/^(?:มี|เช็คดู|เช็คของ|เช็คสต็อก|เช็ค|ตรวจสต็อก|ตรวจดู|ตรวจ|ดูสต็อก|ดู|ค้นหา|สต็อก)\s*/i, ' ')
+      .replace(/\s*(?:มีมั้ย|มีไหม|มั้ย|ไหม|ป่าว|รึเปล่า|หรือเปล่า|มั๊ย|ปะ|คะ|ครับ|จ๊ะ|จ้า|หน่อย|บ้าง|เท่าไหร่|เหลือกี่|เหลือเท่าไหร่|\?)+$/i, ' ')
+      .replace(/(รับเข้า|รับของ|รับ|เพิ่มสต็อก|เพิ่มของ|เพิ่ม|เติมสต็อก|เติมของ|เติม|ซื้อมา|นำเข้า|add|\+|ใช้ไปแล้ว|ใช้ไป|ใช้|ตัดสต็อก|ตัดของ|ตัด|เบิกใช้|เบิกของ|เบิก|หักสต็อก|หัก|เอาไป|use|minus|-|เหลืออยู่|เหลือ|นับได้|นับสต็อก|นับ|มีอยู่|ปรับเป็น|set|count|เช็คสต็อก|เช็คของ|เช็ค|ตรวจสต็อก|ดูสต็อก|ดู|เหลือเท่าไหร่|มีมั้ย|เท่าไหร่|กี่อัน|กี่ชิ้น|ทิ้ง|ของเสีย|ชำรุด|เสีย|waste|damaged|หมดอายุแล้วทิ้ง|หมดอายุ|และ|แล้วก็|แล้ว|กับ|ใหม่|ของใหม่|เข้ามาใหม่|ทั้งหมด|ทุกชิ้น)/gi, ' ')
       .replace(/(\d+(\.\d+)?)/g, ' ')
       .replace(/\b(pack|cs|bag|box|can|pcs|btl|ชิ้น|แพ็ค|แพค|กล่อง|ถุง|ลัง|ขวด|กระป๋อง|หลอด|ม้วน|อัน)\b/gi, ' ')
       .replace(/[^\u0E00-\u0E7Fa-zA-Z0-9\s]/g, ' ')
@@ -421,8 +435,13 @@ class LineBotService {
       return { action: 'UNDO' };
     }
 
-    const prodName = this.findProduct(raw, dbProducts);
-    const qty = this.extractQuantity(raw);
+    const prodMatch = this.findProductMatch(raw, dbProducts);
+    const prodName = prodMatch ? prodMatch.name : null;
+    let textForQty = raw;
+    if (prodMatch && prodMatch.alias) {
+      textForQty = textForQty.replace(prodMatch.alias, ' ');
+    }
+    const qty = this.extractQuantity(textForQty);
 
     // 4.6 WASTE / SPOILED (ของเสีย, ทิ้ง, เสีย, ชำรุด, waste, damaged, หมดอายุ)
     if (/(ของเสีย|ทิ้ง|เสีย|ชำรุด|waste|damaged|หมดอายุแล้วทิ้ง)/i.test(raw) ||
@@ -432,11 +451,11 @@ class LineBotService {
       }
     }
 
-    // 4.7 ADD / RECEIVE (รับ, เติม, เข้า, ซื้อมา, +)
-    const hasAddIntent = /(รับเข้า|รับของ|รับ|เติมสต็อก|เติมของ|เติม|ซื้อมา|add|\+)/i.test(raw);
+    // 4.7 ADD / RECEIVE (รับ, เพิ่ม, เติม, เข้า, ซื้อมา, +)
+    const hasAddIntent = /(รับเข้า|รับของ|รับ|เพิ่มสต็อก|เพิ่มของ|เพิ่ม|เติมสต็อก|เติมของ|เติม|ซื้อมา|นำเข้า|add|\+)/i.test(raw);
     const hasUseIntent = /(ใช้ไปแล้ว|ใช้ไป|ใช้|ตัดสต็อก|ตัดของ|ตัด|เบิกใช้|เบิกของ|เบิก|หักสต็อก|หัก|เอาไป|use|minus|(?:\s|^)-\s*\d)/i.test(raw);
 
-    if (hasAddIntent && (!hasUseIntent || /^(รับ|เติม|ซื้อมา)/i.test(raw))) {
+    if (hasAddIntent && (!hasUseIntent || /^(รับ|เพิ่ม|เติม|ซื้อมา|นำเข้า)/i.test(raw))) {
       if (prodName && qty !== null) {
         const parsedDate = this.parseFlexibleDate(raw);
         return { action: 'ADD_STOCK', productName: prodName, quantity: qty, expiryDate: parsedDate };
@@ -462,13 +481,17 @@ class LineBotService {
       return { action: 'ADD_STOCK', productName: prodName, quantity: qty, expiryDate: parsedDate };
     }
 
-    // 7. SPECIFIC ITEM CHECK (เช็ค coke, coke เหลือเท่าไหร่, ภาพรวม cokeกด, หรือพิมพ์ชื่อสินค้าเดี่ยวๆ)
+    // 7. SPECIFIC ITEM CHECK (เช็ค coke, coke เหลือเท่าไหร่, มีโคนมั้ย, โคน มีไหม, ภาพรวม cokeกด, หรือพิมพ์ชื่อสินค้าเดี่ยวๆ)
+    const hasCheckIntent = /(เช็ค|ดู|ตรวจ|ค้นหา|ภาพรวม|สต็อก|คงเหลือ|เหลือเท่าไหร่|เท่าไหร่|กี่ชิ้น|กี่อัน|กี่แพ็ค|กี่กล่อง|สถานะ)/i.test(raw) ||
+      /(?:^มี|\sมี).*(?:มั้ย|ไหม|ป่าว|รึเปล่า|หรือเปล่า|มั๊ย|\?)/i.test(raw) ||
+      /(?:มั้ย|ไหม|ป่าว|รึเปล่า|หรือเปล่า|มั๊ย|\?)$/i.test(raw) ||
+      /^(?:เช็ค|ดู|ตรวจ|ค้นหา|สต็อก|มี)\s+/i.test(raw);
+
     if (prodName && qty === null) {
-      const isCheckWord = /(เช็ค|ดู|ตรวจ|ภาพรวม|สต็อก|คงเหลือ|เช็คของ|มีมั้ย|เหลือเท่าไหร่|เท่าไหร่|\?|ค้นหา|หมดอายุ)/i.test(raw);
       const isJustProduct = raw.replace(/\s+/g, '') === prodName.toLowerCase().replace(/\s+/g, '') ||
                             this.getAllProductAliases(dbProducts).some(p => p.aliases.some(a => a.toLowerCase().replace(/\s+/g, '') === raw.replace(/\s+/g, '')));
 
-      if (isCheckWord || isJustProduct) {
+      if (hasCheckIntent || isJustProduct || (!hasAddIntent && !hasUseIntent)) {
         return { action: 'CHECK_ITEM', productName: prodName };
       }
     }
@@ -485,22 +508,22 @@ class LineBotService {
     }
 
     // 8. TYPO / DID YOU MEAN DETECTION (When product is misspelled but stock intent is clear)
-    const isAdd = /^(รับเข้า|รับของ|รับ|เติมสต็อก|เติมของ|เติม|ซื้อมา|add|\+)/i.test(raw);
+    const isAdd = /^(รับเข้า|รับของ|รับ|เพิ่มสต็อก|เพิ่มของ|เพิ่ม|เติมสต็อก|เติมของ|เติม|ซื้อมา|นำเข้า|add|\+)/i.test(raw);
     const isUse = /^(ใช้ไปแล้ว|ใช้ไป|ใช้|ตัดสต็อก|ตัดของ|ตัด|เบิกใช้|เบิกของ|เบิก|หักสต็อก|หัก|เอาไป|use|minus|-)/i.test(raw);
     const isWaste = /^(ของเสีย|ทิ้ง|เสีย|ชำรุด|waste|damaged|หมดอายุ)/i.test(raw);
     const isSet = /^(เหลืออยู่|นับได้|นับสต็อก|ปรับเป็น|set|count)/i.test(raw);
-    const isCheck = /^(เช็คสต็อก|เช็คของ|เช็ค|ตรวจสต็อก|ดูสต็อก)/i.test(raw);
+    const isCheck = hasCheckIntent;
     const hasVerb = isAdd || isUse || isWaste || isSet || isCheck;
 
-    if (hasVerb || (defaultAction && qty !== null) || (qty !== null && /(รับ|เติม|ตัด|ใช้|เบิก|ทิ้ง|เสีย)/i.test(raw))) {
+    if (hasVerb || (defaultAction && qty !== null) || (qty !== null && /(รับ|เพิ่ม|เติม|ตัด|ใช้|เบิก|ทิ้ง|เสีย)/i.test(raw))) {
       const candidate = this.extractCandidateWord(raw);
       if (candidate && candidate.length >= 2) {
         const suggestions = this.getFuzzyProductSuggestions(candidate, 3, dbProducts);
         let intendedAction = 'USE';
-        if (isAdd || defaultAction === 'ADD_STOCK') intendedAction = 'ADD_STOCK';
+        if (isCheck) intendedAction = 'CHECK_ITEM';
+        else if (isAdd || defaultAction === 'ADD_STOCK') intendedAction = 'ADD_STOCK';
         else if (isWaste || defaultAction === 'WASTE') intendedAction = 'WASTE';
         else if (isSet || defaultAction === 'SET_STOCK') intendedAction = 'SET_STOCK';
-        else if (isCheck) intendedAction = 'CHECK_ITEM';
 
         return {
           action: 'UNKNOWN_PRODUCT',
@@ -508,7 +531,7 @@ class LineBotService {
           suggestions,
           quantity: qty,
           intendedAction,
-          originalVerb: isAdd ? 'รับ' : (isWaste ? 'ทิ้ง' : (isUse ? 'ตัด' : (isSet ? 'นับ' : (isCheck ? 'เช็ค' : '')))),
+          originalVerb: isCheck ? 'เช็ค' : (isAdd ? 'รับ' : (isWaste ? 'ทิ้ง' : (isUse ? 'ตัด' : (isSet ? 'นับ' : '')))),
           rawText: text
         };
       }
@@ -690,7 +713,7 @@ class LineBotService {
       // Handle context inheritance if product was omitted in this phrase (e.g. "และรับเข้าใหม่ 5" or "รับ 5")
       const isUnknown = intent && intent.action === 'UNKNOWN_PRODUCT';
       if (!intent || isUnknown) {
-        const hasAdd = /(รับเข้า|รับของ|รับ|เติมสต็อก|เติมของ|เติม|ซื้อมา|add|\+)/i.test(cmd);
+        const hasAdd = /(รับเข้า|รับของ|รับ|เพิ่มสต็อก|เพิ่มของ|เพิ่ม|เติมสต็อก|เติมของ|เติม|ซื้อมา|นำเข้า|add|\+)/i.test(cmd);
         const hasUse = /(ใช้ไปแล้ว|ใช้ไป|ใช้|ตัดสต็อก|ตัดของ|ตัด|เบิกใช้|เบิกของ|เบิก|หัก|minus|-)/i.test(cmd);
         const hasWaste = /(ของเสีย|ทิ้ง|เสีย|ชำรุด|waste|damaged)/i.test(cmd);
         const hasSet = /(เหลือ|นับได้|ปรับเป็น|set|count)/i.test(cmd);
@@ -2167,21 +2190,31 @@ class LineBotService {
   }
 
   buildItemDetailFlex(product, webUrl) {
+    const isOut = product.current_stock <= 0;
     const isLow = product.is_low_stock || product.current_stock <= Number(product.safety_stock);
+    let expiryText = product.nearest_expiry || 'ยังไม่ระบุ';
+    if (product.nearest_expiry && product.days_until_expiry !== null && product.days_until_expiry !== undefined) {
+      if (product.days_until_expiry < 0) {
+        expiryText += ` (🔴 หมดอายุแล้ว ${Math.abs(product.days_until_expiry)} วัน)`;
+      } else {
+        expiryText += ` (อีก ${product.days_until_expiry} วัน)`;
+      }
+    }
+
     return {
       type: 'flex',
-      altText: `🔍 ข้อมูลสต็อก: ${product.name}`,
+      altText: `🔍 ข้อมูลสต็อก: ${product.name} (คงเหลือ ${product.current_stock} ${product.unit})`,
       contents: {
         type: 'bubble',
         size: 'kilo',
         header: {
           type: 'box',
           layout: 'vertical',
-          backgroundColor: '#334155',
+          backgroundColor: isOut ? '#DC2626' : (isLow ? '#EA580C' : '#334155'),
           paddingAll: '16px',
           ...(webUrl ? { action: { type: 'uri', uri: `${webUrl}?tab=inventory&product_id=${product.id}` } } : {}),
           contents: [
-            { type: 'text', text: `หมวด: ${product.category || 'ทั่วไป'}`, color: '#94A3B8', size: 'xs' },
+            { type: 'text', text: `หมวด: ${product.category || 'ทั่วไป'}`, color: '#CBD5E1', size: 'xs' },
             { type: 'text', text: product.name, weight: 'bold', color: '#FFFFFF', size: 'lg', margin: 'xs' }
           ]
         },
@@ -2196,14 +2229,14 @@ class LineBotService {
               layout: 'horizontal',
               contents: [
                 { type: 'text', text: 'สต็อกคงเหลือ:', color: '#64748B', size: 'xs', flex: 5 },
-                { type: 'text', text: `${product.current_stock} ${product.unit}`, weight: 'bold', color: isLow ? '#DC2626' : '#059669', size: 'sm', flex: 5, align: 'end' }
+                { type: 'text', text: `${product.current_stock} ${product.unit}`, weight: 'bold', color: isOut ? '#DC2626' : (isLow ? '#EA580C' : '#059669'), size: 'sm', flex: 5, align: 'end' }
               ]
             },
             {
               type: 'box',
               layout: 'horizontal',
               contents: [
-                { type: 'text', text: 'Safety Stock:', color: '#64748B', size: 'xs', flex: 5 },
+                { type: 'text', text: 'จุดสั่งซื้อ (Safety):', color: '#64748B', size: 'xs', flex: 5 },
                 { type: 'text', text: `${product.safety_stock} ${product.unit}`, color: '#1E293B', size: 'xs', flex: 5, align: 'end' }
               ]
             },
@@ -2211,8 +2244,26 @@ class LineBotService {
               type: 'box',
               layout: 'horizontal',
               contents: [
-                { type: 'text', text: 'วันหมดอายุใกล้สุด:', color: '#64748B', size: 'xs', flex: 5 },
-                { type: 'text', text: product.nearest_expiry || 'ยังไม่ระบุ', color: '#1E293B', size: 'xs', flex: 5, align: 'end' }
+                { type: 'text', text: 'วันหมดอายุใกล้สุด:', color: '#64748B', size: 'xs', flex: 4 },
+                { type: 'text', text: expiryText, color: product.days_until_expiry < 0 ? '#DC2626' : '#1E293B', size: 'xs', flex: 6, align: 'end' }
+              ]
+            },
+            {
+              type: 'box',
+              layout: 'vertical',
+              margin: 'md',
+              paddingAll: '8px',
+              backgroundColor: isOut ? '#FEF2F2' : (isLow ? '#FFF7ED' : '#F0FDF4'),
+              cornerRadius: '8px',
+              contents: [
+                {
+                  type: 'text',
+                  text: isOut ? '🔴 สินค้าหมดชั่วคราว! ต้องสั่งของด่วน' : (isLow ? '⚠️ ต่ำกว่าจุดสั่งซื้อ แนะนำสั่งซื้อเพิ่ม' : '✅ สต็อกพร้อมใช้งาน ปกติ'),
+                  color: isOut ? '#DC2626' : (isLow ? '#C2410C' : '#16A34A'),
+                  size: 'xxs',
+                  weight: 'bold',
+                  align: 'center'
+                }
               ]
             }
           ]
@@ -2224,12 +2275,21 @@ class LineBotService {
           contents: [
             {
               type: 'button',
-              style: 'link',
+              style: isOut || isLow ? 'primary' : 'link',
+              color: isOut ? '#DC2626' : (isLow ? '#EA580C' : undefined),
               height: 'sm',
-              action: { type: 'uri', label: '📱 ดูรายละเอียดสินค้านี้บนเว็บ', uri: `${webUrl}?tab=inventory&product_id=${product.id}` }
+              action: { type: 'uri', label: isOut || isLow ? '🛒 เปิดดูรายการสั่งซื้อบนเว็บ' : '📱 ดูรายละเอียดบนเว็บ', uri: isOut || isLow ? `${webUrl}?tab=orders` : `${webUrl}?tab=inventory&product_id=${product.id}` }
             }
           ]
         }
+      },
+      quickReply: {
+        items: [
+          { type: 'action', action: { type: 'message', label: `ตัด ${product.name} 1`, text: `ตัด ${product.name} 1` } },
+          { type: 'action', action: { type: 'message', label: `รับ ${product.name} 10`, text: `รับ ${product.name} 10` } },
+          { type: 'action', action: { type: 'message', label: `ปรับวันหมดอายุ`, text: `ปรับวันหมดอายุ ${product.name}` } },
+          { type: 'action', action: { type: 'message', label: `📊 ดูภาพรวมสต็อก`, text: `ภาพรวม` } }
+        ]
       }
     };
   }

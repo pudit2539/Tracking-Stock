@@ -415,6 +415,11 @@ const dbClient = {
         };
         if (expiryDate) updatePayload.expiry_date = expiryDate;
         await this.updateBatch(b.id, updatePayload);
+
+        // Consolidate: zero out secondary active batches so total product stock equals qty
+        for (let i = 1; i < activeBatches.length; i++) {
+          await this.updateBatch(activeBatches[i].id, { quantity: 0 });
+        }
       } else {
         // Create new batch (if no expiry date provided, default to +6 months)
         const d = new Date();

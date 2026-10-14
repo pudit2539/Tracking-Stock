@@ -3690,7 +3690,11 @@ function populateQuickModal() {
   setText('quick-unit-label-1', prod.unit || 'ชิ้น');
   setText('quick-unit-label-2', prod.unit || 'ชิ้น');
   setVal('quick-safety-stock', prod.safety_stock);
-  setVal('quick-quantity', prod.current_stock);
+  const qtyInput = document.getElementById('quick-quantity');
+  if (qtyInput) {
+    qtyInput.value = prod.current_stock ?? '';
+    qtyInput.dataset.original = prod.current_stock ?? '';
+  }
   setText('quick-current-status', `คงเหลือเดิม: ${prod.current_stock} ${prod.unit}`);
   setVal('quick-expiry-date', prod.nearest_expiry || '');
 
@@ -3738,18 +3742,25 @@ async function handleSaveQuickUpdate(event) {
   if (event) event.preventDefault();
   const prodId = document.getElementById('quick-prod-id').value;
   const safetyStock = document.getElementById('quick-safety-stock').value;
-  const quantity = document.getElementById('quick-quantity').value;
+  const qtyInput = document.getElementById('quick-quantity');
+  const quantity = qtyInput ? qtyInput.value : '';
+  const originalQty = qtyInput ? qtyInput.dataset.original : null;
+  const isQtyChanged = (originalQty === null || originalQty === undefined) || (String(quantity).trim() !== String(originalQty).trim());
   const expiryDate = document.getElementById('quick-expiry-date').value;
 
   try {
+    const payload = {
+      safety_stock: safetyStock,
+      expiry_date: expiryDate
+    };
+    if (isQtyChanged && quantity !== '') {
+      payload.quantity = quantity;
+    }
+
     const res = await fetch(`/api/products/${prodId}/quick-update`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        safety_stock: safetyStock,
-        quantity: quantity,
-        expiry_date: expiryDate
-      })
+      body: JSON.stringify(payload)
     });
 
     const json = await res.json();
@@ -3769,18 +3780,25 @@ async function handleSaveAndNextQuickUpdate(event) {
   if (event) event.preventDefault();
   const prodId = document.getElementById('quick-prod-id').value;
   const safetyStock = document.getElementById('quick-safety-stock').value;
-  const quantity = document.getElementById('quick-quantity').value;
+  const qtyInput = document.getElementById('quick-quantity');
+  const quantity = qtyInput ? qtyInput.value : '';
+  const originalQty = qtyInput ? qtyInput.dataset.original : null;
+  const isQtyChanged = (originalQty === null || originalQty === undefined) || (String(quantity).trim() !== String(originalQty).trim());
   const expiryDate = document.getElementById('quick-expiry-date').value;
 
   try {
+    const payload = {
+      safety_stock: safetyStock,
+      expiry_date: expiryDate
+    };
+    if (isQtyChanged && quantity !== '') {
+      payload.quantity = quantity;
+    }
+
     const res = await fetch(`/api/products/${prodId}/quick-update`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        safety_stock: safetyStock,
-        quantity: quantity,
-        expiry_date: expiryDate
-      })
+      body: JSON.stringify(payload)
     });
 
     const json = await res.json();
