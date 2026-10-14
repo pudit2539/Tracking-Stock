@@ -388,8 +388,11 @@ class LineBotService {
       }
     }
 
-    // 3. OVERVIEW CHECK STOCK
-    if (/^(ภาพรวม|ดูภาพรวม|ขอภาพรวม|ภาพรวมร้าน|ภาพรวมทั้งหมด|สรุป|สรุปสต็อก|สรุปยอด|ดูสต็อก|เช็คสต็อก|สต็อก|คงเหลือ|เช็คของ|stock|overview|status|รายงาน|report)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(raw) || /(ภาพรวมร้าน|ภาพรวมสต็อก|สรุปสต็อกทั้งหมด|เช็คสต็อกทั้งหมด)/i.test(raw)) {
+    // 3. OVERVIEW / LIST PRODUCTS (ภาพรวม, มีสินค้าอะไรบ้าง, รายการสินค้า, สินค้าทั้งหมด)
+    const isOverview = /^(ภาพรวม|ดูภาพรวม|ขอภาพรวม|ภาพรวมร้าน|ภาพรวมทั้งหมด|สรุป|สรุปสต็อก|สรุปยอด|ดูสต็อก|เช็คสต็อก|สต็อก|คงเหลือ|เช็คของ|stock|overview|status|รายงาน|report|มีสินค้าอะไรบ้าง|มีอะไรบ้าง|รายการสินค้า|ดูรายการสินค้า|สินค้าทั้งหมด|ดูสินค้าทั้งหมด|รายชื่อสินค้า|ดูของทั้งหมด|ของทั้งหมด|มีของอะไรบ้าง|ในสต็อกมีอะไรบ้าง)(ครับ|ค่ะ|คะ|หน่อย|จ้า|นะ|[!?.~])?$/i.test(raw) ||
+      /(ภาพรวมร้าน|ภาพรวมสต็อก|สรุปสต็อกทั้งหมด|เช็คสต็อกทั้งหมด|มีสินค้าอะไรบ้าง|มีของอะไรบ้าง|รายการสินค้าทั้งหมด)/i.test(raw);
+
+    if (isOverview) {
       const pName = this.findProduct(raw, dbProducts);
       if (!pName) {
         return { action: 'STOCK_OVERVIEW' };
@@ -2347,6 +2350,18 @@ class LineBotService {
                 { type: 'text', text: '⏳ ใกล้/หมดอายุใน 7 วัน:', color: '#64748B', size: 'xs', flex: 6 },
                 { type: 'text', text: `${expCount} รายการ`, weight: 'bold', color: expCount > 0 ? '#D97706' : '#059669', size: 'xs', flex: 4, align: 'end' }
               ]
+            },
+            {
+              type: 'box',
+              layout: 'vertical',
+              backgroundColor: '#F8FAFC',
+              cornerRadius: '8px',
+              paddingAll: '10px',
+              spacing: 'xs',
+              contents: [
+                { type: 'text', text: '💡 เช็คสินค้าเฉพาะตัวได้ทันที เช่น:', size: 'xxs', color: '#64748B', weight: 'bold' },
+                { type: 'text', text: '• "มีโคนมั้ย" / "เช็ค coke" / "นมจืด"', size: 'xxs', color: '#0284C7' }
+              ]
             }
           ]
         },
@@ -2365,6 +2380,14 @@ class LineBotService {
             }
           ]
         }
+      },
+      quickReply: {
+        items: [
+          { type: 'action', action: { type: 'message', label: '🛒 สั่งของ', text: 'สั่งของ' } },
+          { type: 'action', action: { type: 'message', label: '⏳ ใกล้หมดอายุ', text: 'ใกล้หมดอายุ' } },
+          { type: 'action', action: { type: 'message', label: '🍦 มีโคนมั้ย', text: 'มีโคนมั้ย' } },
+          { type: 'action', action: { type: 'message', label: '📖 วิธีใช้', text: 'วิธีใช้' } }
+        ]
       }
     };
   }
