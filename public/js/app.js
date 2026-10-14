@@ -1402,71 +1402,130 @@ function renderInventoryTable() {
   if (tbody) {
     tbody.innerHTML = filtered.map(p => {
     const isSelected = state.selectedProductIds.has(Number(p.id));
-    let statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800">ปกติ</span>`;
+
+    // 1. ERP Status Badge with Dot Indicator
+    let statusBadge = `
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/60 whitespace-nowrap">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        <span>ปกติ</span>
+      </span>
+    `;
     if (p.is_low_stock) {
-      statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-100 text-rose-800">⚠️ ต่ำกว่าเกณฑ์/หมด</span>`;
+      statusBadge = `
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/70 whitespace-nowrap">
+          <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+          <span>ต่ำกว่าเกณฑ์</span>
+        </span>
+      `;
     } else if (p.is_expired) {
-      statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-200 text-slate-800">หมดอายุแล้ว</span>`;
+      statusBadge = `
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200/70 whitespace-nowrap">
+          <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+          <span>หมดอายุแล้ว</span>
+        </span>
+      `;
     } else if (p.is_expiring_soon) {
-      statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800">ใกล้หมดอายุ</span>`;
+      statusBadge = `
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/70 whitespace-nowrap">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+          <span>ใกล้หมดอายุ</span>
+        </span>
+      `;
     }
 
-    const expiryDisplay = p.nearest_expiry 
-      ? `
-        <div class="flex items-center space-x-1.5">
-          <span class="font-medium text-slate-800">${p.nearest_expiry}</span>
-          <span class="text-[10px] ${p.days_until_expiry < 0 ? 'text-rose-600 font-bold' : (p.days_until_expiry <= 7 ? 'text-amber-600 font-bold' : 'text-slate-400')}">
-            (${p.days_until_expiry < 0 ? 'หมดอายุแล้ว' : `อีก ${p.days_until_expiry} วัน`})
+    // 2. Expiry Display: Clean Stacked ERP Layout with Days Countdown Badge
+    let expiryDisplay = '';
+    if (p.nearest_expiry) {
+      let countdownPill = '';
+      if (p.days_until_expiry < 0) {
+        countdownPill = `
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/70 whitespace-nowrap">
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+            <span>หมดอายุแล้ว (${Math.abs(p.days_until_expiry)} วัน)</span>
           </span>
-          <button onclick="openQuickUpdateModal(${p.id}, 'expiry')" title="ปรับวันหมดอายุ" class="p-1 hover:bg-blue-50 text-blue-500 rounded transition cursor-pointer">
-            <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
-          </button>
+        `;
+      } else if (p.days_until_expiry <= 7) {
+        countdownPill = `
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/70 whitespace-nowrap">
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+            <span>อีก ${p.days_until_expiry} วัน</span>
+          </span>
+        `;
+      } else if (p.days_until_expiry <= 30) {
+        countdownPill = `
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200/60 whitespace-nowrap">
+            <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+            <span>อีก ${p.days_until_expiry} วัน</span>
+          </span>
+        `;
+      } else {
+        countdownPill = `
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200/60 whitespace-nowrap">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span>อีก ${p.days_until_expiry} วัน</span>
+          </span>
+        `;
+      }
+
+      expiryDisplay = `
+        <div class="flex flex-col gap-1 whitespace-nowrap">
+          <div class="flex items-center space-x-1.5">
+            <span class="font-bold text-slate-800 text-xs font-mono tracking-tight">${p.nearest_expiry}</span>
+            <button onclick="openQuickUpdateModal(${p.id}, 'expiry')" title="ปรับวันหมดอายุ" class="p-1 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded transition cursor-pointer">
+              <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+          <div>${countdownPill}</div>
         </div>
-      `
-      : `
-        <button onclick="openQuickUpdateModal(${p.id}, 'expiry')" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium text-xs rounded-lg border border-blue-200 transition cursor-pointer">
-          <i data-lucide="calendar-plus" class="w-3.5 h-3.5"></i>
+      `;
+    } else {
+      expiryDisplay = `
+        <button onclick="openQuickUpdateModal(${p.id}, 'expiry')" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-500 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 border border-dashed border-slate-300 hover:border-indigo-300 rounded-lg transition whitespace-nowrap cursor-pointer group" title="คลิกเพื่อระบุวันหมดอายุ">
+          <i data-lucide="calendar-plus" class="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500"></i>
           <span>+ ใส่วันหมดอายุ</span>
         </button>
       `;
+    }
 
     const isNew = isNewProduct(p.created_at, 7);
     return `
-      <tr id="prod-row-${p.id}" class="hover:bg-slate-50/80 transition border-b border-slate-100 ${isSelected ? 'bg-indigo-50/50' : ''}">
-        <td class="p-3 w-10 text-center">
+      <tr id="prod-row-${p.id}" class="hover:bg-slate-50/90 transition-colors border-b border-slate-100 ${isSelected ? 'bg-indigo-50/50' : ''}">
+        <td class="py-3 px-3 w-10 text-center">
           <input type="checkbox" onchange="toggleSelectProduct(${p.id}, this.checked)" ${isSelected ? 'checked' : ''} class="prod-checkbox w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer transition">
         </td>
-        <td class="p-3.5">
-          <button type="button" onclick="openProductDetailModal('${p.id}')" class="text-left font-bold text-slate-900 hover:text-indigo-600 flex items-center space-x-1.5 group transition" title="คลิกเพื่อดูรายละเอียดสินค้าและประวัติย้อนหลัง">
-            <span class="group-hover:underline text-xs">${p.name}</span>
-            <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 transition"></i>
-            ${isNew ? `<span class="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-indigo-100 text-indigo-700 border border-indigo-200">NEW</span>` : ''}
-          </button>
+        <td class="py-3 px-3.5">
+          <div class="flex items-center space-x-2">
+            <button type="button" onclick="openProductDetailModal('${p.id}')" class="text-left font-bold text-slate-900 hover:text-indigo-600 flex items-center space-x-1.5 group transition" title="คลิกเพื่อดูรายละเอียดสินค้าและประวัติย้อนหลัง">
+              <span class="group-hover:underline text-xs sm:text-[13px]">${p.name}</span>
+              <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 transition shrink-0"></i>
+            </button>
+            ${isNew ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200/70 shrink-0">NEW</span>` : ''}
+          </div>
         </td>
-        <td class="p-3.5">
-          <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200/60">${p.category || '-'}</span>
+        <td class="py-3 px-3 whitespace-nowrap">
+          <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200/70 whitespace-nowrap">${p.category || '-'}</span>
         </td>
-        <td class="p-3.5">
-          <div class="flex items-center space-x-1.5">
-            <span class="font-bold ${p.is_low_stock ? 'text-rose-600 font-extrabold' : 'text-slate-800'} text-sm">${p.current_stock}</span>
+        <td class="py-3 px-3 whitespace-nowrap">
+          <div class="inline-flex items-center space-x-1.5">
+            <span class="font-bold text-sm ${p.is_low_stock ? 'text-rose-600 font-extrabold' : 'text-slate-900'}">${Number(p.current_stock).toLocaleString()}</span>
             <span class="text-slate-500 text-[11px] font-medium uppercase">${p.unit}</span>
             <button type="button" onclick="openQuickUpdateModal('${p.id}', 'quantity')" title="คลิกเพื่อปรับแก้คงเหลือรวม (${p.name})" class="p-1 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded transition active:scale-95 cursor-pointer">
               <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
             </button>
           </div>
         </td>
-        <td class="p-3.5">
-          <div class="flex items-center space-x-1.5">
-            <span class="font-semibold text-slate-700 text-xs">${p.safety_stock} ${p.unit}</span>
+        <td class="py-3 px-3 whitespace-nowrap">
+          <div class="inline-flex items-center space-x-1.5">
+            <span class="font-medium text-slate-700 text-xs">${Number(p.safety_stock).toLocaleString()} ${p.unit}</span>
             <button type="button" onclick="openQuickUpdateModal('${p.id}', 'safety')" title="คลิกเพื่อแก้จุดสั่งซื้อ (${p.name})" class="p-1 hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 rounded transition active:scale-95 cursor-pointer">
               <i data-lucide="edit-2" class="w-3.5 h-3.5"></i>
             </button>
           </div>
         </td>
-        <td class="p-3.5">${expiryDisplay}</td>
-        <td class="p-3.5 whitespace-nowrap">
-          <div class="flex flex-col space-y-1">
-            <div class="flex items-center space-x-1.5 font-bold text-xs ${isNew ? 'text-indigo-900 bg-indigo-50/90 px-2 py-0.5 rounded-md border border-indigo-200/70' : 'text-slate-800'}" title="วันที่เพิ่มสินค้าเข้าสู่ระบบ: ${formatFullDateTime(p.created_at)}">
+        <td class="py-3 px-3 whitespace-nowrap">${expiryDisplay}</td>
+        <td class="py-3 px-3 whitespace-nowrap">
+          <div class="flex flex-col space-y-1 text-xs leading-tight">
+            <div class="flex items-center space-x-1.5 font-medium ${isNew ? 'text-indigo-900 bg-indigo-50/90 px-2 py-0.5 rounded-md border border-indigo-200/70' : 'text-slate-700'}" title="วันที่เพิ่มสินค้าเข้าสู่ระบบ: ${formatFullDateTime(p.created_at)}">
               <i data-lucide="calendar-plus" class="w-3.5 h-3.5 ${isNew ? 'text-indigo-600' : 'text-slate-400'}"></i>
               <span>เพิ่ม ${formatDateOnly(p.created_at)}</span>
               ${isNew ? `<span class="px-1 py-0.2 rounded text-[9px] font-extrabold bg-indigo-200 text-indigo-800">ใหม่</span>` : ''}
@@ -1477,29 +1536,30 @@ function renderInventoryTable() {
             </div>
           </div>
         </td>
-        <td class="p-3.5">${statusBadge}</td>
-        <td class="p-3.5 text-center">
-          <div class="flex items-center justify-center space-x-1">
-            <button onclick="openProductDetailModal('${p.id}')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs rounded-lg flex items-center space-x-1 transition" title="ดูรายละเอียดสินค้า">
-              <i data-lucide="info" class="w-3.5 h-3.5 text-slate-500"></i>
-              <span>ดูข้อมูล</span>
-            </button>
-            <button onclick="openQuickUpdateModal('${p.id}')" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs rounded-lg flex items-center space-x-1 shadow-2xs transition" title="อัปเดตด่วน สต็อก & วันหมดอายุ">
+        <td class="py-3 px-3 whitespace-nowrap">${statusBadge}</td>
+        <td class="py-3 px-3 text-center whitespace-nowrap">
+          <div class="inline-flex items-center justify-center gap-1.5">
+            <button onclick="openQuickUpdateModal('${p.id}')" class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs rounded-lg shadow-2xs hover:shadow-xs transition active:scale-95 cursor-pointer" title="อัปเดตด่วน สต็อก & วันหมดอายุ">
               <i data-lucide="zap" class="w-3.5 h-3.5"></i>
               <span>อัปเดต</span>
             </button>
-            <button onclick="openManageBatchesModal('${p.id}')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium text-xs rounded-lg flex items-center space-x-1 border border-indigo-200 transition" title="จัดการทุกล็อตของสินค้า">
-              <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+            <button onclick="openManageBatchesModal('${p.id}')" class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs rounded-lg border border-indigo-200/70 transition active:scale-95 cursor-pointer" title="จัดการทุกล็อตของสินค้า">
+              <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-600"></i>
               <span>ล็อต (${p.batch_count || 0})</span>
             </button>
-            <button onclick="openEditProductModal('${p.id}')" title="แก้ไขข้อมูลสินค้า" class="p-1.5 hover:bg-slate-100 text-slate-500 rounded-md transition">
-              <i data-lucide="edit-3" class="w-4 h-4"></i>
-            </button>
-            ${state.currentRole === 'admin' ? `
-              <button onclick="handleDeleteProduct('${p.id}')" title="ลบสินค้า" class="admin-only p-1.5 hover:bg-rose-50 text-rose-500 rounded-md transition">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
+            <div class="flex items-center border-l border-slate-200 pl-1 ml-0.5 space-x-0.5">
+              <button onclick="openProductDetailModal('${p.id}')" class="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-lg transition cursor-pointer" title="ดูรายละเอียดสินค้าและประวัติ">
+                <i data-lucide="info" class="w-4 h-4"></i>
               </button>
-            ` : ''}
+              <button onclick="openEditProductModal('${p.id}')" title="แก้ไขข้อมูลสินค้า" class="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-indigo-600 rounded-lg transition cursor-pointer">
+                <i data-lucide="edit-3" class="w-4 h-4"></i>
+              </button>
+              ${state.currentRole === 'admin' ? `
+                <button onclick="handleDeleteProduct('${p.id}')" title="ลบสินค้า" class="admin-only p-1.5 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg transition cursor-pointer">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              ` : ''}
+            </div>
           </div>
         </td>
       </tr>
@@ -1520,18 +1580,18 @@ function renderInventoryTable() {
     } else {
       mobileContainer.innerHTML = filtered.map(p => {
         const isSelected = state.selectedProductIds.has(Number(p.id));
-        let statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">ปกติ</span>`;
+        let statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>ปกติ</span>`;
         if (p.is_low_stock) {
-          statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">⚠️ ต่ำกว่าเกณฑ์/หมด</span>`;
+          statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/70"><span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>ต่ำกว่าเกณฑ์</span>`;
         } else if (p.is_expired) {
-          statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-800">หมดอายุแล้ว</span>`;
+          statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200/70"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>หมดอายุแล้ว</span>`;
         } else if (p.is_expiring_soon) {
-          statusBadge = `<span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">ใกล้หมดอายุ</span>`;
+          statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/70"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>ใกล้หมดอายุ</span>`;
         }
 
         const expiryText = p.nearest_expiry 
-          ? `<span class="font-bold text-slate-900">${p.nearest_expiry}</span> <span class="text-[10px] ${p.days_until_expiry < 0 ? 'text-rose-600 font-bold' : (p.days_until_expiry <= 7 ? 'text-amber-600 font-bold' : 'text-slate-400')}">(${p.days_until_expiry < 0 ? 'หมดอายุแล้ว' : `อีก ${p.days_until_expiry} วัน`})</span>`
-          : `<span class="text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-md">ยังไม่ระบุ</span>`;
+          ? `<span class="font-bold text-slate-900 font-mono">${p.nearest_expiry}</span> <span class="text-[10px] ${p.days_until_expiry < 0 ? 'text-rose-600 font-bold' : (p.days_until_expiry <= 7 ? 'text-amber-600 font-bold' : 'text-slate-500')}">• อีก ${p.days_until_expiry} วัน</span>`
+          : `<span class="text-slate-400 font-medium">ยังไม่ระบุ</span>`;
 
         const isNew = isNewProduct(p.created_at, 7);
         return `

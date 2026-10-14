@@ -358,42 +358,42 @@
       </div>
 
       <!-- Desktop Inventory Table -->
-      <div class="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="hidden md:block bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
         <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs">
-            <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200 select-none">
+          <table class="w-full text-left text-xs min-w-[1140px] border-collapse">
+            <thead class="bg-slate-50/90 text-slate-500 font-semibold border-b border-slate-200 select-none text-[11px] uppercase tracking-wider sticky top-0 backdrop-blur-xs z-10">
               <tr>
-                <th class="p-3 w-10 text-center">
+                <th class="py-3.5 px-3 w-10 text-center">
                   <input type="checkbox" id="select-all-products" onchange="toggleSelectAllProducts(this.checked)" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer transition" title="เลือกทั้งหมด">
                 </th>
-                <th class="p-3 cursor-pointer hover:text-slate-800 transition" onclick="toggleSortHeader('NAME')" title="คลิกเพื่อเรียงตามชื่อสินค้า">
-                  <div class="flex items-center space-x-1">
+                <th class="py-3.5 px-3.5 cursor-pointer hover:text-slate-800 transition min-w-[200px]" onclick="toggleSortHeader('NAME')" title="คลิกเพื่อเรียงตามชื่อสินค้า">
+                  <div class="flex items-center space-x-1.5">
                     <span>สินค้า</span>
                     <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
                   </div>
                 </th>
-                <th class="p-3">หมวดหมู่</th>
-                <th class="p-3 cursor-pointer hover:text-slate-800 transition" onclick="toggleSortHeader('STOCK')" title="คลิกเพื่อเรียงตามจำนวนคงเหลือ">
-                  <div class="flex items-center space-x-1">
+                <th class="py-3.5 px-3 min-w-[130px] whitespace-nowrap">หมวดหมู่</th>
+                <th class="py-3.5 px-3 cursor-pointer hover:text-slate-800 transition min-w-[130px] whitespace-nowrap" onclick="toggleSortHeader('STOCK')" title="คลิกเพื่อเรียงตามจำนวนคงเหลือ">
+                  <div class="flex items-center space-x-1.5">
                     <span>คงเหลือรวม</span>
                     <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
                   </div>
                 </th>
-                <th class="p-3">จุดสั่งซื้อ (Safety)</th>
-                <th class="p-3 cursor-pointer hover:text-slate-800 transition" onclick="toggleSortHeader('EXPIRY')" title="คลิกเพื่อเรียงตามวันหมดอายุ">
-                  <div class="flex items-center space-x-1">
+                <th class="py-3.5 px-3 min-w-[120px] whitespace-nowrap">จุดสั่งซื้อ (Safety)</th>
+                <th class="py-3.5 px-3 cursor-pointer hover:text-slate-800 transition min-w-[170px] whitespace-nowrap" onclick="toggleSortHeader('EXPIRY')" title="คลิกเพื่อเรียงตามวันหมดอายุ">
+                  <div class="flex items-center space-x-1.5">
                     <span>หมดอายุล็อตแรก</span>
                     <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 opacity-60"></i>
                   </div>
                 </th>
-                <th class="p-3 cursor-pointer hover:text-indigo-600 transition" onclick="toggleSortHeader('UPDATED')" title="คลิกเพื่อเรียงตามเวลาอัปเดต หรือวันที่สร้าง">
-                  <div class="flex items-center space-x-1 text-indigo-600 font-bold">
+                <th class="py-3.5 px-3 cursor-pointer hover:text-indigo-600 transition min-w-[160px] whitespace-nowrap" onclick="toggleSortHeader('UPDATED')" title="คลิกเพื่อเรียงตามเวลาอัปเดต หรือวันที่สร้าง">
+                  <div class="flex items-center space-x-1.5 text-indigo-600 font-bold">
                     <span>เวลาแก้ไข / วันที่สร้าง</span>
                     <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5"></i>
                   </div>
                 </th>
-                <th class="p-3">สถานะสต็อก</th>
-                <th class="p-3 text-center">จัดการ</th>
+                <th class="py-3.5 px-3 min-w-[130px] whitespace-nowrap">สถานะสต็อก</th>
+                <th class="py-3.5 px-3 text-center min-w-[220px] whitespace-nowrap">จัดการ</th>
               </tr>
             </thead>
             <tbody id="inventory-table-body" class="divide-y divide-slate-100">
