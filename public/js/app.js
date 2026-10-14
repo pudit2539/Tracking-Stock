@@ -2,6 +2,17 @@
 let currentDetailProductId = null;
 let hasHandledInitialUrlModal = false;
 
+function getStoredPageSize(key, defaultSize = 10) {
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored === 'all') return 'all';
+    const parsed = parseInt(stored, 10);
+    return (parsed && parsed > 0) ? parsed : defaultSize;
+  } catch (e) {
+    return defaultSize;
+  }
+}
+
 let state = {
   products: [],
   batches: [],
@@ -22,7 +33,26 @@ let state = {
   batchModalSort: 'EXPIRY_ASC',
   currentRole: localStorage.getItem('dq_user_role') || 'staff',
   adminPin: '9191',
-  selectedProductIds: new Set()
+  selectedProductIds: new Set(),
+  // Pagination State for All Pages (Default: 10 rows per page, expandable to 20, 50, 100, All)
+  pagination: {
+    inventory: {
+      page: 1,
+      pageSize: getStoredPageSize('dq_inventory_pagesize', 10)
+    },
+    inbound: {
+      page: 1,
+      pageSize: getStoredPageSize('dq_inbound_pagesize', 10)
+    },
+    outbound: {
+      page: 1,
+      pageSize: getStoredPageSize('dq_outbound_pagesize', 10)
+    },
+    planning: {
+      page: 1,
+      pageSize: getStoredPageSize('dq_planning_pagesize', 10)
+    }
+  }
 };
 
 // =======================================================
@@ -1025,7 +1055,216 @@ function updateShelfChipsActive(activeCat) {
 }
 
 function filterInventory() {
+  if (state.pagination?.inventory) {
+    state.pagination.inventory.page = 1;
+  }
   renderInventoryTable();
+}
+
+// =======================================================
+// PAGINATION & ROWS-PER-PAGE ENGINE (All Pages)
+// =======================================================
+let currentPaginatedInventoryProducts = [];
+
+function paginateArray(array, page, pageSize) {
+  const total = (array || []).length;
+  if (pageSize === 'all' || pageSize <= 0) {
+    return {
+      items: array || [],
+      total,
+      currentPage: 1,
+      totalPages: 1,
+      pageSize: 'all',
+      startIndex: total > 0 ? 1 : 0,
+      endIndex: total
+    };
+  }
+
+  const numPageSize = Number(pageSize) || 10;
+  const totalPages = Math.max(1, Math.ceil(total / numPageSize));
+  const currentPage = Math.min(Math.max(1, Number(page) || 1), totalPages);
+  const startIndex = (currentPage - 1) * numPageSize;
+  const endIndex = Math.min(startIndex + numPageSize, total);
+  const items = (array || []).slice(startIndex, endIndex);
+
+  return {
+    items,
+    total,
+    currentPage,
+    totalPages,
+    pageSize: numPageSize,
+    startIndex: total > 0 ? startIndex + 1 : 0,
+    endIndex
+  };
+}
+
+function changeTablePage(tableKey, page) {
+  playTapFeedback('click');
+  if (!state.pagination || !state.pagination[tableKey]) return;
+  state.pagination[tableKey].page = Number(page) || 1;
+  
+  if (tableKey === 'inventory') renderInventoryTable();
+  else if (tableKey === 'inbound') renderReceivingHistoryTable();
+  else if (tableKey === 'outbound') renderUsageHistoryTable();
+  else if (tableKey === 'planning') renderPlanningTable();
+
+  scrollTableToTop(tableKey);
+}
+
+function changeTablePageSize(tableKey, size) {
+  playTapFeedback('click');
+  if (!state.pagination || !state.pagination[tableKey]) return;
+  const parsed = size === 'all' ? 'all' : (parseInt(size, 10) || 10);
+  state.pagination[tableKey].pageSize = parsed;
+  state.pagination[tableKey].page = 1;
+  try {
+    localStorage.setItem(`dq_${tableKey}_pagesize`, parsed);
+  } catch (e) {}
+
+  if (tableKey === 'inventory') renderInventoryTable();
+  else if (tableKey === 'inbound') renderReceivingHistoryTable();
+  else if (tableKey === 'outbound') renderUsageHistoryTable();
+  else if (tableKey === 'planning') renderPlanningTable();
+}
+
+function scrollTableToTop(tableKey) {
+  try {
+    const elId = {
+      inventory: 'inventory-table-body',
+      inbound: 'receiving-history-table-body',
+      outbound: 'usage-history-table-body',
+      planning: 'planning-table-body'
+    }[tableKey];
+    const el = document.getElementById(elId);
+    if (el) {
+      const wrapper = el.closest('.overflow-x-auto') || el.closest('table');
+      if (wrapper && wrapper.getBoundingClientRect().top < 80) {
+        wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  } catch (e) {}
+}
+
+function renderPaginationBar(containerId, data, tableKey, isMobile = false) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  if (!data || data.total === 0) {
+    container.innerHTML = '';
+    container.classList.add('hidden');
+    return;
+  }
+  container.classList.remove('hidden');
+
+  const { total, currentPage, totalPages, pageSize, startIndex, endIndex } = data;
+
+  const sizes = [10, 20, 50, 100, 'all'];
+  const sizeOptionsHtml = sizes.map(s => {
+    const isSelected = (s === pageSize || (s === 'all' && pageSize === 'all'));
+    const label = s === 'all' ? 'ทั้งหมด (All)' : `${s} แถว`;
+    return `<option value="${s}" ${isSelected ? 'selected' : ''}>${label}</option>`;
+  }).join('');
+
+  if (isMobile) {
+    container.innerHTML = `
+      <div class="w-full flex items-center justify-between gap-2">
+        <div class="flex items-center space-x-1.5 text-slate-500 text-[11px]">
+          <span>ต่อหน้า:</span>
+          <select onchange="changeTablePageSize('${tableKey}', this.value)" class="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 shadow-2xs">
+            ${sizeOptionsHtml}
+          </select>
+        </div>
+        <span class="text-slate-500 font-medium text-[11px]">
+          <strong class="text-slate-800">${startIndex}-${endIndex}</strong> จาก <strong class="text-slate-800">${total}</strong>
+        </span>
+      </div>
+      <div class="w-full flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+        <button type="button" onclick="changeTablePage('${tableKey}', ${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''} class="flex-1 py-1.5 px-3 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none border border-slate-200 rounded-xl font-medium text-slate-700 text-xs flex items-center justify-center space-x-1 shadow-2xs active:scale-95 transition">
+          <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+          <span>ก่อนหน้า</span>
+        </button>
+        <span class="px-2 text-xs font-bold text-slate-700 whitespace-nowrap">
+          หน้า ${currentPage} / ${totalPages}
+        </span>
+        <button type="button" onclick="changeTablePage('${tableKey}', ${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''} class="flex-1 py-1.5 px-3 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none border border-slate-200 rounded-xl font-medium text-slate-700 text-xs flex items-center justify-center space-x-1 shadow-2xs active:scale-95 transition">
+          <span>ถัดไป</span>
+          <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  // Desktop view
+  let pageButtonsHtml = '';
+  const pagesToShow = [];
+
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pagesToShow.push(i);
+  } else {
+    pagesToShow.push(1);
+    if (currentPage > 3) pagesToShow.push('...');
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+    for (let i = start; i <= end; i++) {
+      if (!pagesToShow.includes(i)) pagesToShow.push(i);
+    }
+    if (currentPage < totalPages - 2) pagesToShow.push('...');
+    if (!pagesToShow.includes(totalPages)) pagesToShow.push(totalPages);
+  }
+
+  pageButtonsHtml = pagesToShow.map(p => {
+    if (p === '...') {
+      return `<span class="px-1.5 py-1 text-slate-400 select-none text-xs">...</span>`;
+    }
+    const isActive = p === currentPage;
+    return `
+      <button type="button" onclick="changeTablePage('${tableKey}', ${p})" class="min-w-[32px] h-8 px-2 rounded-lg text-xs font-semibold transition active:scale-95 ${isActive ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs'}">
+        ${p}
+      </button>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <!-- Left: Info & Rows per page selector -->
+    <div class="flex items-center space-x-3 w-full sm:w-auto justify-between sm:justify-start">
+      <span class="text-slate-600 text-xs">
+        แสดง <span class="font-bold text-slate-900">${startIndex} - ${endIndex}</span> จากทั้งหมด <span class="font-bold text-slate-900">${total}</span> รายการ
+      </span>
+      <div class="flex items-center space-x-1.5 pl-3 border-l border-slate-200">
+        <label class="text-slate-500 whitespace-nowrap text-xs">แสดงต่อหน้า:</label>
+        <select onchange="changeTablePageSize('${tableKey}', this.value)" class="bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-700 focus:ring-1 focus:ring-indigo-500 shadow-2xs cursor-pointer">
+          ${sizeOptionsHtml}
+        </select>
+      </div>
+    </div>
+
+    <!-- Right: Page Navigation Buttons -->
+    <div class="flex items-center space-x-1.5 self-center sm:self-auto">
+      <button type="button" onclick="changeTablePage('${tableKey}', 1)" ${currentPage <= 1 ? 'disabled' : ''} class="h-8 px-2 bg-white hover:bg-slate-100 disabled:opacity-35 disabled:pointer-events-none text-slate-700 border border-slate-200 rounded-lg text-xs font-medium transition active:scale-95 shadow-2xs flex items-center justify-center" title="หน้าแรกสุด">
+        <i data-lucide="chevrons-left" class="w-3.5 h-3.5"></i>
+      </button>
+      <button type="button" onclick="changeTablePage('${tableKey}', ${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''} class="h-8 px-2.5 bg-white hover:bg-slate-100 disabled:opacity-35 disabled:pointer-events-none text-slate-700 border border-slate-200 rounded-lg text-xs font-medium transition active:scale-95 shadow-2xs flex items-center space-x-1" title="หน้าก่อนหน้า">
+        <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+        <span class="hidden md:inline">ก่อนหน้า</span>
+      </button>
+      
+      <div class="flex items-center space-x-1">
+        ${pageButtonsHtml}
+      </div>
+
+      <button type="button" onclick="changeTablePage('${tableKey}', ${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''} class="h-8 px-2.5 bg-white hover:bg-slate-100 disabled:opacity-35 disabled:pointer-events-none text-slate-700 border border-slate-200 rounded-lg text-xs font-medium transition active:scale-95 shadow-2xs flex items-center space-x-1" title="หน้าถัดไป">
+        <span class="hidden md:inline">ถัดไป</span>
+        <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+      </button>
+      <button type="button" onclick="changeTablePage('${tableKey}', ${totalPages})" ${currentPage >= totalPages ? 'disabled' : ''} class="h-8 px-2 bg-white hover:bg-slate-100 disabled:opacity-35 disabled:pointer-events-none text-slate-700 border border-slate-200 rounded-lg text-xs font-medium transition active:scale-95 shadow-2xs flex items-center justify-center" title="หน้าสุดท้าย">
+        <i data-lucide="chevrons-right" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+  `;
+
+  if (window.lucide) lucide.createIcons();
 }
 
 function parseSafeDate(isoString) {
@@ -1082,6 +1321,7 @@ function formatFullDateTime(isoString) {
 
 function changeInventorySort(sortType) {
   playTapFeedback('click');
+  if (state.pagination?.inventory) state.pagination.inventory.page = 1;
   state.inventorySort = sortType;
   localStorage.setItem('dq_inventory_sort', sortType);
   const sel = document.getElementById('sort-inventory');
@@ -1114,6 +1354,7 @@ function toggleSortHeader(field) {
 // Inbound History Sorting
 function changeInboundSort(sortType) {
   playTapFeedback('click');
+  if (state.pagination?.inbound) state.pagination.inbound.page = 1;
   state.inboundSort = sortType;
   localStorage.setItem('dq_inbound_sort', sortType);
   const sel = document.getElementById('sort-inbound');
@@ -1141,6 +1382,7 @@ function toggleInboundSortHeader(field) {
 // Outbound History Sorting
 function changeOutboundSort(sortType) {
   playTapFeedback('click');
+  if (state.pagination?.outbound) state.pagination.outbound.page = 1;
   state.outboundSort = sortType;
   localStorage.setItem('dq_outbound_sort', sortType);
   const sel = document.getElementById('sort-outbound');
@@ -1168,6 +1410,7 @@ function toggleOutboundSortHeader(field) {
 // Planning Table Sorting
 function togglePlanningSortHeader(field) {
   playTapFeedback('click');
+  if (state.pagination?.planning) state.pagination.planning.page = 1;
   const current = state.planningSort || 'DAYS_ASC';
   let next = 'DAYS_ASC';
 
@@ -1196,6 +1439,7 @@ function changeBatchModalSort(sortType) {
 
 function setInventoryFilter(filter, updateUrl = true) {
   playTapFeedback('click');
+  if (state.pagination?.inventory) state.pagination.inventory.page = 1;
   const normFilter = (filter === 'LOW_STOCK') ? 'LOW' : filter;
   state.inventoryFilter = normFilter;
   renderInventoryTable();
@@ -1394,13 +1638,18 @@ function renderInventoryTable() {
         </div>
       `;
     }
+    renderPaginationBar('inventory-pagination', { total: 0 }, 'inventory', false);
+    renderPaginationBar('inventory-mobile-pagination', { total: 0 }, 'inventory', true);
     updateBulkActionBar();
     if (window.lucide) lucide.createIcons();
     return;
   }
 
+  const paginated = paginateArray(filtered, state.pagination.inventory.page, state.pagination.inventory.pageSize);
+  currentPaginatedInventoryProducts = paginated.items;
+
   if (tbody) {
-    tbody.innerHTML = filtered.map(p => {
+    tbody.innerHTML = paginated.items.map(p => {
     const isSelected = state.selectedProductIds.has(Number(p.id));
 
     // 1. ERP Status Badge with Dot Indicator
@@ -1570,129 +1819,120 @@ function renderInventoryTable() {
   // 4.2 Render Mobile Cards View (Optimized for Phones & Thumb Interaction)
   const mobileContainer = document.getElementById('inventory-mobile-cards');
   if (mobileContainer) {
-    if (filtered.length === 0) {
-      mobileContainer.innerHTML = `
-        <div class="p-8 text-center text-slate-400 bg-white rounded-3xl border border-slate-200">
-          <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
-          <p>ไม่พบรายการสินค้าที่ค้นหา</p>
-        </div>
-      `;
-    } else {
-      mobileContainer.innerHTML = filtered.map(p => {
-        const isSelected = state.selectedProductIds.has(Number(p.id));
-        let statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>ปกติ</span>`;
-        if (p.is_low_stock) {
-          statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/70"><span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>ต่ำกว่าเกณฑ์</span>`;
-        } else if (p.is_expired) {
-          statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200/70"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>หมดอายุแล้ว</span>`;
-        } else if (p.is_expiring_soon) {
-          statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/70"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>ใกล้หมดอายุ</span>`;
-        }
+    mobileContainer.innerHTML = paginated.items.map(p => {
+      const isSelected = state.selectedProductIds.has(Number(p.id));
+      let statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>ปกติ</span>`;
+      if (p.is_low_stock) {
+        statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/70"><span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>ต่ำกว่าเกณฑ์</span>`;
+      } else if (p.is_expired) {
+        statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200/70"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>หมดอายุแล้ว</span>`;
+      } else if (p.is_expiring_soon) {
+        statusBadge = `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/70"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>ใกล้หมดอายุ</span>`;
+      }
 
-        const expiryText = p.nearest_expiry 
-          ? `<span class="font-bold text-slate-900 font-mono">${p.nearest_expiry}</span> <span class="text-[10px] ${p.days_until_expiry < 0 ? 'text-rose-600 font-bold' : (p.days_until_expiry <= 7 ? 'text-amber-600 font-bold' : 'text-slate-500')}">• อีก ${p.days_until_expiry} วัน</span>`
-          : `<span class="text-slate-400 font-medium">ยังไม่ระบุ</span>`;
+      const expiryText = p.nearest_expiry 
+        ? `<span class="font-bold text-slate-900 font-mono">${p.nearest_expiry}</span> <span class="text-[10px] ${p.days_until_expiry < 0 ? 'text-rose-600 font-bold' : (p.days_until_expiry <= 7 ? 'text-amber-600 font-bold' : 'text-slate-500')}">• อีก ${p.days_until_expiry} วัน</span>`
+        : `<span class="text-slate-400 font-medium">ยังไม่ระบุ</span>`;
 
-        const isNew = isNewProduct(p.created_at, 7);
-        return `
-          <div id="prod-card-${p.id}" class="bg-white p-4 rounded-3xl border ${isSelected ? 'border-indigo-400 ring-2 ring-indigo-500/30 bg-indigo-50/10' : (p.is_low_stock ? 'border-rose-200 shadow-rose-100/40' : 'border-slate-200')} shadow-sm space-y-3">
-            <!-- Header: Title & Status -->
-            <div class="flex items-start justify-between gap-2">
-              <div class="flex items-start space-x-2.5">
-                <input type="checkbox" onchange="toggleSelectProduct(${p.id}, this.checked)" ${isSelected ? 'checked' : ''} class="w-4 h-4 mt-1 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer transition shrink-0">
-                <div>
-                  <button type="button" onclick="openProductDetailModal('${p.id}')" class="text-left font-extrabold text-slate-900 text-sm leading-snug hover:text-indigo-600 flex items-center space-x-1.5 transition">
-                    <span>${p.name}</span>
-                    <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400"></i>
-                    ${isNew ? `<span class="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-indigo-100 text-indigo-700 border border-indigo-200">NEW</span>` : ''}
-                  </button>
-                  <div class="flex flex-wrap items-center gap-1.5 mt-1">
-                    <span class="inline-block text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${p.category}</span>
-                    <span class="text-[10px] font-bold flex items-center space-x-1 px-2 py-0.5 rounded-md ${isNew ? 'bg-indigo-50 text-indigo-800 border border-indigo-200/80' : 'bg-slate-100 text-slate-600'}" title="วันที่เพิ่มสินค้าเข้าสู่ระบบ: ${formatFullDateTime(p.created_at)}">
-                      <i data-lucide="calendar-plus" class="w-3 h-3 ${isNew ? 'text-indigo-600' : 'text-slate-400'}"></i>
-                      <span>เพิ่ม ${formatDateOnly(p.created_at)}</span>
-                      ${isNew ? `<span class="ml-0.5 px-1 py-0.2 rounded bg-indigo-200 text-indigo-900 text-[9px] font-extrabold">ใหม่</span>` : ''}
-                    </span>
-                    <span class="text-[10px] text-slate-400 flex items-center space-x-1" title="แก้ไขล่าสุด: ${formatFullDateTime(p.last_updated_at || p.updated_at || p.created_at)}">
-                      <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
-                      <span>แก้ ${formatRelativeTime(p.last_updated_at || p.updated_at || p.created_at)}</span>
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div class="shrink-0">${statusBadge}</div>
-            </div>
-
-            <!-- Stats 3 Columns -->
-            <div class="grid grid-cols-3 gap-2 p-3 bg-slate-50/80 rounded-2xl border border-slate-100 text-xs">
+      const isNew = isNewProduct(p.created_at, 7);
+      return `
+        <div id="prod-card-${p.id}" class="bg-white p-4 rounded-3xl border ${isSelected ? 'border-indigo-400 ring-2 ring-indigo-500/30 bg-indigo-50/10' : (p.is_low_stock ? 'border-rose-200 shadow-rose-100/40' : 'border-slate-200')} shadow-sm space-y-3">
+          <!-- Header: Title & Status -->
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-start space-x-2.5">
+              <input type="checkbox" onchange="toggleSelectProduct(${p.id}, this.checked)" ${isSelected ? 'checked' : ''} class="w-4 h-4 mt-1 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer transition shrink-0">
               <div>
-                <div class="flex items-center justify-between">
-                  <span class="text-[10px] text-slate-400 font-medium">คงเหลือ</span>
-                  <button type="button" onclick="openQuickUpdateModal('${p.id}', 'quantity')" class="p-0.5 text-slate-400 hover:text-indigo-600 rounded transition" title="แก้คงเหลือ">
-                    <i data-lucide="edit-2" class="w-3 h-3"></i>
-                  </button>
-                </div>
-                <div class="font-black ${p.is_low_stock ? 'text-rose-600 text-base' : 'text-slate-900 text-sm'}">
-                  ${p.current_stock} <span class="text-[10px] font-normal uppercase text-slate-500">${p.unit}</span>
-                </div>
-              </div>
-              <div>
-                <div class="flex items-center justify-between">
-                  <span class="text-[10px] text-slate-400 font-medium">จุดสั่งซื้อ</span>
-                  <button type="button" onclick="openQuickUpdateModal('${p.id}', 'safety')" class="p-0.5 text-slate-400 hover:text-indigo-600 rounded transition" title="แก้จุดสั่งซื้อ">
-                    <i data-lucide="edit-2" class="w-3 h-3"></i>
-                  </button>
-                </div>
-                <div class="font-bold text-slate-700">
-                  ${p.safety_stock} <span class="text-[10px] font-normal uppercase text-slate-500">${p.unit}</span>
-                </div>
-              </div>
-              <div>
-                <div class="flex items-center justify-between">
-                  <span class="text-[10px] text-slate-400 font-medium">วันหมดอายุ</span>
-                  <button type="button" onclick="openQuickUpdateModal('${p.id}', 'expiry')" class="p-0.5 text-slate-400 hover:text-indigo-600 rounded transition" title="แก้วันหมดอายุ">
-                    <i data-lucide="edit-2" class="w-3 h-3"></i>
-                  </button>
-                </div>
-                <div class="text-[11px] truncate mt-0.5">${expiryText}</div>
-              </div>
-            </div>
-
-            <!-- Primary Thumb Action Button -->
-            <button onclick="openQuickUpdateModal('${p.id}')" class="w-full py-3 px-4 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold text-xs rounded-2xl shadow-xs flex items-center justify-center space-x-2 transition">
-              <i data-lucide="zap" class="w-4 h-4"></i>
-              <span>⚡ แตะเพื่อกรอกวันหมดอายุ & สต็อก</span>
-            </button>
-
-            <!-- Secondary Actions on Mobile -->
-            <div class="grid ${state.currentRole === 'admin' ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5 pt-1 border-t border-slate-100 text-xs">
-              <button onclick="openEditProductModal('${p.id}')" class="py-2 px-1 bg-slate-50 active:bg-slate-100 border border-slate-200 rounded-xl text-slate-700 font-semibold flex items-center justify-center space-x-1 transition shadow-2xs">
-                <i data-lucide="edit-3" class="w-3.5 h-3.5 text-slate-500"></i>
-                <span class="text-[11px]">แก้ไข</span>
-              </button>
-              <button onclick="openManageBatchesModal('${p.id}')" class="py-2 px-1 bg-indigo-50 active:bg-indigo-100 border border-indigo-200 rounded-xl text-indigo-700 font-semibold flex items-center justify-center space-x-1 transition shadow-2xs">
-                <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-600"></i>
-                <span class="text-[11px]">ทุกล็อต (${p.batch_count || 0})</span>
-              </button>
-              ${state.currentRole === 'admin' ? `
-                <button onclick="handleDeleteProduct('${p.id}')" class="admin-only py-2 px-1 bg-rose-50 active:bg-rose-100 border border-rose-200 rounded-xl text-rose-600 font-semibold flex items-center justify-center space-x-1 transition shadow-2xs">
-                  <i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-500"></i>
-                  <span class="text-[11px]">ลบสินค้า</span>
+                <button type="button" onclick="openProductDetailModal('${p.id}')" class="text-left font-extrabold text-slate-900 text-sm leading-snug hover:text-indigo-600 flex items-center space-x-1.5 transition">
+                  <span>${p.name}</span>
+                  <i data-lucide="info" class="w-3.5 h-3.5 text-slate-400"></i>
+                  ${isNew ? `<span class="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-indigo-100 text-indigo-700 border border-indigo-200">NEW</span>` : ''}
                 </button>
-              ` : ''}
+                <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                  <span class="inline-block text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-medium">${p.category}</span>
+                  <span class="text-[10px] font-bold flex items-center space-x-1 px-2 py-0.5 rounded-md ${isNew ? 'bg-indigo-50 text-indigo-800 border border-indigo-200/80' : 'bg-slate-100 text-slate-600'}" title="วันที่เพิ่มสินค้าเข้าสู่ระบบ: ${formatFullDateTime(p.created_at)}">
+                    <i data-lucide="calendar-plus" class="w-3 h-3 ${isNew ? 'text-indigo-600' : 'text-slate-400'}"></i>
+                    <span>เพิ่ม ${formatDateOnly(p.created_at)}</span>
+                    ${isNew ? `<span class="ml-0.5 px-1 py-0.2 rounded bg-indigo-200 text-indigo-900 text-[9px] font-extrabold">ใหม่</span>` : ''}
+                  </span>
+                  <span class="text-[10px] text-slate-400 flex items-center space-x-1" title="แก้ไขล่าสุด: ${formatFullDateTime(p.last_updated_at || p.updated_at || p.created_at)}">
+                    <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
+                    <span>แก้ ${formatRelativeTime(p.last_updated_at || p.updated_at || p.created_at)}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="shrink-0">${statusBadge}</div>
+          </div>
+
+          <!-- Stats 3 Columns -->
+          <div class="grid grid-cols-3 gap-2 p-3 bg-slate-50/80 rounded-2xl border border-slate-100 text-xs">
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] text-slate-400 font-medium">คงเหลือ</span>
+                <button type="button" onclick="openQuickUpdateModal('${p.id}', 'quantity')" class="p-0.5 text-slate-400 hover:text-indigo-600 rounded transition" title="แก้คงเหลือ">
+                  <i data-lucide="edit-2" class="w-3 h-3"></i>
+                </button>
+              </div>
+              <div class="font-black ${p.is_low_stock ? 'text-rose-600 text-base' : 'text-slate-900 text-sm'}">
+                ${p.current_stock} <span class="text-[10px] font-normal uppercase text-slate-500">${p.unit}</span>
+              </div>
+            </div>
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] text-slate-400 font-medium">จุดสั่งซื้อ</span>
+                <button type="button" onclick="openQuickUpdateModal('${p.id}', 'safety')" class="p-0.5 text-slate-400 hover:text-indigo-600 rounded transition" title="แก้จุดสั่งซื้อ">
+                  <i data-lucide="edit-2" class="w-3 h-3"></i>
+                </button>
+              </div>
+              <div class="font-bold text-slate-700">
+                ${p.safety_stock} <span class="text-[10px] font-normal uppercase text-slate-500">${p.unit}</span>
+              </div>
+            </div>
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] text-slate-400 font-medium">วันหมดอายุ</span>
+                <button type="button" onclick="openQuickUpdateModal('${p.id}', 'expiry')" class="p-0.5 text-slate-400 hover:text-indigo-600 rounded transition" title="แก้วันหมดอายุ">
+                  <i data-lucide="edit-2" class="w-3 h-3"></i>
+                </button>
+              </div>
+              <div class="text-[11px] truncate mt-0.5">${expiryText}</div>
             </div>
           </div>
-        `;
-      }).join('');
-    }
+
+          <!-- Primary Thumb Action Button -->
+          <button onclick="openQuickUpdateModal('${p.id}')" class="w-full py-3 px-4 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold text-xs rounded-2xl shadow-xs flex items-center justify-center space-x-2 transition">
+            <i data-lucide="zap" class="w-4 h-4"></i>
+            <span>⚡ แตะเพื่อกรอกวันหมดอายุ & สต็อก</span>
+          </button>
+
+          <!-- Secondary Actions on Mobile -->
+          <div class="grid ${state.currentRole === 'admin' ? 'grid-cols-3' : 'grid-cols-2'} gap-1.5 pt-1 border-t border-slate-100 text-xs">
+            <button onclick="openEditProductModal('${p.id}')" class="py-2 px-1 bg-slate-50 active:bg-slate-100 border border-slate-200 rounded-xl text-slate-700 font-semibold flex items-center justify-center space-x-1 transition shadow-2xs">
+              <i data-lucide="edit-3" class="w-3.5 h-3.5 text-slate-500"></i>
+              <span class="text-[11px]">แก้ไข</span>
+            </button>
+            <button onclick="openManageBatchesModal('${p.id}')" class="py-2 px-1 bg-indigo-50 active:bg-indigo-100 border border-indigo-200 rounded-xl text-indigo-700 font-semibold flex items-center justify-center space-x-1 transition shadow-2xs">
+              <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-600"></i>
+              <span class="text-[11px]">ทุกล็อต (${p.batch_count || 0})</span>
+            </button>
+            ${state.currentRole === 'admin' ? `
+              <button onclick="handleDeleteProduct('${p.id}')" class="admin-only py-2 px-1 bg-rose-50 active:bg-rose-100 border border-rose-200 rounded-xl text-rose-600 font-semibold flex items-center justify-center space-x-1 transition shadow-2xs">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-500"></i>
+                <span class="text-[11px]">ลบสินค้า</span>
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
   }
+
+  // Render Pagination Bars for Desktop & Mobile
+  renderPaginationBar('inventory-pagination', paginated, 'inventory', false);
+  renderPaginationBar('inventory-mobile-pagination', paginated, 'inventory', true);
 
   updateBulkActionBar();
   if (window.lucide) lucide.createIcons();
-}
-
-function filterInventory() {
-  renderInventoryTable();
 }
 
 // =======================================================
@@ -1701,12 +1941,15 @@ function filterInventory() {
 let currentFilteredInventoryProducts = [];
 
 function toggleSelectAllProducts(checked) {
-  if (!currentFilteredInventoryProducts || currentFilteredInventoryProducts.length === 0) return;
+  const targetItems = (currentPaginatedInventoryProducts && currentPaginatedInventoryProducts.length > 0)
+    ? currentPaginatedInventoryProducts
+    : currentFilteredInventoryProducts;
+  if (!targetItems || targetItems.length === 0) return;
   
   if (checked) {
-    currentFilteredInventoryProducts.forEach(p => state.selectedProductIds.add(Number(p.id)));
+    targetItems.forEach(p => state.selectedProductIds.add(Number(p.id)));
   } else {
-    currentFilteredInventoryProducts.forEach(p => state.selectedProductIds.delete(Number(p.id)));
+    targetItems.forEach(p => state.selectedProductIds.delete(Number(p.id)));
   }
   
   renderInventoryTable();
@@ -1770,17 +2013,25 @@ function updateBulkActionBar() {
     }
   }
 
-  if (selectAllCb && currentFilteredInventoryProducts && currentFilteredInventoryProducts.length > 0) {
-    const selectedCountInView = currentFilteredInventoryProducts.filter(p => state.selectedProductIds.has(Number(p.id))).length;
-    if (selectedCountInView === 0) {
-      selectAllCb.checked = false;
-      selectAllCb.indeterminate = false;
-    } else if (selectedCountInView === currentFilteredInventoryProducts.length) {
-      selectAllCb.checked = true;
-      selectAllCb.indeterminate = false;
+  if (selectAllCb) {
+    const targetSet = (currentPaginatedInventoryProducts && currentPaginatedInventoryProducts.length > 0)
+      ? currentPaginatedInventoryProducts
+      : (currentFilteredInventoryProducts || []);
+    if (targetSet.length > 0) {
+      const selectedCountInView = targetSet.filter(p => state.selectedProductIds.has(Number(p.id))).length;
+      if (selectedCountInView === 0) {
+        selectAllCb.checked = false;
+        selectAllCb.indeterminate = false;
+      } else if (selectedCountInView === targetSet.length) {
+        selectAllCb.checked = true;
+        selectAllCb.indeterminate = false;
+      } else {
+        selectAllCb.checked = false;
+        selectAllCb.indeterminate = true;
+      }
     } else {
       selectAllCb.checked = false;
-      selectAllCb.indeterminate = true;
+      selectAllCb.indeterminate = false;
     }
   }
 }
@@ -2080,6 +2331,7 @@ function renderPlanningTable() {
         <td colspan="8" class="p-8 text-center text-slate-400">ยังไม่มีประวัติการใช้งานบันทึกในระบบ</td>
       </tr>
     `;
+    renderPaginationBar('planning-pagination', { total: 0 }, 'planning', false);
     return;
   }
 
@@ -2102,7 +2354,9 @@ function renderPlanningTable() {
     return 0;
   });
 
-  tbody.innerHTML = list.map(item => {
+  const paginated = paginateArray(list, state.pagination.planning.page, state.pagination.planning.pageSize);
+
+  tbody.innerHTML = paginated.items.map(item => {
     const product = state.products.find(p => p.id === item.product_id);
     const currentStock = product ? product.current_stock : 0;
     const avgDaily = item.avg_daily_use || 0;
@@ -2159,6 +2413,8 @@ function renderPlanningTable() {
       </tr>
     `;
   }).join('');
+
+  renderPaginationBar('planning-pagination', paginated, 'planning', false);
 
   if (window.lucide) lucide.createIcons();
 }
@@ -2280,13 +2536,17 @@ function renderReceivingHistoryTable() {
         </div>
       `;
     }
+    renderPaginationBar('inbound-pagination', { total: 0 }, 'inbound', false);
+    renderPaginationBar('inbound-mobile-pagination', { total: 0 }, 'inbound', true);
     if (window.lucide) lucide.createIcons();
     return;
   }
 
+  const paginated = paginateArray(list, state.pagination.inbound.page, state.pagination.inbound.pageSize);
+
   // Desktop Table Rows
   if (tbody) {
-    tbody.innerHTML = list.map(b => {
+    tbody.innerHTML = paginated.items.map(b => {
       const isLine = (b.notes || '').includes('LINE');
       let lineUserDisplay = '';
       if (isLine && b.notes) {
@@ -2360,7 +2620,7 @@ function renderReceivingHistoryTable() {
 
   // Mobile Cards View
   if (mobileContainer) {
-    mobileContainer.innerHTML = list.map(b => {
+    mobileContainer.innerHTML = paginated.items.map(b => {
       const isLine = (b.notes || '').includes('LINE');
       let lineUserDisplay = '';
       if (isLine && b.notes) {
@@ -2423,6 +2683,10 @@ function renderReceivingHistoryTable() {
       `;
     }).join('');
   }
+
+  // Render Inbound Pagination Bars
+  renderPaginationBar('inbound-pagination', paginated, 'inbound', false);
+  renderPaginationBar('inbound-mobile-pagination', paginated, 'inbound', true);
 
   if (window.lucide) lucide.createIcons();
 }
@@ -2493,6 +2757,7 @@ function renderUsageHistoryTable() {
         <td colspan="7" class="p-6 text-center text-slate-400">ยังไม่มีประวัติการเบิกใช้</td>
       </tr>
     `;
+    renderPaginationBar('outbound-pagination', { total: 0 }, 'outbound', false);
     return;
   }
 
@@ -2533,7 +2798,9 @@ function renderUsageHistoryTable() {
     'ADJUST': '<span class="px-2 py-0.5 rounded text-[10px] bg-amber-50 text-amber-700 font-medium">ปรับยอด</span>'
   };
 
-  tbody.innerHTML = logs.map(log => `
+  const paginated = paginateArray(logs, state.pagination.outbound.page, state.pagination.outbound.pageSize);
+
+  tbody.innerHTML = paginated.items.map(log => `
     <tr class="hover:bg-slate-50 border-b border-slate-100">
       <td class="p-3 text-slate-700 text-xs whitespace-nowrap">
         <div class="font-bold text-slate-900">${log.used_date}</div>
@@ -2557,6 +2824,8 @@ function renderUsageHistoryTable() {
       <td class="p-3 text-slate-500">${log.used_by || '-'}</td>
     </tr>
   `).join('');
+
+  renderPaginationBar('outbound-pagination', paginated, 'outbound', false);
 
   if (window.lucide) lucide.createIcons();
 }

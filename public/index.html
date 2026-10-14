@@ -401,12 +401,18 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Inventory Desktop Pagination Footer -->
+        <div id="inventory-pagination" class="px-4 py-3 bg-slate-50/80 border-t border-slate-200/90 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600"></div>
       </div>
 
       <!-- Mobile Inventory Cards (Optimized for Thumb-first Tap & Swipe) -->
       <div id="inventory-mobile-cards" class="md:hidden space-y-3">
         <!-- Rendered via JS for easy thumb tapping -->
       </div>
+      <!-- Inventory Mobile Pagination -->
+      <div id="inventory-mobile-pagination" class="md:hidden mt-3 p-3 bg-white rounded-2xl border border-slate-200 shadow-2xs flex flex-col items-center gap-2.5 text-xs text-slate-600"></div>
+
 
       <!-- Floating Bulk Actions Bar (Sticky bottom) -->
       <div id="bulk-action-bar" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 hidden max-w-2xl w-[94%] sm:w-auto bg-slate-900/95 backdrop-blur-md text-white px-4 sm:px-5 py-3 rounded-2xl shadow-2xl border border-slate-700/80 flex flex-col sm:flex-row items-center justify-between gap-3 transition-all duration-300">
@@ -558,10 +564,15 @@
           </table>
         </div>
 
+        <!-- Inbound Desktop Pagination -->
+        <div id="inbound-pagination" class="hidden md:flex px-4 py-3 bg-slate-50/80 border-t border-slate-200/90 items-center justify-between gap-3 text-xs text-slate-600"></div>
+
         <!-- Mobile Inbound Cards -->
         <div id="receiving-history-mobile-cards" class="md:hidden p-3 space-y-3">
           <!-- Rendered via JS -->
         </div>
+        <!-- Inbound Mobile Pagination -->
+        <div id="inbound-mobile-pagination" class="md:hidden p-3 pt-0"></div>
       </div>
 
       <!-- VIEW 2: OUTBOUND USAGE HISTORY VIEW -->
@@ -630,6 +641,9 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Outbound Desktop Pagination -->
+        <div id="outbound-pagination" class="px-4 py-3 bg-slate-50/80 border-t border-slate-200/90 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600"></div>
       </div>
 
       <!-- VIEW 3: CONSUMPTION & PLANNING VIEW -->
@@ -688,6 +702,9 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Planning Desktop Pagination -->
+        <div id="planning-pagination" class="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600"></div>
       </div>
 
     </div>
