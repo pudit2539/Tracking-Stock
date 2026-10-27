@@ -1,9 +1,47 @@
-@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap');
+/* Dairy Queen & Minor Food Brand Design Tokens */
+:root {
+  --dq-red: #d91438;
+  --dq-red-hover: #b80f2d;
+  --dq-red-light: #fff1f2;
+  --dq-red-border: #fecdd3;
+  --dq-red-shadow: rgba(217, 20, 56, 0.2);
+
+  --dq-blue: #005b94;
+  --dq-blue-hover: #004570;
+  --dq-blue-light: #f0f7ff;
+  --dq-blue-border: #bae6fd;
+  --dq-blue-shadow: rgba(0, 91, 148, 0.2);
+
+  --dq-gold: #f59e0b;
+  --dq-gold-light: #fef3c7;
+  --dq-emerald: #10b981;
+  --dq-emerald-light: #ecfdf5;
+
+  --dq-slate-900: #0f172a;
+  --dq-slate-800: #1e293b;
+  --dq-slate-700: #334155;
+  --dq-slate-600: #475569;
+  --dq-slate-200: #e2e8f0;
+  --dq-slate-100: #f1f5f9;
+  --dq-slate-50: #f8fafc;
+
+  --line-green: #06c755;
+  --line-green-hover: #05a847;
+  --line-green-light: #edfbf2;
+
+  --pos-touch-min: 48px;
+}
 
 body {
   font-family: 'Prompt', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: #f8fafc;
-  color: #1e293b;
+  background-color: var(--dq-slate-50);
+  color: var(--dq-slate-800);
+}
+
+/* Numeric & Data Scannability */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 /* Custom scrollbar - improved visibility and easier drag */
@@ -30,11 +68,10 @@ body {
   scrollbar-color: #cbd5e1 #f1f5f9;
 }
 
-
 /* Dialog styling */
 dialog {
   opacity: 0;
-  transform: scale(0.95);
+  transform: scale(0.96);
   transition: opacity 0.2s ease-out, transform 0.2s ease-out, overlay 0.2s ease-out allow-discrete, display 0.2s ease-out allow-discrete;
 }
 dialog[open] {
@@ -44,12 +81,12 @@ dialog[open] {
 @starting-style {
   dialog[open] {
     opacity: 0;
-    transform: scale(0.95);
+    transform: scale(0.96);
   }
 }
 dialog::backdrop {
-  background-color: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(4px);
+  background-color: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(5px);
   opacity: 0;
   transition: opacity 0.2s ease-out, overlay 0.2s ease-out allow-discrete, display 0.2s ease-out allow-discrete;
 }
@@ -62,7 +99,68 @@ dialog[open]::backdrop {
   }
 }
 
-/* Badge styles */
+/* Fast-Paced POS Action Tile */
+.pos-action-tile {
+  min-height: var(--pos-touch-min);
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.pos-action-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+}
+.pos-action-tile:active {
+  transform: scale(0.98);
+}
+
+/* LINE Rich Menu Simulator Grid & Tile */
+.rich-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+@media (max-width: 640px) {
+  .rich-menu-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.rich-menu-item {
+  position: relative;
+  border-radius: 14px;
+  padding: 12px 8px;
+  background: white;
+  border: 1.5px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+  min-height: 80px;
+}
+.rich-menu-item:hover {
+  border-color: var(--dq-blue);
+  background-color: var(--dq-blue-light);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px -2px var(--dq-blue-shadow);
+}
+.rich-menu-item:active {
+  transform: scale(0.96);
+}
+
+.rich-menu-item.active-dq-red {
+  border-color: var(--dq-red-border);
+}
+.rich-menu-item.active-dq-red:hover {
+  border-color: var(--dq-red);
+  background-color: var(--dq-red-light);
+  box-shadow: 0 6px 12px -2px var(--dq-red-shadow);
+}
+
+/* Dairy Queen Badge styles */
 .badge-danger {
   background-color: #fee2e2;
   color: #b91c1c;
@@ -82,6 +180,18 @@ dialog[open]::backdrop {
   background-color: #f1f5f9;
   color: #475569;
   border: 1px solid #e2e8f0;
+}
+
+/* Dairy Queen Brand Accent Badges */
+.badge-dq-red {
+  background-color: var(--dq-red-light);
+  color: var(--dq-red);
+  border: 1px solid var(--dq-red-border);
+}
+.badge-dq-blue {
+  background-color: var(--dq-blue-light);
+  color: var(--dq-blue);
+  border: 1px solid var(--dq-blue-border);
 }
 
 /* Line Mockup Card */
@@ -104,4 +214,39 @@ dialog[open]::backdrop {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
+
+/* Mobile Fixed Bottom Navigation Bar */
+.mobile-pos-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid #e2e8f0;
+  z-index: 40;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.05);
+}
+.mobile-pos-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  min-height: 54px;
+  -webkit-tap-highlight-color: transparent;
+}
+.mobile-pos-nav-item.active {
+  color: var(--dq-red);
+  font-weight: 700;
+}
+.mobile-pos-nav-item:active {
+  transform: scale(0.92);
+}
+
 

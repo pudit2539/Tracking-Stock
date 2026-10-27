@@ -488,8 +488,13 @@ function switchTab(tabName, updateUrl = true) {
   if (activeContent) activeContent.classList.remove('hidden');
   if (activeBtn) {
     activeBtn.classList.remove('border-transparent', 'text-slate-500');
-    activeBtn.classList.add('border-rose-600', 'text-rose-600');
+    activeBtn.classList.add('border-[#d91438]', 'text-[#d91438]');
   }
+
+  // Sync mobile bottom navigation bar active state
+  document.querySelectorAll('.mobile-pos-nav-item').forEach(item => item.classList.remove('active'));
+  const activeMobileBtn = document.getElementById(`mobile-nav-${tabName}`);
+  if (activeMobileBtn) activeMobileBtn.classList.add('active');
 
   if (tabName === 'usage') {
     switchUsageSubTab(state.historySubTab || 'inbound', updateUrl);
@@ -511,6 +516,179 @@ function switchTab(tabName, updateUrl = true) {
   }
 
   if (window.lucide) lucide.createIcons();
+}
+
+// =======================================================
+// DAIRY QUEEN / MINOR FOOD LINE RICH MENU & POS ENGINE
+// =======================================================
+
+// 1. Copy command syntax to clipboard with tactile feedback
+function copyLineCommand(cmdText) {
+  playTapFeedback('click');
+  if (!cmdText) return;
+  
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(cmdText).then(() => {
+      showToast(`คัดลอกคำสั่ง "${cmdText}" แล้ว! ส่งลงในกลุ่ม LINE ได้ทันที 💬`, 'success');
+    }).catch(() => {
+      fallbackCopyText(cmdText);
+    });
+  } else {
+    fallbackCopyText(cmdText);
+  }
+}
+
+function fallbackCopyText(text) {
+  try {
+    const tempInput = document.createElement('textarea');
+    tempInput.value = text;
+    tempInput.style.position = 'fixed';
+    tempInput.style.opacity = '0';
+    document.body.appendChild(tempInput);
+    tempInput.focus();
+    tempInput.select();
+    document.execCommand('copy');
+    document.body.removeChild(tempInput);
+    showToast(`คัดลอกคำสั่ง "${text}" แล้ว! ส่งลงในกลุ่ม LINE ได้ทันที 💬`, 'success');
+  } catch (err) {
+    showToast(`กรุณากดคัดลอกข้อความ: ${text}`, 'info');
+  }
+}
+
+// 2. Generate and copy ready-to-send Low Stock Reorder List for LINE Store Group
+function copyOrderListForLineGroup() {
+  playTapFeedback('click');
+  const lowItems = state.alerts.low_stock_items || [];
+  if (lowItems.length === 0) {
+    showToast('ยอดเยี่ยม! สต็อกทุกรายการเพียงพอ ไม่มีสินค้าต้องสั่งซื้อด่วนในขณะนี้ ✨', 'success');
+    return;
+  }
+
+  const todayStr = new Date().toLocaleDateString('th-TH', { 
+    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+  });
+
+  let message = `🚨 [Dairy Queen SAT] รายการสินค้าที่ต้องสั่งซื้อด่วน\n`;
+  message += `🕒 ข้อมูล ณ วันที่: ${todayStr}\n`;
+  message += `━━━━━━━━━━━━━━━━━━━━━\n`;
+
+  lowItems.forEach((item, idx) => {
+    const diff = (item.safety_stock || 0) - (item.total_quantity || 0);
+    const needOrder = diff > 0 ? diff : (item.safety_stock || 1);
+    message += `${idx + 1}. ${item.name}\n`;
+    message += `   📦 คงเหลือ: ${item.total_quantity || 0} ${item.unit || 'ชิ้น'} (เกณฑ์: ${item.safety_stock || 0})\n`;
+    message += `   🛒 แนะนำสั่ง: +${needOrder} ${item.unit || 'ชิ้น'}\n`;
+  });
+
+  message += `━━━━━━━━━━━━━━━━━━━━━\n`;
+  message += `💬 พิมพ์ "สั่งของ" หรือเปิดดูบนเว็บ: https://tracking-stock.vercel.app`;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(message).then(() => {
+      showToast(`คัดลอกรายการสั่งของด่วน (${lowItems.length} รายการ) พร้อมส่งลงกลุ่ม LINE แล้ว! 📋`, 'success');
+    }).catch(() => fallbackCopyText(message));
+  } else {
+    fallbackCopyText(message);
+  }
+}
+
+// 3. Generate and copy Expiring Soon list for LINE Store Group
+function copyExpiringListForLineGroup() {
+  playTapFeedback('click');
+  const expBatches = state.alerts.expiring_soon_batches || [];
+  const expiredBatches = state.alerts.expired_batches || [];
+  const totalAlertBatches = [...expiredBatches, ...expBatches];
+
+  if (totalAlertBatches.length === 0) {
+    showToast('ปลอดภัย! ไม่มีสินค้าหมดอายุหรือใกล้หมดอายุใน 7 วันนี้ 🟢', 'success');
+    return;
+  }
+
+  const todayStr = new Date().toLocaleDateString('th-TH', { 
+    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+  });
+
+  let message = `⏳ [Dairy Queen SAT] แจ้งเตือนสินค้าใกล้หมดอายุ/หมดอายุ\n`;
+  message += `🕒 ข้อมูล ณ วันที่: ${todayStr}\n`;
+  message += `━━━━━━━━━━━━━━━━━━━━━\n`;
+
+  totalAlertBatches.forEach((batch, idx) => {
+    const isExpired = batch.days_remaining <= 0;
+    const statusText = isExpired ? '⛔ หมดอายุแล้ว (ตัดทิ้งทันที)' : `⚠️ หมดอายุใน ${batch.days_remaining} วัน`;
+    message += `${idx + 1}. ${batch.product_name} (${batch.batch_number || 'LOT'})\n`;
+    message += `   ${statusText} (วันที่: ${batch.expiry_date})\n`;
+    message += `   📦 จำนวน: ${batch.quantity_remaining} ${batch.unit || 'ชิ้น'}\n`;
+  });
+
+  message += `━━━━━━━━━━━━━━━━━━━━━\n`;
+  message += `💬 พิมพ์ "ใกล้หมดอายุ" หรือเปิดดูบนเว็บ: https://tracking-stock.vercel.app`;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(message).then(() => {
+      showToast(`คัดลอกรายการหมดอายุ/ใกล้หมด (${totalAlertBatches.length} รายการ) พร้อมส่งลงกลุ่ม LINE แล้ว! 📋`, 'success');
+    }).catch(() => fallbackCopyText(message));
+  } else {
+    fallbackCopyText(message);
+  }
+}
+
+// 4. Smoothly scroll to the LINE Rich Menu Center
+function scrollToRichMenu() {
+  playTapFeedback('click');
+  if (state.activeTab !== 'dashboard') {
+    switchTab('dashboard', true);
+  }
+  setTimeout(() => {
+    const el = document.getElementById('line-rich-menu-center');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.classList.add('ring-4', 'ring-[#06C755]/40', 'transition-all', 'duration-500');
+      setTimeout(() => el.classList.remove('ring-4', 'ring-[#06C755]/40'), 2500);
+    }
+  }, 100);
+}
+
+// 5. Handle Mobile Admin Toggle in Bottom Navigation Bar
+function handleMobileAdminToggle() {
+  playTapFeedback('click');
+  if (state.currentRole === 'admin') {
+    switchTab('settings');
+  } else {
+    openPinModal();
+  }
+}
+
+// 6. Execute actions mapped 1:1 with LINE Rich Menu
+function executeRichMenuAction(actionKey) {
+  playTapFeedback('click');
+  switch (actionKey) {
+    case 'check':
+      switchTab('inventory', true);
+      setTimeout(() => {
+        const searchInput = document.getElementById('search-inventory');
+        if (searchInput) searchInput.focus();
+      }, 150);
+      showToast('ค้นหาสินค้าเพื่อเช็คสต็อกได้ทันที หรือพิมพ์ในไลน์: มี [สินค้า] มั้ย', 'info');
+      break;
+    case 'inbound':
+      openAddBatchModal();
+      break;
+    case 'outbound':
+      openRecordUsageModal();
+      break;
+    case 'waste':
+      openRecordUsageModal();
+      break;
+    case 'expiring':
+      navigateToInventoryWithFilter('EXPIRING');
+      showToast('แสดงรายการสินค้าใกล้หมดอายุในคลัง (0-7 วัน)', 'info');
+      break;
+    case 'order':
+      openOrderModal();
+      break;
+    default:
+      break;
+  }
 }
 
 // Navigate to Inventory Tab with a specific filter (from Dashboard Cards or Alert buttons)
@@ -664,6 +842,8 @@ function renderStats() {
   if (totalEl) totalEl.textContent = totalProds;
   const lowEl = document.getElementById('stat-low-stock');
   if (lowEl) lowEl.textContent = lowStockCount;
+  const posDeckOrderEl = document.getElementById('pos-deck-order-count');
+  if (posDeckOrderEl) posDeckOrderEl.textContent = lowStockCount;
   const expEl = document.getElementById('stat-expiring-soon');
   if (expEl) expEl.textContent = expiringCount;
   const expdEl = document.getElementById('stat-expired');

@@ -10,19 +10,27 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="stylesheet" href="/css/style.css?v=20260908_pin_hidden">
 </head>
-<body class="min-h-screen bg-slate-50 flex flex-col">
+<body class="min-h-screen bg-slate-50 flex flex-col pb-20 md:pb-0">
 
-  <!-- Top Navigation Bar -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+  <!-- Top Navigation Bar (Dairy Queen & Minor Food Signature) -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex justify-between h-16 items-center">
+        <!-- Brand & Branch Info -->
         <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-rose-600 to-amber-500 flex items-center justify-center text-white shadow-md shadow-rose-200">
-            <i data-lucide="boxes" class="w-6 h-6"></i>
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#d91438] via-[#e4002b] to-[#005b94] flex items-center justify-center text-white shadow-md shadow-rose-200 ring-2 ring-rose-100 shrink-0">
+            <span class="font-black text-base tracking-tighter">DQ</span>
           </div>
           <div>
-            <h1 class="text-lg font-bold text-slate-900 leading-tight">Stock & Expiry Tracker</h1>
-            <p class="text-xs text-slate-500">ระบบติดตามสต็อกและวันหมดอายุ แจ้งเตือนผ่าน LINE</p>
+            <div class="flex items-center space-x-2">
+              <h1 class="text-base sm:text-lg font-extrabold text-slate-900 leading-tight tracking-tight">Dairy Queen <span class="text-[#d91438]">SAT</span></h1>
+              <span class="hidden sm:inline-flex px-1.5 py-0.5 text-[10px] font-bold rounded bg-rose-50 text-[#d91438] border border-rose-200">MINOR FOOD</span>
+            </div>
+            <p class="text-xs text-slate-500 flex items-center space-x-1">
+              <span>Fast-Paced Stock & Expiry</span>
+              <span class="text-slate-300">&bull;</span>
+              <span class="text-[#06c755] font-medium flex items-center"><i data-lucide="message-circle" class="w-3 h-3 inline mr-0.5"></i>LINE Group Bot</span>
+            </p>
           </div>
         </div>
 
@@ -53,36 +61,44 @@
             </div>
           </div>
 
+          <!-- LINE Rich Menu & Group Jump Button -->
+          <button onclick="scrollToRichMenu()" class="inline-flex items-center space-x-1 px-2.5 sm:px-3 py-1.5 bg-[#edfbf2] hover:bg-[#dcfce7] text-[#059669] border border-[#bbf7d0] text-xs font-bold rounded-lg shadow-2xs transition active:scale-95" title="เปิดดูเมนูคำสั่งและ Rich Menu สั่งการในไลน์กลุ่ม">
+            <i data-lucide="message-square" class="w-3.5 h-3.5 text-[#06c755]"></i>
+            <span class="hidden sm:inline">เมนู LINE กลุ่ม</span>
+          </button>
+
           <button onclick="openQuickGuideModal()" class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-semibold rounded-lg shadow-2xs transition active:scale-95">
             <i data-lucide="book-open" class="w-4 h-4 text-indigo-600"></i>
             <span class="hidden md:inline">📖 คู่มือเริ่มต้น</span>
           </button>
-          <button onclick="triggerSendLiveReport()" class="hidden lg:inline-flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition">
+          
+          <button onclick="triggerSendLiveReport()" class="hidden lg:inline-flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition active:scale-95">
             <i data-lucide="send" class="w-4 h-4"></i>
             <span>ส่งรายงานเข้า LINE</span>
           </button>
+          
           <div id="connection-status" class="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 bg-slate-100 rounded-full text-xs text-slate-600">
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>ข้อมูลล่าสุด</span>
+            <span>ออนไลน์</span>
           </div>
         </div>
       </div>
 
-      <!-- Navigation Tabs -->
-      <nav class="flex space-x-1 sm:space-x-8 border-t border-slate-100 -mb-px overflow-x-auto text-sm">
-        <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn py-3 px-3 border-b-2 font-medium border-rose-600 text-rose-600 whitespace-nowrap flex items-center space-x-2">
+      <!-- Navigation Tabs (POS Style High Contrast) -->
+      <nav class="flex space-x-1 sm:space-x-4 border-t border-slate-100 -mb-px overflow-x-auto text-sm pt-1">
+        <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn py-2.5 px-3.5 border-b-2 font-bold border-[#d91438] text-[#d91438] whitespace-nowrap flex items-center space-x-2 transition">
           <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
-          <span>ภาพรวม (Dashboard)</span>
+          <span>ภาพรวม & POS หน้าร้าน</span>
         </button>
-        <button onclick="switchTab('inventory')" id="tab-inventory" class="tab-btn py-3 px-3 border-b-2 font-medium border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap flex items-center space-x-2">
+        <button onclick="switchTab('inventory')" id="tab-inventory" class="tab-btn py-2.5 px-3.5 border-b-2 font-medium border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 whitespace-nowrap flex items-center space-x-2 transition">
           <i data-lucide="package" class="w-4 h-4"></i>
           <span>รายการสินค้าและล็อต (Inventory)</span>
         </button>
-        <button onclick="switchTab('usage')" id="tab-usage" class="tab-btn py-3 px-3 border-b-2 font-medium border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap flex items-center space-x-2">
+        <button onclick="switchTab('usage')" id="tab-usage" class="tab-btn py-2.5 px-3.5 border-b-2 font-medium border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 whitespace-nowrap flex items-center space-x-2 transition">
           <i data-lucide="clipboard-list" class="w-4 h-4"></i>
           <span>ประวัติ & วางแผนสต็อก (History & Planning)</span>
         </button>
-        <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn py-3 px-3 border-b-2 font-medium border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap flex items-center space-x-2">
+        <button onclick="switchTab('settings')" id="tab-settings" class="tab-btn py-2.5 px-3.5 border-b-2 font-medium border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 whitespace-nowrap flex items-center space-x-2 transition">
           <i data-lucide="settings" class="w-4 h-4"></i>
           <span>ตั้งค่า LINE & แจ้งเตือน (LINE Settings)</span>
         </button>
@@ -96,18 +112,113 @@
     <!-- ============================================================== -->
     <!-- TAB 1: DASHBOARD -->
     <!-- ============================================================== -->
+    <!-- ============================================================== -->
+    <!-- TAB 1: DASHBOARD & FAST-PACED RETAIL POS -->
+    <!-- ============================================================== -->
     <div id="content-dashboard" class="tab-content space-y-6">
-      <!-- Top Metric Cards -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+
+      <!-- 1. Retail Operations POS Quick Action Deck (Fast-Paced Touch-First) -->
+      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-4 sm:p-5 rounded-2xl sm:rounded-3xl shadow-lg border border-slate-700/80 text-white space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div class="flex items-center space-x-3">
+            <span class="w-9 h-9 rounded-xl bg-[#d91438]/25 text-[#f43f5e] flex items-center justify-center font-black text-sm border border-[#d91438]/50 shadow-xs">⚡</span>
+            <div>
+              <h2 class="font-extrabold text-sm sm:text-base tracking-tight flex items-center space-x-2">
+                <span>แผงปฏิบัติการหน้าร้าน (Dairy Queen Quick POS Deck)</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">สัมผัสด่วน</span>
+              </h2>
+              <p class="text-xs text-slate-300">แตะทำรายการทันใจ หรือใช้คำสั่งภาษาพูดในแชทกลุ่ม LINE ได้เหมือนกัน 100%</p>
+            </div>
+          </div>
+
+          <!-- Quick Jump to LINE Rich Menu -->
+          <div class="flex items-center space-x-2 self-start sm:self-auto">
+            <button type="button" onclick="scrollToRichMenu()" class="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-[#06C755]/20 hover:bg-[#06C755]/30 text-[#06C755] border border-[#06C755]/40 text-xs font-bold rounded-xl transition active:scale-95 shadow-2xs">
+              <i data-lucide="message-square" class="w-4 h-4"></i>
+              <span>📱 ดู Rich Menu & คำสั่งไลน์</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4 Large POS Action Tiles (Touch Target >= 52px) -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3.5 pt-1">
+          <!-- Tile 1: Inbound Batch -->
+          <div onclick="openAddBatchModal()" class="pos-action-tile bg-white/10 hover:bg-white/15 border border-white/15 hover:border-emerald-400/60 p-3 sm:p-4 rounded-2xl cursor-pointer flex flex-col justify-between group transition active:scale-95 shadow-xs" title="บันทึกรับวัตถุดิบล็อตใหม่เข้าคลัง">
+            <div class="flex items-center justify-between">
+              <div class="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition shadow-inner">
+                <i data-lucide="package-plus" class="w-5 h-5"></i>
+              </div>
+              <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-800/80">LINE: รับ</span>
+            </div>
+            <div class="mt-3">
+              <h3 class="text-xs sm:text-sm font-bold text-white group-hover:text-emerald-300 transition flex items-center space-x-1">
+                <span>📥 รับของเข้าสต็อก</span>
+              </h3>
+              <p class="text-[11px] text-slate-300 truncate">รับล็อตใหม่ + วันหมดอายุ</p>
+            </div>
+          </div>
+
+          <!-- Tile 2: Outbound FIFO Usage -->
+          <div onclick="openRecordUsageModal()" class="pos-action-tile bg-white/10 hover:bg-white/15 border border-white/15 hover:border-sky-400/60 p-3 sm:p-4 rounded-2xl cursor-pointer flex flex-col justify-between group transition active:scale-95 shadow-xs" title="ตัดเบิกใช้วัตถุดิบตามลำดับหมดอายุก่อน (FIFO)">
+            <div class="flex items-center justify-between">
+              <div class="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center group-hover:scale-110 transition shadow-inner">
+                <i data-lucide="package-minus" class="w-5 h-5"></i>
+              </div>
+              <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-sky-950/80 text-sky-300 border border-sky-800/80">LINE: ตัด</span>
+            </div>
+            <div class="mt-3">
+              <h3 class="text-xs sm:text-sm font-bold text-white group-hover:text-sky-300 transition flex items-center space-x-1">
+                <span>📤 ตัดเบิกใช้ (FIFO)</span>
+              </h3>
+              <p class="text-[11px] text-slate-300 truncate">ตัดล็อตหมดอายุก่อน</p>
+            </div>
+          </div>
+
+          <!-- Tile 3: Waste / Spoilage -->
+          <div onclick="openRecordUsageModal()" class="pos-action-tile bg-white/10 hover:bg-white/15 border border-white/15 hover:border-rose-400/60 p-3 sm:p-4 rounded-2xl cursor-pointer flex flex-col justify-between group transition active:scale-95 shadow-xs" title="บันทึกวัตถุดิบเสียหายหรือหมดอายุ">
+            <div class="flex items-center justify-between">
+              <div class="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center group-hover:scale-110 transition shadow-inner">
+                <i data-lucide="trash-2" class="w-5 h-5"></i>
+              </div>
+              <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-rose-950/80 text-rose-300 border border-rose-800/80">LINE: ทิ้ง</span>
+            </div>
+            <div class="mt-3">
+              <h3 class="text-xs sm:text-sm font-bold text-white group-hover:text-rose-300 transition flex items-center space-x-1">
+                <span>🗑️ บันทึกของเสีย</span>
+              </h3>
+              <p class="text-[11px] text-slate-300 truncate">ตัดของเสีย/หมดอายุ</p>
+            </div>
+          </div>
+
+          <!-- Tile 4: Quick Order Summary -->
+          <div onclick="openOrderModal()" class="pos-action-tile bg-white/10 hover:bg-white/15 border border-white/15 hover:border-amber-400/60 p-3 sm:p-4 rounded-2xl cursor-pointer flex flex-col justify-between group transition active:scale-95 shadow-xs" title="ดูรายการสินค้าที่ต้องสั่งซื้อด่วน">
+            <div class="flex items-center justify-between">
+              <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center group-hover:scale-110 transition shadow-inner">
+                <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+              </div>
+              <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-800/80">LINE: สั่งของ</span>
+            </div>
+            <div class="mt-3">
+              <h3 class="text-xs sm:text-sm font-bold text-white group-hover:text-amber-300 transition flex items-center space-x-1">
+                <span>🛒 สรุปสั่งของ (<span id="pos-deck-order-count" class="tabular-nums">0</span>)</span>
+              </h3>
+              <p class="text-[11px] text-slate-300 truncate">ต่ำกว่า Safety Stock</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. High-Contrast Scannable Metric Cards (POS Big Numbers) -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <!-- Card 1: Total Products -->
-        <div onclick="navigateToInventoryWithFilter('ALL')" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between cursor-pointer hover:shadow-md hover:border-blue-300 hover:-translate-y-0.5 transition active:scale-98 group" title="คลิกเพื่อดูสินค้าทั้งหมดในคลัง">
-          <div class="flex items-center space-x-3.5">
+        <div onclick="navigateToInventoryWithFilter('ALL')" class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-xs flex items-center justify-between cursor-pointer hover:shadow-md hover:border-blue-400 hover:-translate-y-0.5 transition active:scale-98 group" title="คลิกเพื่อดูสินค้าทั้งหมดในคลัง">
+          <div class="flex items-center space-x-3 sm:space-x-3.5">
             <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition shrink-0">
               <i data-lucide="package-check" class="w-5 h-5 sm:w-6 sm:h-6"></i>
             </div>
             <div>
-              <p class="text-xs text-slate-500 font-medium">สินค้าทั้งหมด</p>
-              <h3 id="stat-total-products" class="text-xl sm:text-2xl font-bold text-slate-800">-</h3>
+              <p class="text-xs text-slate-500 font-semibold">สินค้าทั้งหมด</p>
+              <h3 id="stat-total-products" class="text-xl sm:text-2xl font-black text-slate-900 tabular-nums tracking-tight">-</h3>
               <span class="text-[11px] text-slate-400">รายการในระบบ</span>
             </div>
           </div>
@@ -115,65 +226,65 @@
         </div>
 
         <!-- Card 2: Low Stock (Safety Alert) -->
-        <div onclick="navigateToInventoryWithFilter('LOW')" class="bg-white p-5 rounded-2xl border border-rose-200 shadow-sm flex items-center justify-between bg-rose-50/20 cursor-pointer hover:shadow-md hover:border-rose-400 hover:-translate-y-0.5 transition active:scale-98 group" title="คลิกเพื่อดูสินค้าที่สต็อกต่ำกว่าเกณฑ์ทั้งหมด">
-          <div class="flex items-center space-x-3.5">
-            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center group-hover:scale-110 transition shrink-0">
+        <div onclick="navigateToInventoryWithFilter('LOW')" class="bg-white p-4 sm:p-5 rounded-2xl border border-rose-300 shadow-xs flex items-center justify-between bg-rose-50/30 cursor-pointer hover:shadow-md hover:border-[#d91438] hover:-translate-y-0.5 transition active:scale-98 group" title="คลิกเพื่อดูสินค้าที่สต็อกต่ำกว่าเกณฑ์ทั้งหมด">
+          <div class="flex items-center space-x-3 sm:space-x-3.5">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-rose-100 text-[#d91438] flex items-center justify-center group-hover:scale-110 transition shrink-0">
               <i data-lucide="alert-triangle" class="w-5 h-5 sm:w-6 sm:h-6"></i>
             </div>
             <div>
-              <p class="text-xs text-rose-600 font-medium">ต่ำกว่า Safety Stock</p>
-              <h3 id="stat-low-stock" class="text-xl sm:text-2xl font-bold text-rose-600">-</h3>
-              <span class="text-[11px] text-rose-400">ต้องสั่งซื้อเพิ่มด่วน</span>
+              <p class="text-xs text-[#d91438] font-bold">ต่ำกว่า Safety Stock</p>
+              <h3 id="stat-low-stock" class="text-xl sm:text-2xl font-black text-[#d91438] tabular-nums tracking-tight">-</h3>
+              <span class="text-[11px] text-rose-500 font-medium">ต้องสั่งซื้อเพิ่มด่วน</span>
             </div>
           </div>
-          <i data-lucide="chevron-right" class="w-4 h-4 text-rose-300 group-hover:text-rose-600 group-hover:translate-x-1 transition hidden sm:block shrink-0"></i>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-rose-300 group-hover:text-[#d91438] group-hover:translate-x-1 transition hidden sm:block shrink-0"></i>
         </div>
 
         <!-- Card 3: Expiring Soon (0-7 Days) -->
-        <div onclick="navigateToInventoryWithFilter('EXPIRING')" class="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm flex items-center justify-between bg-amber-50/20 cursor-pointer hover:shadow-md hover:border-amber-400 hover:-translate-y-0.5 transition active:scale-98 group" title="คลิกเพื่อดูสินค้าที่ใกล้หมดอายุในคลัง">
-          <div class="flex items-center space-x-3.5">
-            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition shrink-0">
+        <div onclick="navigateToInventoryWithFilter('EXPIRING')" class="bg-white p-4 sm:p-5 rounded-2xl border border-amber-300 shadow-xs flex items-center justify-between bg-amber-50/30 cursor-pointer hover:shadow-md hover:border-amber-500 hover:-translate-y-0.5 transition active:scale-98 group" title="คลิกเพื่อดูสินค้าที่ใกล้หมดอายุในคลัง">
+          <div class="flex items-center space-x-3 sm:space-x-3.5">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center group-hover:scale-110 transition shrink-0">
               <i data-lucide="hourglass" class="w-5 h-5 sm:w-6 sm:h-6"></i>
             </div>
             <div>
-              <p class="text-xs text-amber-600 font-medium">หมดอายุใน 7 วัน</p>
-              <h3 id="stat-expiring-soon" class="text-xl sm:text-2xl font-bold text-amber-600">-</h3>
-              <span class="text-[11px] text-amber-400">ต้องรีบใช้ก่อนเสีย</span>
+              <p class="text-xs text-amber-700 font-bold">หมดอายุใน 7 วัน</p>
+              <h3 id="stat-expiring-soon" class="text-xl sm:text-2xl font-black text-amber-700 tabular-nums tracking-tight">-</h3>
+              <span class="text-[11px] text-amber-600 font-medium">ต้องรีบใช้ก่อนเสีย</span>
             </div>
           </div>
           <i data-lucide="chevron-right" class="w-4 h-4 text-amber-300 group-hover:text-amber-600 group-hover:translate-x-1 transition hidden sm:block shrink-0"></i>
         </div>
 
         <!-- Card 4: Expired Items -->
-        <div onclick="navigateToInventoryWithFilter('EXPIRING')" class="bg-white p-5 rounded-2xl border border-red-300 shadow-sm flex items-center justify-between bg-red-100/30 cursor-pointer hover:shadow-md hover:border-red-500 hover:-translate-y-0.5 transition active:scale-98 group" title="คลิกเพื่อดูสินค้าที่หมดอายุแล้วในคลัง">
-          <div class="flex items-center space-x-3.5">
-            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-red-100 text-red-700 flex items-center justify-center group-hover:scale-110 transition shrink-0">
+        <div onclick="navigateToInventoryWithFilter('EXPIRING')" class="bg-white p-4 sm:p-5 rounded-2xl border border-red-400 shadow-xs flex items-center justify-between bg-red-100/40 cursor-pointer hover:shadow-md hover:border-red-600 hover:-translate-y-0.5 transition active:scale-98 group" title="คลิกเพื่อดูสินค้าที่หมดอายุแล้วในคลัง">
+          <div class="flex items-center space-x-3 sm:space-x-3.5">
+            <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-red-200 text-red-800 flex items-center justify-center group-hover:scale-110 transition shrink-0">
               <i data-lucide="ban" class="w-5 h-5 sm:w-6 sm:h-6"></i>
             </div>
             <div>
-              <p class="text-xs text-red-700 font-medium">หมดอายุแล้ว</p>
-              <h3 id="stat-expired" class="text-xl sm:text-2xl font-bold text-red-700">-</h3>
-              <span class="text-[11px] text-red-500">ต้องตัดทิ้งทันที</span>
+              <p class="text-xs text-red-800 font-extrabold">หมดอายุแล้ว</p>
+              <h3 id="stat-expired" class="text-xl sm:text-2xl font-black text-red-800 tabular-nums tracking-tight">-</h3>
+              <span class="text-[11px] text-red-600 font-bold">ต้องตัดทิ้งทันที</span>
             </div>
           </div>
-          <i data-lucide="chevron-right" class="w-4 h-4 text-red-300 group-hover:text-red-700 group-hover:translate-x-1 transition hidden sm:block shrink-0"></i>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-red-400 group-hover:text-red-700 group-hover:translate-x-1 transition hidden sm:block shrink-0"></i>
         </div>
       </div>
 
-      <!-- Middle Grid: Low Stock Alert vs Expiring Soon Alert -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- 3. Urgent Alert Lists: Low Stock vs Expiring Soon -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
         <!-- Box 1: Low Stock Alert List with Sort Dropdown -->
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
             <div class="flex items-center space-x-2">
-              <span class="p-1.5 bg-rose-50 text-rose-600 rounded-lg">
+              <span class="p-1.5 bg-rose-100 text-[#d91438] rounded-xl font-bold">
                 <i data-lucide="trending-down" class="w-4 h-4"></i>
               </span>
-              <h3 class="font-bold text-slate-800 text-sm sm:text-base">สินค้าใกล้หมด (ต่ำกว่า Safety Stock)</h3>
+              <h3 class="font-bold text-slate-900 text-sm sm:text-base">สินค้าใกล้หมด (ต่ำกว่า Safety Stock)</h3>
             </div>
             <div class="flex items-center space-x-2 self-end sm:self-auto">
               <!-- View in Inventory Button -->
-              <button onclick="navigateToInventoryWithFilter('LOW')" class="inline-flex items-center space-x-1 text-[11px] font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg border border-rose-200 transition active:scale-95 shadow-2xs" title="เปิดดูรายการใกล้หมดทั้งหมดในคลังสินค้า">
+              <button onclick="navigateToInventoryWithFilter('LOW')" class="inline-flex items-center space-x-1 text-[11px] font-bold text-[#d91438] hover:text-[#b80f2d] bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-lg border border-rose-200 transition active:scale-95 shadow-2xs" title="เปิดดูรายการใกล้หมดทั้งหมดในคลังสินค้า">
                 <span>ดูในคลัง</span>
                 <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
               </button>
@@ -195,17 +306,17 @@
         </div>
 
         <!-- Box 2: Expiring Batches Alert List with Sort Dropdown -->
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
             <div class="flex items-center space-x-2">
-              <span class="p-1.5 bg-amber-50 text-amber-600 rounded-lg">
+              <span class="p-1.5 bg-amber-100 text-amber-700 rounded-xl font-bold">
                 <i data-lucide="clock" class="w-4 h-4"></i>
               </span>
-              <h3 class="font-bold text-slate-800 text-sm sm:text-base">สินค้าใกล้หมดอายุ (0-7 วัน)</h3>
+              <h3 class="font-bold text-slate-900 text-sm sm:text-base">สินค้าใกล้หมดอายุ (0-7 วัน)</h3>
             </div>
             <div class="flex items-center space-x-2 self-end sm:self-auto">
               <!-- View in Inventory Button -->
-              <button onclick="navigateToInventoryWithFilter('EXPIRING')" class="inline-flex items-center space-x-1 text-[11px] font-semibold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg border border-amber-200 transition active:scale-95 shadow-2xs" title="เปิดดูรายการใกล้หมดอายุทั้งหมดในคลังสินค้า">
+              <button onclick="navigateToInventoryWithFilter('EXPIRING')" class="inline-flex items-center space-x-1 text-[11px] font-bold text-amber-800 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-2.5 py-1 rounded-lg border border-amber-200 transition active:scale-95 shadow-2xs" title="เปิดดูรายการใกล้หมดอายุทั้งหมดในคลังสินค้า">
                 <span>ดูในคลัง</span>
                 <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
               </button>
@@ -227,70 +338,198 @@
         </div>
       </div>
 
-      <!-- LINE Flex Message Live Interactive Preview Card -->
-      <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+      <!-- 4. Dedicated LINE Group Chat & Rich Menu Command Center -->
+      <div id="line-rich-menu-center" class="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm space-y-5">
         <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-slate-100 pb-3">
-          <div>
-            <h3 class="font-bold text-slate-800 text-base flex items-center space-x-2">
-              <span class="w-6 h-6 rounded-lg bg-[#06C755]/10 text-[#06C755] flex items-center justify-center font-bold text-xs">L</span>
-              <span>ตัวอย่างหน้าตาข้อความแจ้งเตือนที่จะส่งเข้า LINE จริง (Live Flex Preview)</span>
-            </h3>
-            <p class="text-xs text-slate-500 mt-0.5">จำลองการแสดงผลจริงบนโทรศัพท์มือถือ อิงตามสต็อกปัจจุบัน</p>
+          <div class="flex items-center space-x-3">
+            <span class="w-8 h-8 rounded-xl bg-[#06C755]/15 text-[#06C755] flex items-center justify-center font-black text-sm border border-[#06C755]/30">L</span>
+            <div>
+              <h3 class="font-extrabold text-slate-900 text-base flex items-center space-x-2">
+                <span>ศูนย์สั่งการ LINE กลุ่ม & Rich Menu จำลอง</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">เชื่อมต่อกลุ่มร้าน</span>
+              </h3>
+              <p class="text-xs text-slate-500">จำลองปุ่ม Rich Menu 6 ช่องใน LINE ให้ตรงกับการทำงานบนเว็บ 100% สั่งการได้ทั้งในแชทและบนเว็บ</p>
+            </div>
           </div>
-          <button onclick="triggerSendLiveReport()" class="px-4 py-2 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-xl text-xs font-semibold flex items-center space-x-2 transition shadow-xs self-start sm:self-auto active:scale-95">
-            <i data-lucide="send" class="w-4 h-4"></i>
-            <span>ส่งทดสอบเข้า LINE ทันที</span>
-          </button>
+
+          <!-- Quick Action Buttons for LINE Group Sharing -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="copyOrderListForLineGroup()" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-[#d91438] border border-rose-200 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition active:scale-95 shadow-2xs" title="คัดลอกสรุปรายการที่ต้องสั่งซื้อด่วน เพื่อส่งลงในแชทกลุ่ม LINE ร้าน">
+              <i data-lucide="clipboard-copy" class="w-3.5 h-3.5 text-[#d91438]"></i>
+              <span>📋 ก๊อปปี้สรุปสั่งของส่งเข้ากลุ่ม</span>
+            </button>
+            <button onclick="copyExpiringListForLineGroup()" class="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition active:scale-95 shadow-2xs" title="คัดลอกรายการสินค้าที่ใกล้หมดอายุใน 7 วัน เพื่อเตือนเพื่อนร่วมกะใน LINE">
+              <i data-lucide="clipboard-list" class="w-3.5 h-3.5 text-amber-600"></i>
+              <span>📋 ก๊อปปี้ของใกล้หมดอายุส่งกลุ่ม</span>
+            </button>
+          </div>
         </div>
 
-        <div class="flex flex-col items-center justify-center p-4 bg-slate-100 rounded-2xl border border-slate-200 space-y-3">
-          <!-- Smartphone Screen Mockup -->
-          <div class="w-full max-w-sm bg-[#849EB5] rounded-3xl p-3 shadow-inner border-4 border-slate-700">
-            <!-- Chat Header -->
-            <div class="flex items-center space-x-2 text-white text-xs mb-3 px-1">
-              <i data-lucide="chevron-left" class="w-4 h-4"></i>
-              <span class="font-bold truncate">LINE Notify: Dairy Queen</span>
+        <!-- 2 Columns: Rich Menu 6-Tile Deck (Left) & Smartphone Simulator (Right) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          <!-- Left Column: Rich Menu 6-Tile Operational Deck -->
+          <div class="lg:col-span-7 space-y-4">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center space-x-1.5">
+                <i data-lucide="layout-grid" class="w-4 h-4 text-[#06C755]"></i>
+                <span>เมนู Rich Menu 6 ช่อง (กดทำบนเว็บ หรือคลิกเพื่อก๊อปปี้คำสั่ง LINE)</span>
+              </h4>
             </div>
 
-            <!-- Messages -->
-            <div class="space-y-3">
-              
-              <!-- Message Bubble 1: Text Test Message -->
-              <div class="bg-white text-slate-800 p-3 rounded-2xl rounded-tl-sm text-xs shadow-sm space-y-1">
-                <p class="font-medium text-emerald-600">✅ ทดสอบการแจ้งเตือน LINE สำเร็จ</p>
-                <p class="text-slate-600">ระบบพร้อมใช้งานสำหรับการแจ้งเตือนสต็อกสินค้าใกล้หมด</p>
-                <div class="text-[10px] text-slate-400 text-right">เมื่อสักครู่</div>
+            <!-- 6-Grid Rich Menu matching LINE Official Menu Layout -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <!-- Tile 1: Check Stock -->
+              <div onclick="executeRichMenuAction('check')" class="rich-menu-item group hover:border-[#005b94]" title="กดเพื่อค้นหาสินค้าในคลัง หรือพิมพ์ในไลน์: มี [สินค้า] มั้ย">
+                <div class="w-9 h-9 rounded-xl bg-blue-50 text-[#005b94] flex items-center justify-center group-hover:scale-110 transition shadow-inner mb-1.5">
+                  <i data-lucide="search" class="w-5 h-5"></i>
+                </div>
+                <span class="text-xs font-bold text-slate-800 group-hover:text-[#005b94]">📦 เช็คสต็อก</span>
+                <span class="text-[10px] text-slate-400 mt-0.5 font-mono">มี [สินค้า] มั้ย</span>
+                <button type="button" onclick="event.stopPropagation(); copyLineCommand('มีโคนมั้ย')" class="mt-2 text-[10px] text-slate-500 hover:text-blue-600 underline">คัดลอกคำสั่ง</button>
               </div>
 
-              <!-- Message Bubble 2: Flex Message Red Header (Matching user's photo!) -->
-              <div class="bg-white rounded-2xl rounded-tl-sm shadow-md overflow-hidden border border-rose-100">
-                <!-- Red Header -->
-                <div class="bg-[#991B1B] text-white p-3.5">
-                  <div class="flex items-center space-x-1.5">
-                    <span class="text-base">⚠️</span>
-                    <h4 class="font-bold text-sm tracking-wide">แจ้งเตือนสินค้าใกล้หมด</h4>
-                  </div>
-                  <p id="preview-flex-subtitle" class="text-[11px] text-rose-200 mt-0.5">พบ 3 รายการที่ต่ำกว่า Safety Stock</p>
+              <!-- Tile 2: Inbound Batch -->
+              <div onclick="executeRichMenuAction('inbound')" class="rich-menu-item group hover:border-emerald-500" title="กดเพื่อเปิดฟอร์มรับของ หรือพิมพ์ในไลน์: รับ [สินค้า] [จำนวน]">
+                <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition shadow-inner mb-1.5">
+                  <i data-lucide="package-plus" class="w-5 h-5"></i>
                 </div>
-
-                <!-- Items Container -->
-                <div id="preview-flex-items" class="p-3 space-y-2.5 text-xs">
-                  <!-- Dynamically populated from live data -->
-                </div>
-
-                <!-- Footer -->
-                <div class="bg-slate-50 p-2.5 border-t border-slate-100 text-center">
-                  <span class="text-blue-600 text-xs font-semibold">🛒 กรุณาสั่งซื้อวัตถุดิบเพิ่มเติม</span>
-                </div>
+                <span class="text-xs font-bold text-slate-800 group-hover:text-emerald-600">📥 รับของเข้า</span>
+                <span class="text-[10px] text-slate-400 mt-0.5 font-mono">รับ [ชื่อ] [จำนวน]</span>
+                <button type="button" onclick="event.stopPropagation(); copyLineCommand('รับ coke 10')" class="mt-2 text-[10px] text-slate-500 hover:text-emerald-600 underline">คัดลอกคำสั่ง</button>
               </div>
 
+              <!-- Tile 3: Deduct / Usage -->
+              <div onclick="executeRichMenuAction('outbound')" class="rich-menu-item group hover:border-sky-500" title="กดเพื่อเปิดฟอร์มตัดใช้ หรือพิมพ์ในไลน์: ตัด [สินค้า] [จำนวน]">
+                <div class="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center group-hover:scale-110 transition shadow-inner mb-1.5">
+                  <i data-lucide="package-minus" class="w-5 h-5"></i>
+                </div>
+                <span class="text-xs font-bold text-slate-800 group-hover:text-sky-600">📤 ตัดเบิกใช้ (FIFO)</span>
+                <span class="text-[10px] text-slate-400 mt-0.5 font-mono">ตัด [ชื่อ] [จำนวน]</span>
+                <button type="button" onclick="event.stopPropagation(); copyLineCommand('ตัด coke 2')" class="mt-2 text-[10px] text-slate-500 hover:text-sky-600 underline">คัดลอกคำสั่ง</button>
+              </div>
+
+              <!-- Tile 4: Waste -->
+              <div onclick="executeRichMenuAction('waste')" class="rich-menu-item group active-dq-red" title="กดเพื่อตัดของเสีย หรือพิมพ์ในไลน์: ทิ้ง [สินค้า] [จำนวน]">
+                <div class="w-9 h-9 rounded-xl bg-rose-50 text-[#d91438] flex items-center justify-center group-hover:scale-110 transition shadow-inner mb-1.5">
+                  <i data-lucide="trash-2" class="w-5 h-5"></i>
+                </div>
+                <span class="text-xs font-bold text-slate-800 group-hover:text-[#d91438]">🗑️ บันทึกของเสีย</span>
+                <span class="text-[10px] text-slate-400 mt-0.5 font-mono">ทิ้ง [ชื่อ] [จำนวน]</span>
+                <button type="button" onclick="event.stopPropagation(); copyLineCommand('ทิ้ง coke 1')" class="mt-2 text-[10px] text-slate-500 hover:text-rose-600 underline">คัดลอกคำสั่ง</button>
+              </div>
+
+              <!-- Tile 5: Expiring Soon -->
+              <div onclick="executeRichMenuAction('expiring')" class="rich-menu-item group hover:border-amber-500" title="กดเพื่อดูสินค้าใกล้หมดอายุ หรือพิมพ์ในไลน์: ใกล้หมดอายุ">
+                <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition shadow-inner mb-1.5">
+                  <i data-lucide="hourglass" class="w-5 h-5"></i>
+                </div>
+                <span class="text-xs font-bold text-slate-800 group-hover:text-amber-600">⏳ ใกล้หมดอายุ</span>
+                <span class="text-[10px] text-slate-400 mt-0.5 font-mono">ใกล้หมดอายุ</span>
+                <button type="button" onclick="event.stopPropagation(); copyLineCommand('ใกล้หมดอายุ')" class="mt-2 text-[10px] text-slate-500 hover:text-amber-600 underline">คัดลอกคำสั่ง</button>
+              </div>
+
+              <!-- Tile 6: Order Summary -->
+              <div onclick="executeRichMenuAction('order')" class="rich-menu-item group hover:border-[#d91438]" title="กดเพื่อเปิดสรุปสั่งของ หรือพิมพ์ในไลน์: สั่งของ">
+                <div class="w-9 h-9 rounded-xl bg-rose-50 text-[#d91438] flex items-center justify-center group-hover:scale-110 transition shadow-inner mb-1.5">
+                  <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+                </div>
+                <span class="text-xs font-bold text-slate-800 group-hover:text-[#d91438]">🛒 สรุปสั่งของ</span>
+                <span class="text-[10px] text-slate-400 mt-0.5 font-mono">สั่งของ / ของหมด</span>
+                <button type="button" onclick="event.stopPropagation(); copyLineCommand('สั่งของ')" class="mt-2 text-[10px] text-slate-500 hover:text-rose-600 underline">คัดลอกคำสั่ง</button>
+              </div>
             </div>
+
+            <!-- Quick Speech Command Reference Box -->
+            <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-slate-700 flex items-center space-x-1.5">
+                  <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-500"></i>
+                  <span>สูตรคำสั่งพูดในไลน์กลุ่ม Dairy Queen ที่พนักงานใช้บ่อย:</span>
+                </span>
+                <span class="text-[10px] text-slate-400">บอทเข้าใจภาษาพูด 100%</span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono">
+                <div class="p-2 bg-white rounded-xl border border-slate-200 flex justify-between items-center cursor-pointer hover:border-blue-400" onclick="copyLineCommand('โคน เหลือ 36')">
+                  <span class="text-slate-700">โคน เหลือ 36</span>
+                  <span class="text-[10px] text-blue-600 font-sans font-medium">ปรับยอดนับ</span>
+                </div>
+                <div class="p-2 bg-white rounded-xl border border-slate-200 flex justify-between items-center cursor-pointer hover:border-emerald-400" onclick="copyLineCommand('รับ นม 10 exp 2026-12-31')">
+                  <span class="text-slate-700">รับ นม 10 exp 2026-12-31</span>
+                  <span class="text-[10px] text-emerald-600 font-sans font-medium">รับ+วันหมดอายุ</span>
+                </div>
+                <div class="p-2 bg-white rounded-xl border border-slate-200 flex justify-between items-center cursor-pointer hover:border-rose-400" onclick="copyLineCommand('ทิ้ง coke และรับเข้าใหม่ 10')">
+                  <span class="text-slate-700">ทิ้ง coke และรับใหม่ 10</span>
+                  <span class="text-[10px] text-rose-600 font-sans font-medium">ทิ้ง+รับคำสั่งเดียว</span>
+                </div>
+                <div class="p-2 bg-white rounded-xl border border-slate-200 flex justify-between items-center cursor-pointer hover:border-indigo-400" onclick="copyLineCommand('ยกเลิก')">
+                  <span class="text-slate-700">ยกเลิก (Undo)</span>
+                  <span class="text-[10px] text-indigo-600 font-sans font-medium">กู้คืนใน 5 นาที</span>
+                </div>
+              </div>
+            </div>
+
           </div>
 
-          <p class="text-center text-[11px] text-slate-400">ดีไซน์การ์ดตรงตามรูปภาพตัวอย่างที่แนบมา</p>
+          <!-- Right Column: Interactive Smartphone Mockup with Attached Rich Menu -->
+          <div class="lg:col-span-5 flex flex-col items-center justify-center p-3 sm:p-4 bg-slate-100/80 rounded-2xl border border-slate-200">
+            <!-- Smartphone Shell -->
+            <div class="w-full max-w-[340px] bg-[#849EB5] rounded-[32px] p-3 shadow-xl border-4 border-slate-800">
+              <!-- Chat Header -->
+              <div class="flex items-center justify-between text-white text-xs mb-2.5 px-1 pb-1.5 border-b border-white/20">
+                <div class="flex items-center space-x-1.5">
+                  <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                  <span class="font-bold truncate">Dairy Queen SAT (กลุ่มร้าน)</span>
+                </div>
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              </div>
+
+              <!-- Chat Message Bubble Preview -->
+              <div class="space-y-2 mb-3">
+                <!-- Flex Card Bubble -->
+                <div class="bg-white rounded-2xl rounded-tl-sm shadow-md overflow-hidden border border-rose-100 text-xs">
+                  <div class="bg-[#d91438] text-white p-2.5 flex items-center justify-between">
+                    <div class="flex items-center space-x-1.5">
+                      <span>⚠️</span>
+                      <h5 class="font-bold text-xs tracking-wide">Dairy Queen สต็อกด่วน</h5>
+                    </div>
+                    <span class="text-[9px] bg-white/20 px-1.5 py-0.5 rounded text-white font-mono">Live</span>
+                  </div>
+                  <div id="preview-flex-items" class="p-2.5 space-y-1.5 text-[11px]">
+                    <!-- Dynamically populated from live data -->
+                  </div>
+                  <div class="bg-slate-50 p-2 border-t border-slate-100 text-center">
+                    <span class="text-[#005b94] font-bold text-[11px]">🛒 กรุณาสั่งซื้อหรือตัดใช้วัตถุดิบ</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Phone Attached Mini Rich Menu (6-buttons interactive) -->
+              <div class="bg-white/95 backdrop-blur-xs rounded-xl p-1.5 shadow-sm border border-slate-200/80">
+                <div class="text-[9px] text-center font-bold text-slate-500 mb-1">LINE Rich Menu (จำลองแผงปุ่มล่างแชท)</div>
+                <div class="grid grid-cols-3 gap-1 text-[9px] text-center font-semibold text-slate-700">
+                  <button type="button" onclick="executeRichMenuAction('check')" class="p-1.5 bg-slate-50 hover:bg-blue-50 rounded-lg border border-slate-200 transition active:scale-95">📦 เช็คสต็อก</button>
+                  <button type="button" onclick="executeRichMenuAction('inbound')" class="p-1.5 bg-slate-50 hover:bg-emerald-50 rounded-lg border border-slate-200 transition active:scale-95">📥 รับของ</button>
+                  <button type="button" onclick="executeRichMenuAction('outbound')" class="p-1.5 bg-slate-50 hover:bg-sky-50 rounded-lg border border-slate-200 transition active:scale-95">📤 ตัดใช้</button>
+                  <button type="button" onclick="executeRichMenuAction('waste')" class="p-1.5 bg-slate-50 hover:bg-rose-50 rounded-lg border border-slate-200 transition active:scale-95">🗑️ ของเสีย</button>
+                  <button type="button" onclick="executeRichMenuAction('expiring')" class="p-1.5 bg-slate-50 hover:bg-amber-50 rounded-lg border border-slate-200 transition active:scale-95">⏳ ใกล้หมด</button>
+                  <button type="button" onclick="executeRichMenuAction('order')" class="p-1.5 bg-slate-50 hover:bg-rose-50 rounded-lg border border-slate-200 transition active:scale-95">🛒 สั่งของ</button>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Test send button below mockup -->
+            <button onclick="triggerSendLiveReport()" class="mt-3 px-4 py-1.5 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-xl text-xs font-bold flex items-center space-x-1.5 transition shadow-xs active:scale-95">
+              <i data-lucide="send" class="w-3.5 h-3.5"></i>
+              <span>ส่งทดสอบเข้า LINE ทันที</span>
+            </button>
+          </div>
+
         </div>
 
       </div>
+
     </div>
 
     <!-- ============================================================== -->
@@ -2249,8 +2488,32 @@
     </div>
   </dialog>
 
+  <!-- Mobile POS Fixed Bottom Navigation Bar (Thumb-First Touch) -->
+  <nav class="md:hidden mobile-pos-bar flex justify-around items-center px-1">
+    <button type="button" onclick="switchTab('dashboard')" id="mobile-nav-dashboard" class="mobile-pos-nav-item active flex-1">
+      <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+      <span class="mt-0.5">ภาพรวม</span>
+    </button>
+    <button type="button" onclick="switchTab('inventory')" id="mobile-nav-inventory" class="mobile-pos-nav-item flex-1">
+      <i data-lucide="package" class="w-5 h-5"></i>
+      <span class="mt-0.5">คลังสินค้า</span>
+    </button>
+    <button type="button" onclick="scrollToRichMenu()" id="mobile-nav-line" class="mobile-pos-nav-item flex-1">
+      <i data-lucide="message-square" class="w-5 h-5 text-[#06C755]"></i>
+      <span class="mt-0.5 text-[#06C755] font-bold">LINE Rich</span>
+    </button>
+    <button type="button" onclick="switchTab('usage')" id="mobile-nav-usage" class="mobile-pos-nav-item flex-1">
+      <i data-lucide="clipboard-list" class="w-5 h-5"></i>
+      <span class="mt-0.5">ประวัติ</span>
+    </button>
+    <button type="button" onclick="handleMobileAdminToggle()" id="mobile-nav-admin" class="mobile-pos-nav-item flex-1">
+      <i data-lucide="shield" class="w-5 h-5 text-amber-600"></i>
+      <span class="mt-0.5">Admin</span>
+    </button>
+  </nav>
+
   <!-- Toast Notification (Click to dismiss immediately) -->
-  <div id="toast" onclick="hideToast()" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 pointer-events-none transition-all duration-300 bg-slate-900 text-white text-xs px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-2.5 border border-slate-700 cursor-pointer select-none">
+  <div id="toast" onclick="hideToast()" class="fixed bottom-20 md:bottom-5 right-5 z-50 transform translate-y-20 opacity-0 pointer-events-none transition-all duration-300 bg-slate-900 text-white text-xs px-4 py-3 rounded-2xl shadow-2xl flex items-center space-x-2.5 border border-slate-700 cursor-pointer select-none">
     <i id="toast-icon" data-lucide="check-circle" class="w-4 h-4 text-emerald-400 shrink-0"></i>
     <span id="toast-message" class="font-medium pr-1">บันทึกสำเร็จ</span>
     <button type="button" onclick="event.stopPropagation(); hideToast();" class="text-slate-400 hover:text-white p-0.5 ml-1">
@@ -2258,7 +2521,7 @@
     </button>
   </div>
 
-  <script src="/js/app.js?v=20260921_bulk_action"></script>
+  <script src="/js/app.js?v=20261027_pos_richmenu"></script>
 </body>
 </html>
 
